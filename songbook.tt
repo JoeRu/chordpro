@@ -1,0 +1,18 @@
+
+% http://songs.sourceforge.net/songsdoc/songs.html
+\documentclass[A5]{article}
+\usepackage{graphicx}
+\usepackage[bookmarks]{hyperref}
+\usepackage[chorded]{songs}
+
+% \includeonlysongs{2}
+
+\pagestyle{empty}
+%\songcolumns{1}
+\songcolumns{0} %disable column management of Song package
+\baselineadj=-3pt plus 1pt minus 0pt % distance reduce
+
+\begin{document}
+[%  FOREACH line IN songs %][% line %]
+[%  END %]
+\end{document}

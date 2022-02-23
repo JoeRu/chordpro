@@ -1,0 +1,6 @@
+
+\beginsong{[% title %][%  FOREACH st IN subtitle %] \\ [% st %][%  END %]}
+[%  FOREACH line IN lines %]
+[% line %]
+[%  END %]
+\endsong
