@@ -1,3 +1,4 @@
+\begin{songgroup} % new page for each song - maybe not the most elegant solution
 \beginsong{[% title %][%  FOREACH st IN subtitle %] \\ [% st %][%  END %]}
 [
   by={[% meta.composer.0 %]},
@@ -5,10 +6,9 @@
   cr={[% meta.copyright.0 %]},
   index={[% songlines.0 %]}] 
 [% IF meta.capo.0 %]\capo{[% meta.capo.0 %]}[% END %]
-\begin{tcolorbox}[colback=white,colframe=black,% black frame colour
-                  width=\textwidth-2cm,% Use 5cm total width,
-                  arc=3mm, auto outer arc]
-[%  FOREACH chord IN chords %]\gtab{[% chord.chord %]}{[% chord.frets %]}[%  END %]\end{tcolorbox}
+\begin{tcolorbox}[colback=white,colframe=black,width=\textwidth,arc=3mm, auto outer arc]
+[%  FOREACH chord IN chords %]\gtab{[% chord.chord %]}{[% chord.frets %]}[% elements = loop.count % 5 %][% IF ((elements == 0) and (not loop.last)) %]\newline[% END %][% END %]\end{tcolorbox}
 
 [% songlines %]
 \endsong
+\end{songgroup}
