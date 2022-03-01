@@ -16,7 +16,8 @@
 	"extensions": [
 		"mortenhenriksen.perl-debug",
 		"d9705996.perl-toolbox",
-		"sfodje.perltidy"
+		"sfodje.perltidy",
+		"richterger.perl"
 	],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
