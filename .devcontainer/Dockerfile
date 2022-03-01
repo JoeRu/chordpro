@@ -29,6 +29,7 @@ RUN cpanm install PDF::API2
 RUN cpanm install String::Interpolate::Named
 RUN cpanm install Text::Layout
 RUN cpanm install Template
+RUN cpanm install LaTeX::Encode
 
 #VS Code
 RUN cpanm install Perl::LanguageServer 

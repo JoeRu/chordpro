@@ -13,7 +13,7 @@ use App::Music::ChordPro::Output::Common;
 use Text::Layout::Markdown;
 
 # debug
-#use Data::Dumper qw(Dumper);
+use Data::Dumper qw(Dumper);
 
 my $single_space = 0;		# suppress chords line when empty
 my $lyrics_only = 0;		# suppress all chords lines
@@ -38,7 +38,6 @@ sub generate_songbook {
    # push(@book, "[TOC]"); # maybe https://metacpan.org/release/IMAGO/Markdown-TOC-0.01 to create a TOC?
 
     foreach my $song ( @{$sb->{songs}} ) {
-		$act_song = $song;
 		if ( @book ) {
 			push(@book, "") if $options->{'backend-option'}->{tidy};
 		}
@@ -99,8 +98,8 @@ sub line_songline {
     unless ( $elt->{chords} ) { # i guess we have a line with no chords now... 
 	   return ( md_textline(join( " ", @phrases )) );
     }
-
-    if ( my $f = $::config->{settings}->{'inline-chords'} ) {
+ 	
+	if ( my $f = $::config->{settings}->{'inline-chords'} ) {
 	$f = '[%s]' unless $f =~ /^[^%]*\%s[^%]*$/;
 	$f .= '%s';
 	foreach ( 0..$#{$elt->{chords}} ) {
@@ -111,9 +110,9 @@ sub line_songline {
 	return ( md_textline($t_line) );
     }
 
-	my $c_line = "";
+    my $c_line = "";
     foreach ( 0..$#{$elt->{chords}} ) {
-	$c_line .= chord( $song, $elt->{chords}->[$_] ) . " ";
+	$c_line .= chord( $elt->{chords}->[$_] ) . " ";
 	$t_line .= $phrases[$_];
 	my $d = length($c_line) - length($t_line);
 	$t_line .= "-" x $d if $d > 0;
@@ -133,7 +132,7 @@ sub line_songline {
 	}
 	return $chords_under
 		? ( $t_line, $c_line )
-		: ( $c_line, $t_line )
+		: ( $c_line, $t_line );
 }
 $line_routines{line_songline} = \&line_songline;
 
@@ -150,7 +149,7 @@ $line_routines{line_empty} = \&line_empty;
 sub line_comment {
     my ( $elt ) = @_; # Template for comment?
 	my @s;
-	push(@s, "") if $tidy;
+	# push(@s, "") if $tidy;
 	my $text = $elt->{text};
 	if ( $elt->{chords} ) {
 		$text = "";
@@ -164,7 +163,7 @@ sub line_comment {
 			$text = "*" . $text . "*  ";
 		}
 	push(@s, "> $text  ");
-	push(@s, "") if $tidy;
+	# push(@s, "") if $tidy;
 	
     return @s;
 }
@@ -192,8 +191,9 @@ $line_routines{line_colb} = \&line_colb;
 sub line_chorus {
     my ( $lineobject ) = @_; #
 	my @s;
-	push(@s, "") if $tidy;
+	# push(@s, "") if $tidy;
     push(@s, "**chorus**");
+	push(@s, "");
 	push(@s, elt_handler($lineobject->{body}));
 	push(@s, "\x{00A0}  ");
    return @s;
@@ -204,11 +204,11 @@ sub line_verse {
 	my ( $lineobject ) = @_; #
 	my @s;
 
-	push(@s, "") if $tidy;
-	push(@s, "**Verse**  ");
+	# push(@s, "") if $tidy;
 	push(@s, elt_handler($lineobject->{body}));
-	push(@s, "") if $tidy;
-    push(@s, "\x{00A0}  ");
+	push(@s, "");	
+	# push(@s, "") if $tidy;
+    # push(@s, "\x{00A0}  ");
 	return @s;
 }
 $line_routines{line_verse} = \&line_verse;
@@ -246,11 +246,11 @@ $line_routines{line_tabline} = \&line_tabline;
 sub line_tab {
     my ( $lineobject ) = @_;
 	my @s;
-	push(@s, "") if $tidy;
+	# push(@s, "") if $tidy;
 	push(@s, "**Tabulatur**  "); #@todo
-	
+	push(@s, "");	
 	push(@s, map { "\t".$_ } elt_handler($lineobject->{body}) ); #maybe this need to go for code markup as well´?
-	push(@s, "") if $tidy;
+	# push(@s, "") if $tidy;
     return @s;
 }
 $line_routines{line_tab} = \&line_tab;
@@ -258,10 +258,11 @@ $line_routines{line_tab} = \&line_tab;
 sub line_grid { #@todo
     my ( $lineobject ) = @_;
 	my @s;
-	push(@s, "") if $tidy;
+	# push(@s, "") if $tidy;
 	push(@s, "**Grid**  ");
+	push(@s, "");
 	push(@s, elt_handler($lineobject->{body}));
-	push(@s, "") if $tidy;
+	# push(@s, "") if $tidy;
     push(@s, "\x{00A0}  ");
 
     return @s;
@@ -283,8 +284,20 @@ sub elt_handler {
     my $cref; #command reference to subroutine
 #    while ( @{ $elts } ) { # for each line
 #    my $elt = shift(@{ $elts }); # remove from array / reference / why?
+my $init_context = 1;
+my $ctx = "";
+
     my @lines;
     foreach my $elt (@{ $elts }) {
+
+		if ($ctx = $elt->{context} ){ # same context
+			$init_context = 0;
+		} else {
+			$init_context = 1;
+		}
+		# if ( $elt->{context} ne $ctx ) {
+	    # 	push(@lines, "\n**$ctx**\n") if $ctx;
+		# }
     # Gang of Four-Style - sort of command pattern 
     my $sub_type = "line_".$elt->{type}; # build command "line_<linetype>"
   #  if (exists &{$sub_type}) { #check if sub is implemented / maybe hash is -would be- faster...
@@ -302,14 +315,18 @@ sub elt_handler {
 
 sub generate_song {
     my ( $s ) = @_;
+	$act_song = $s;
     $tidy      = $options->{'backend-option'}->{tidy};
     $single_space = $options->{'single-space'};
     upd_config();
     
     # $single_spvace = $::options->{'single-space'};
-    $s->structurize
-      if ( $options->{'backend-option'}->{structure} // '' ) eq 'structured';
+    $s->structurize;
+    #    if ( $options->{'backend-option'}->{structure} // '' ) eq 'structured';
 
+   open my $FH, '>', 'test.dump2.txt';
+    print $FH Dumper $s->{body};
+    close $FH;
     my @s;
 
     push(@s, "# " . $s->{title}) if defined $s->{title};
@@ -317,7 +334,7 @@ sub generate_song {
 	push(@s, map { +"## $_" } @{$s->{subtitle}});
     }
 
-    push(@s, "") if $tidy;
+    # push(@s, "") if $tidy;
 	if ( $lyrics_only eq 0 ){
 		my $all_chords = "";
 		# https://chordgenerator.net/D.png?p=xx0212&s=2 # reuse of other projects (https://github.com/einaregilsson/ChordImageGenerator)?
@@ -329,6 +346,7 @@ sub generate_song {
 			
 		}
 		push(@s, $all_chords);
+		push(@s, "");
   	}  
 
 	push(@s, elt_handler($s->{body}));
