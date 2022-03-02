@@ -1530,6 +1530,7 @@ sub default_config() {
 		  "gchordend_tag"  : "]", // for Guitar this would be "}"
 		  "chorded_line" : "\\chordson ", // Songs-package require this to know when to switch 
 		  "unchorded_line" : "\\chordsoff ", // chordlines off - it will be printed ahead of a song line
+		  "start_spaces_songline" : "\\hspace{0,5cm}", // if a songline starts with spaces it will be replaced by start_spaces_songline
       },
     // Settings for ChordPro backend.
     "chordpro" : {

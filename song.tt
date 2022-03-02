@@ -6,8 +6,8 @@
   cr={[% meta.copyright.0 %]},
   index={[% songlines.0 %]}] 
 [% IF meta.capo.0 %]\capo{[% meta.capo.0 %]}[% END %]
-\begin{tcolorbox}[colback=white,colframe=black,width=\textwidth,arc=3mm, auto outer arc]
-[%  FOREACH chord IN chords %]\gtab{[% chord.chord %]}{[% chord.frets %]}[% elements = loop.count % 5 %][% IF ((elements == 0) and (not loop.last)) %]\newline[% END %][% END %]\end{tcolorbox}
+[% IF chords.0 %]\begin{tcolorbox}[colback=white,colframe=black,width=\textwidth,arc=3mm, auto outer arc]
+[%  FOREACH chord IN chords %]\gtab{[% chord.chord %]}{[% chord.frets %]}[% elements = loop.count % 5 %][% IF ((elements == 0) and (not loop.last)) %]\newline[% END %][% END %]\end{tcolorbox}[% END %]
 
 [% songlines %]
 \endsong

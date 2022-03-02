@@ -31,7 +31,7 @@
             "execArgs": [],
             "root": "${workspaceRoot}", 
             "inc": ["${workspaceFolder}/lib/", "/workspaces/chordpro/lib/"],
-            "args": ["${workspaceFolder}/test_1.cho", "--output=${workspaceFolder}/test.md"],
+            "args": ["--no-default-configs","${workspaceFolder}/t/md/30_cho_1.cho", "--output=${workspaceFolder}/test.md"],
             "env": {},
             "debugRaw": false,
             "debugLog": false,

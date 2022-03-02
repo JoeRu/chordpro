@@ -24,7 +24,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	//"postCreateCommand": "git clone https://github.com/ChordPro/chordpro.git /workspaces/chordpro_dev",
+	"postCreateCommand": "echo 'export PERL5LIB=/workspaces/chordpro/lib' >> ~/.zshrc && echo 'export PERL5LIB=/workspaces/chordpro/lib' >> ~/.bashrc",
 	
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode",

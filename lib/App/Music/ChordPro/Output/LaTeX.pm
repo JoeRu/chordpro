@@ -92,6 +92,17 @@ sub line_songline {
         $index += 1; 
         $chord = "";
     }
+
+	my $empty = $line;
+    my $textline = $line;
+    my $nbsp = $gcfg->{start_spaces_songline}; #unicode for nbsp sign # start_spaces_songline
+    if($empty =~ /^\s+/){ # starts with spaces
+	    $empty =~ s/^(\s+).*$/$1/; # not the elegant solution - but working - replace all spaces in the beginning of a line
+        my $replaces = $empty;  #with a nbsp symbol as the intend tend to be intentional
+        $replaces =~ s/\s+/$nbsp/g;
+        $textline =~ s/$empty/$replaces/;
+    }
+    $line = $textline;
     if ($has_chord) { $line = $gcfg->{chorded_line} . $line; } else { $line = $gcfg->{unchorded_line} . $line; }
     return $line."\n";
 }
@@ -277,10 +288,17 @@ sub my_latex_encode{
 sub generate_song {
     my ( $s ) = @_;
 
-    my $tidy      = $::options->{tidy};
+    # my $tidy      = $::options->{tidy};
   #  $single_spvace = $::options->{'single-space'};
   #  $lyrics_only  = $::config->{settings}->{'lyrics-only'};
+
+  # asume songline a verse when no context is applied. # check https://github.com/ChordPro/chordpro/pull/211
+	foreach my $item ( @{ $s->{body} } ) {
+	if ( $item->{type} eq "songline" &&  $item->{context} eq '' ){
+		$item->{context} = 'verse';
+	}} # end of pull -- 
     $s->structurize; # removes empty lines 
+
     # open my $FH, '>', 'dump.txt';
     # print $FH Dumper $s;
     # close $FH;

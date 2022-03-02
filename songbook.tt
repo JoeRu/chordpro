@@ -53,7 +53,7 @@
 \begin{songs}{titleidx,authidx,scripidx}
 [%  FOREACH song IN songs %][% song %]
 [%  END %]
-end{songs}
+\end{songs}
 
 \pagenumbering{Alph}
 \showindex{Index of Authors and Composers}{authidx}
