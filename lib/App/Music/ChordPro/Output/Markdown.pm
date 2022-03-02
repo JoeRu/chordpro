@@ -12,19 +12,14 @@ use warnings;
 use App::Music::ChordPro::Output::Common;
 use Text::Layout::Markdown;
 
-# debug
-use Data::Dumper qw(Dumper);
-
 my $single_space = 0;		# suppress chords line when empty
 my $lyrics_only = 0;		# suppress all chords lines
 my $chords_under = 0;		# chords under lyrics
-# my $layout = Text::Layout::Markdown->new; # markup render in songline isnt working
-my $text_layout = Text::Layout::Text->new; 
+my $text_layout = Text::Layout::Markdown->new;; # Text::Layout::Text->new; 
 my %line_routines = ();
 my $tidy;
-my $rechorus;
+my $rechorus; # not implemented @todo
 my $act_song;
-
 
 sub upd_config {
     $lyrics_only  = $config->{settings}->{'lyrics-only'};
@@ -42,17 +37,65 @@ sub generate_songbook {
 			push(@book, "") if $options->{'backend-option'}->{tidy};
 		}
 		push(@book, @{generate_song($song)});
-		push(@book, "---\n"); #Horizontal line between each song
+		push(@book, "---  \n"); #Horizontal line between each song
 	}
 
     push( @book, "");
-    \@book;
+
+	# remove all double empty lines
+	my @new;
+	my $count = 0;
+	foreach (@book){
+		if ($_ =~ /.{1,}/ ){
+			push(@new, $_);
+			$count = 0
+		} else {
+			push(@new, $_) if $count == 0;
+			$count++;
+		}
+	}
+    \@new;
 }
 
-# some not implemented feature is requested. will be removed.
+sub generate_song {
+    my ( $s ) = @_;
+	$act_song = $s;
+    $tidy      = $options->{'backend-option'}->{tidy};
+    $single_space = $options->{'single-space'};
+
+    upd_config();
+	# asume songline a verse when no context is applied. # check https://github.com/ChordPro/chordpro/pull/211
+	foreach my $item ( @{ $s->{body} } ) {
+	if ( $item->{type} eq "songline" &&  $item->{context} eq '' ){
+		$item->{context} = 'verse';
+	}} # end of pull -- 
+
+    $s->structurize;
+    my @s;
+    push(@s, "# " . $s->{title}) if defined $s->{title};
+    if ( defined $s->{subtitle} ) {
+	push(@s, map { +"## $_" } @{$s->{subtitle}});
+    }
+
+	if ( $lyrics_only eq 0 ){
+		my $all_chords = "";
+		# https://chordgenerator.net/D.png?p=xx0212&s=2 # reuse of other projects (https://github.com/einaregilsson/ChordImageGenerator)?
+		# generate png-out of this project? // fingers also possible - but not set in basics.
+		foreach my $mchord (@{$s->{chords}->{chords}}){
+			# replace -1 with 'x' - alternative '-'
+			my $frets = join("", map { if($_ eq '-1'){ $_ = 'x'; } +"$_"} @{$s->{chordsinfo}->{$mchord}->{frets}});
+			$all_chords .= "![$mchord](https://chordgenerator.net/$mchord.png?p=$frets&s=2) ";
+			
+		}
+		push(@s, $all_chords);
+		push(@s, "");
+  	}  
+	push(@s, elt_handler($s->{body}));
+    return \@s;
+}
+
 sub line_default {
     my ( $lineobject, $ref_lineobjects ) = @_;
-   #return "not implemented ".$lineobject->{type}."\n";
     return "";
 }
 $line_routines{line_default} = \&line_default;
@@ -137,7 +180,7 @@ sub line_songline {
 $line_routines{line_songline} = \&line_songline;
 
 sub line_newpage {
-    return "---";
+    return "---  \n";
 }
 $line_routines{line_newpage} = \&line_newpage;
 
@@ -149,7 +192,6 @@ $line_routines{line_empty} = \&line_empty;
 sub line_comment {
     my ( $elt ) = @_; # Template for comment?
 	my @s;
-	# push(@s, "") if $tidy;
 	my $text = $elt->{text};
 	if ( $elt->{chords} ) {
 		$text = "";
@@ -158,13 +200,10 @@ sub line_comment {
 		      if $elt->{chords}->[$_] ne "";
 		    $text .= $elt->{phrases}->[$_];
 	}}
-
 	if ($elt->{type} =~ /italic$/) {
 			$text = "*" . $text . "*  ";
 		}
-	push(@s, "> $text  ");
-	# push(@s, "") if $tidy;
-	
+	push(@s, "> $text  ");	
     return @s;
 }
 $line_routines{line_comment} = \&line_comment;
@@ -187,15 +226,14 @@ sub line_colb {
 }
 $line_routines{line_colb} = \&line_colb;
 
-
 sub line_chorus {
     my ( $lineobject ) = @_; #
 	my @s;
-	# push(@s, "") if $tidy;
-    push(@s, "**chorus**");
+    push(@s, "**Chorus**");
 	push(@s, "");
 	push(@s, elt_handler($lineobject->{body}));
-	push(@s, "\x{00A0}  ");
+	# push(@s, "\x{00A0}  "); # nbsp
+	push(@s, "---  ");
    return @s;
 }
 $line_routines{line_chorus} = \&line_chorus;
@@ -203,19 +241,15 @@ $line_routines{line_chorus} = \&line_chorus;
 sub line_verse {
 	my ( $lineobject ) = @_; #
 	my @s;
-
-	# push(@s, "") if $tidy;
 	push(@s, elt_handler($lineobject->{body}));
 	push(@s, "");	
-	# push(@s, "") if $tidy;
-    # push(@s, "\x{00A0}  ");
+    # push(@s, "\x{00A0}  "); # nbsp
 	return @s;
 }
 $line_routines{line_verse} = \&line_verse;
 
 sub line_set { # potential comments in fe. Chorus or verse or .... complicated handling - potential contextsensitiv.
     my ( $elt ) = @_;
-		
 	if ( $elt->{name} eq "lyrics-only" ) {
 	$lyrics_only = $elt->{value}
 		unless $lyrics_only > 1;
@@ -232,8 +266,7 @@ sub line_set { # potential comments in fe. Chorus or verse or .... complicated h
 	$config->augment($cc);
 	upd_config();
 	}
-	
-    return '';
+    return "";
 }
 $line_routines{line_set} = \&line_set;
 
@@ -246,25 +279,21 @@ $line_routines{line_tabline} = \&line_tabline;
 sub line_tab {
     my ( $lineobject ) = @_;
 	my @s;
-	# push(@s, "") if $tidy;
 	push(@s, "**Tabulatur**  "); #@todo
 	push(@s, "");	
 	push(@s, map { "\t".$_ } elt_handler($lineobject->{body}) ); #maybe this need to go for code markup as well´?
-	# push(@s, "") if $tidy;
     return @s;
 }
 $line_routines{line_tab} = \&line_tab;
 
-sub line_grid { #@todo
+sub line_grid { 
     my ( $lineobject ) = @_;
 	my @s;
-	# push(@s, "") if $tidy;
 	push(@s, "**Grid**  ");
 	push(@s, "");
 	push(@s, elt_handler($lineobject->{body}));
-	# push(@s, "") if $tidy;
-    push(@s, "\x{00A0}  ");
-
+    # push(@s, "\x{00A0}  ");
+	push(@s, "");
     return @s;
 }
 $line_routines{line_grid} = \&line_grid;
@@ -282,106 +311,57 @@ $line_routines{line_gridline} = \&line_gridline;
 sub elt_handler {
     my ( $elts ) = @_; # reference to array
     my $cref; #command reference to subroutine
-#    while ( @{ $elts } ) { # for each line
-#    my $elt = shift(@{ $elts }); # remove from array / reference / why?
-my $init_context = 1;
-my $ctx = "";
+	my $init_context = 1;
+	my $ctx = "";
 
     my @lines;
+	my $last_type='';
     foreach my $elt (@{ $elts }) {
-
-		if ($ctx = $elt->{context} ){ # same context
-			$init_context = 0;
-		} else {
-			$init_context = 1;
+		if (($elt->{type} eq 'verse') && ($last_type =~ /comment/)){ 
+			push(@lines, "");
 		}
-		# if ( $elt->{context} ne $ctx ) {
-	    # 	push(@lines, "\n**$ctx**\n") if $ctx;
-		# }
     # Gang of Four-Style - sort of command pattern 
     my $sub_type = "line_".$elt->{type}; # build command "line_<linetype>"
-  #  if (exists &{$sub_type}) { #check if sub is implemented / maybe hash is -would be- faster...
      if (defined $line_routines{$sub_type}) {
         $cref = $line_routines{$sub_type}; #\&$sub_type; # due to use strict - we need to get an reference to the command 
         push(@lines, &$cref($elt)); # call line with actual line-object
     }
     else {
         push(@lines, line_default($elt)); # default = empty line
-        
     }
+  $last_type = $elt->{type};
   }
   return @lines;
 }
 
-sub generate_song {
-    my ( $s ) = @_;
-	$act_song = $s;
-    $tidy      = $options->{'backend-option'}->{tidy};
-    $single_space = $options->{'single-space'};
-    upd_config();
-    
-    # $single_spvace = $::options->{'single-space'};
-    $s->structurize;
-    #    if ( $options->{'backend-option'}->{structure} // '' ) eq 'structured';
+#################
 
-   open my $FH, '>', 'test.dump2.txt';
-    print $FH Dumper $s->{body};
-    close $FH;
-    my @s;
+# package Text::Layout::Text;
 
-    push(@s, "# " . $s->{title}) if defined $s->{title};
-    if ( defined $s->{subtitle} ) {
-	push(@s, map { +"## $_" } @{$s->{subtitle}});
-    }
+# use parent 'Text::Layout';
 
-    # push(@s, "") if $tidy;
-	if ( $lyrics_only eq 0 ){
-		my $all_chords = "";
-		# https://chordgenerator.net/D.png?p=xx0212&s=2 # reuse of other projects (https://github.com/einaregilsson/ChordImageGenerator)?
-		# generate png-out of this project? // fingers also possible - but not set in basics.
-		foreach my $mchord (@{$s->{chords}->{chords}}){
-			# replace -1 with 'x' - alternative '-'
-			my $frets = join("", map { if($_ eq '-1'){ $_ = 'x'; } +"$_"} @{$s->{chordsinfo}->{$mchord}->{frets}});
-			$all_chords .= "![$mchord](https://chordgenerator.net/$mchord.png?p=$frets&s=2) ";
-			
-		}
-		push(@s, $all_chords);
-		push(@s, "");
-  	}  
+# # Eliminate warning when HTML backend is loaded together with Text backend.
+# no warnings 'redefine';
 
-	push(@s, elt_handler($s->{body}));
-   
-    return \@s;
-}
+# sub new {
+#     my ( $pkg, @data ) = @_;
+#     my $self = $pkg->SUPER::new;
+#     $self;
+# }
 
-
-package Text::Layout::Text;
-
-use parent 'Text::Layout';
-
-# Eliminate warning when HTML backend is loaded together with Text backend.
-no warnings 'redefine';
-
-sub new {
-    my ( $pkg, @data ) = @_;
-    my $self = $pkg->SUPER::new;
-    $self;
-}
-
-sub render {
-    my ( $self ) = @_;
-    my $res = "";
-    foreach my $fragment ( @{ $self->{_content} } ) {
-	next unless length($fragment->{text});
-	$res .= $fragment->{text};
-    }
-    $res;
-}
+# sub render {
+#     my ( $self ) = @_;
+#     my $res = "";
+#     foreach my $fragment ( @{ $self->{_content} } ) {
+# 	next unless length($fragment->{text});
+# 	$res .= $fragment->{text};
+#     }
+#     $res;
+# }
 
 
 1;
-
-
+# @todo 
 # sub line_rechorus {
 #     my ( $lineobject ) = @_;
 	    # if ( $rechorus->{quote} ) {

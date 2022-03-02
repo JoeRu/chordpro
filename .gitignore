@@ -26,3 +26,5 @@ pd_*.json
 files*.lst
 res/pod
 .vscode/perl-lang
+*.sxd
+test*
