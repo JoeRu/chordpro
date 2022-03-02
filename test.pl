@@ -6,7 +6,7 @@ use lib "/workspaces/chordpro/lib/App/Music/ChordPro/";
 use lib "/workspaces/chordpro/lib/App/Music/ChordPro/Output/";
 use App::Music::ChordPro::Testing;
 
-my @argv = ( "--no-default-configs", "/workspaces/chordpro/test_1.cho","--output=/workspaces/chordpro/test.md" );
+#my @argv = ( "--no-default-configs", "/workspaces/chordpro/t/basic01.cho","--output=/workspaces/chordpro/test.md" );
 
 
 ::run();
