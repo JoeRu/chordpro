@@ -1510,7 +1510,7 @@ sub default_config() {
       },
     },
 	"LaTeX" : { // please be aware that LaTeX Song Package require Verse
-          "template_include_path" : [".", "/workspaces/chordpro"],
+          "template_include_path" : ["."],
           "template_songbook" : "songbook.tt",
           "template_comment" : "comment.tt",
           "template_song" : "song.tt",
@@ -1522,10 +1522,10 @@ sub default_config() {
           "endchorus_tag" : "\\endchorus",
           "beginverse_tag" : "\\beginverse",
           "endverse_tag" : "\\endverse",
-		   "begingrid_tag" : "\\begin{verbatim}",
-          "endgrid_tag" : "\\end{verbatim}",
-		   "begintab_tag" : "\\begin{verbatim}",
-          "endtab_tag" : "\\end{verbatim}",
+		   "begingrid_tag" : "\\begin{singlespace*}\n\\begin{verbatim}",
+          "endgrid_tag" : "\\end{verbatim}}\n\\end{singlespace*}",
+		   "begintab_tag" : "\\begin{singlespace*}\n\\begin{verbatim}",
+          "endtab_tag" : "\\end{verbatim}\n\\end{singlespace*}",
 		  "gchordstart_tag" : "\\[", // for Guitar this would be fe. "\\guitarChord{"
 		  "gchordend_tag"  : "]", // for Guitar this would be "}"
 		  "chorded_line" : "\\chordson ", // Songs-package require this to know when to switch 
