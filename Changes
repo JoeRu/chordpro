@@ -5,6 +5,8 @@
     - Add settings.truesf to obtain unicode sharps/flats in chord names.
     - (Wx)(MacOS) Improve prefences dialog.
     - Several ABC fixes/improvements.
+    - Experimental support for SVG images.
+    - (PDF) Add support for background document.
     - !BugFixes
     - Fix issue #208.
     - (Wx) Fix sharps/flats mixup in PreferencesDialog.

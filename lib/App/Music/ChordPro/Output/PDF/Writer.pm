@@ -370,6 +370,7 @@ sub newpage {
     $self->{pdfpage} = $self->{pdf}->page($page||0);
     $self->{pdfpage}->mediabox( $ps->{papersize}->[0],
 				$ps->{papersize}->[1] );
+
     $self->{pdfgfx}  = $self->{pdfpage}->gfx;
     $self->{pdftext} = $self->{pdfpage}->text;
     unless ($ps->{theme}->{background} =~ /^white|none|#ffffff$/i ) {
@@ -388,6 +389,17 @@ sub newpage {
 sub openpage {
     my ( $self, $ps, $page ) = @_;
     $self->{pdfpage} = $self->{pdf}->openpage($page);
+    $self->{pdfgfx}  = $self->{pdfpage}->gfx;
+    $self->{pdftext} = $self->{pdfpage}->text;
+}
+
+sub importpage {
+    my ( $self, $fn, $pg ) = @_;
+    my $bg = $self->{pdfapi}->open($fn);
+    return unless $bg;		# should have been checked
+    $pg = $bg->pages if $pg > $bg->pages;
+    $self->{pdf}->import_page( $bg, $pg, $self->{pdfpage} );
+    # Make sure the contents get on top of it.
     $self->{pdfgfx}  = $self->{pdfpage}->gfx;
     $self->{pdftext} = $self->{pdfpage}->text;
 }

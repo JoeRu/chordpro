@@ -1,0 +1,92 @@
+{
+   "abstract" : "A lyrics and chords formatting program",
+   "author" : [
+      "Johan Vromans <jvromans@squirrel.nl>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "ExtUtils::MakeMaker version 7.62, CPAN::Meta::Converter version 2.150010",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "App-Music-ChordPro",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc",
+         "lib/App/Music/ChordPro/Output",
+         "lib/App/Music/ChordPro/Wx"
+      ],
+      "file" : [
+         "lib/App/Music/ChordPro/Songbook.pm",
+         "lib/App/Music/ChordPro/Chords.pm",
+         "lib/App/Music/ChordPro/Version.pm",
+         "lib/App/Music/ChordPro/Wx.pm"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "6.5503"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "App::Packager" : "1.43",
+            "File::HomeDir" : "1.004",
+            "File::LoadLines" : "1.02",
+            "Image::Info" : "1.41",
+            "JSON::PP" : "2.27203",
+            "LaTeX::Encode" : "v0.92.0",
+            "List::Util" : "1.33",
+            "PDF::API2" : "2.036",
+            "Storable" : "3.08",
+            "String::Interpolate::Named" : "1.01",
+            "Template" : "3.01",
+            "Text::Layout" : "0.028003",
+            "perl" : "5.010"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "JSON::PP" : "2.27203",
+            "Storable" : "3.08",
+            "String::Interpolate::Named" : "1.01",
+            "Test::More" : "0"
+         }
+      }
+   },
+   "provides" : {
+      "App::Music::ChordPro" : {
+         "file" : "lib/App/Music/ChordPro.pm",
+         "version" : "5.987_009"
+      },
+      "chordpro" : {
+         "file" : "script/chordpro",
+         "version" : "5.987_009"
+      }
+   },
+   "release_status" : "unstable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/sciurius/chordpro/issues"
+      },
+      "homepage" : "http://www.chordpro.org",
+      "license" : [
+         "http://dev.perl.org/licenses/"
+      ],
+      "repository" : {
+         "url" : "https://github.com/sciurius/chordpro"
+      }
+   },
+   "version" : "5.987_009",
+   "x_serialization_backend" : "JSON::PP version 4.06"
+}

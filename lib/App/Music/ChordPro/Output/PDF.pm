@@ -15,6 +15,7 @@ use App::Packager;
 use File::Temp ();
 use Storable qw(dclone);
 use List::Util qw(any);
+use feature 'state';
 
 use App::Music::ChordPro::Output::Common
   qw( roman prep_outlines fmt_subst demarkup );
@@ -558,13 +559,34 @@ sub generate_song {
 	$s->{meta}->{page} = [ $s->{page} = $opts->{roman}
 			       ? roman($thispage) : $thispage ];
 
-	# Determine page class.
+	# Determine page class and background.
 	my $class = 2;		# default
+	my $bgpdf = $ps->{formats}->{default}->{background};
 	if ( $thispage == 1 ) {
 	    $class = 0;		# very first page
+	    $bgpdf = $ps->{formats}->{first}->{background}
+	      || $ps->{formats}->{title}->{background}
+	      || $bgpdf;
 	}
 	elsif ( $thispage == $startpage ) {
 	    $class = 1;		# first of a song
+	    $bgpdf = $ps->{formats}->{title}->{background}
+	      || $bgpdf;
+	}
+	if ( $bgpdf ) {
+	    my ( $fn, $pg ) = ( $bgpdf, 1 );
+	    if ( $bgpdf =~ /^(.+):(\d+)$/ ) {
+		( $bgpdf, $pg ) = ( $1, $2 );
+	    }
+	    $fn = ::rsc_or_file($bgpdf);
+	    if ( -s -r $fn ) {
+		$pg++ if $ps->{"even-odd-pages"} && !$rightpage;
+		$pr->importpage( $fn, $pg );
+	    }
+	    else {
+		warn( "PDF: Missing or empty background document: ",
+		      $bgpdf, "\n" );
+	    }
 	}
 
 	$x = $ps->{__leftmargin};
@@ -737,7 +759,7 @@ sub generate_song {
     $newpage->();
 
     # Embed source and config for debugging;
-    $pr->embed($source->{file}) if $options->{debug};
+    $pr->embed($source->{file}) if $source->{file} && $options->{debug};
 
     my @elts = @{$sb};
     my $elt;			# current element
@@ -1003,7 +1025,16 @@ sub generate_song {
 		eval "require $pkg" || die($@);
 		my $hd = $pkg->can($elt->{handler}) //
 		  die("PDF: Missing delegate handler ${pkg}::$elt->{handler}\n");
-		my $res = $hd->( $s, $pr, $elt );
+		my $pw;			# available width
+		if ( $ps->{columns} > 1 ) {
+		    $pw = $ps->{columnoffsets}->[1]
+		      - $ps->{columnoffsets}->[0]
+		      - $ps->{columnspace};
+		}
+		else {
+		    $pw = $ps->{__rightmargin} - $ps->{_leftmargin};
+		}
+		my $res = $hd->( $s, $pw, $elt );
 		next unless $res; # assume errors have been given
 		unshift( @elts, @$res );
 		next;
@@ -1033,6 +1064,63 @@ sub generate_song {
 				} );
 		redo;
 	    }
+
+	    $y -= $vsp;
+	    $pr->show_vpos( $y, 1 ) if $config->{debug}->{spacing};
+
+	    next;
+	}
+
+	if ( $elt->{type} eq "svg" ) {
+	    # We turn SVG into one (or more) XForm objects.
+
+	    require App::Music::ChordPro::Output::PDF::SVG;
+	    my $p = App::Music::ChordPro::Output::PDF::SVG->new
+	      ( $ps, debug => $config->{debug}->{images} > 1 );
+	    my $o = $p->process_file( $elt->{uri} );
+	    warn("PDF: SVG objects: ", 0+@$o, "\n")
+	      if $config->{debug}->{images} || !@$o;
+	    if ( ! @$o ) {
+		warn("Error in SVG embedding\n");
+		next;
+	    }
+
+	    my @res;
+	    for my $xo ( @$o ) {
+		state $imgcnt = 0;
+		my $assetid = sprintf("XFOasset%03d", $imgcnt++);
+		$assets->{$assetid} = { type => "xform", data => $xo };
+
+		push( @res,
+		      { type => "xform",
+			width => $xo->{width},
+			height => $xo->{height},
+			id  => $assetid,
+			opts => { center => $elt->{opts}->{center},
+				  scale => $elt->{opts}->{scale} || 1 } },
+		    );
+		warn("Created asset $assetid (xform, ",
+		     $xo->{width}, "x", $xo->{height}, ")",
+		     " scale=", $elt->{opts}->{scale} || 1,
+		     " center=", $elt->{opts}->{center}//0,
+		     "\n")
+		  if $config->{debug}->{images};
+	    }
+
+	    unshift( @elts, @res );
+	    next;
+	}
+
+	if ( $elt->{type} eq "xform" ) {
+	    my $h = $elt->{height};
+	    my $w = $elt->{width};
+	    my $scale = $elt->{opts}->{scale};
+	    my $vsp = $h * $scale;
+	    $checkspace->($vsp);
+	    $ps->{pr}->show_vpos( $y, 1 ) if $config->{debug}->{spacing};
+
+	    my $xo = $assets->{ $elt->{id} };
+	    $pr->{pdfgfx}->object( $xo->{data}->{xo}, $x, $y-$vsp, $scale );
 
 	    $y -= $vsp;
 	    $pr->show_vpos( $y, 1 ) if $config->{debug}->{spacing};
