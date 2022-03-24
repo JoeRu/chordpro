@@ -10,12 +10,14 @@ package App::Music::ChordPro::Output::Markdown;
 use strict;
 use warnings;
 use App::Music::ChordPro::Output::Common;
+use App::Music::ChordPro::Delegate::ABC;
+use App::Music::ChordPro::Delegate::Lilypond;
 use Text::Layout::Markdown;
 
 my $single_space = 0;		# suppress chords line when empty
 my $lyrics_only = 0;		# suppress all chords lines
 my $chords_under = 0;		# chords under lyrics
-my $text_layout = Text::Layout::Markdown->new; # Text::Layout::Text->new; 
+my $text_layout = Text::Layout::Markdown->new;; # Text::Layout::Text->new; 
 my %line_routines = ();
 my $tidy;
 my $rechorus; # not implemented @todo
@@ -38,7 +40,7 @@ sub generate_songbook {
 			push(@book, "") if $options->{'backend-option'}->{tidy};
 		}
 		push(@book, @{generate_song($song)});
-		push(@book, "---------------  \n"); #Horizontal line between each song
+		push(@book, "---------  \n"); #Horizontal line between each song
 	}
 
     push( @book, "");
@@ -182,7 +184,7 @@ sub line_songline {
 $line_routines{line_songline} = \&line_songline;
 
 sub line_newpage {
-    return "---------------  \n";
+    return "-------  \n";
 }
 $line_routines{line_newpage} = \&line_newpage;
 
@@ -223,6 +225,34 @@ sub line_image {
 }
 $line_routines{line_image} = \&line_image;
 
+sub line_svg {
+    my ( $elt ) = @_;
+	return "![](".$elt->{uri}.")";
+}
+$line_routines{line_svg} = \&line_svg;
+
+sub line_abc {
+    my ( $lineobject ) = @_;
+# #	return "![](".$elt->{uri}.")";
+	my $pw = 510;
+		my $res;
+	foreach my $elt (@{ $lineobject->{body} }) {
+		$res = App::Music::ChordPro::Delegate::ABC::abc2image($act_song, $pw, $elt);
+    }
+}
+$line_routines{line_abc} = \&line_abc;
+
+sub line_ly {# lilypond
+    my ( $lineobject ) = @_;
+#	return "![](".$elt->{uri}.")";
+	my $pw = 510;
+	my $res;
+	foreach my $elt (@{ $lineobject->{body} }) {
+		$res = App::Music::ChordPro::Delegate::Lilypond::ly2image($act_song, $pw, $elt);
+    }
+}
+$line_routines{line_ly} = \&line_ly;
+
 sub line_colb {
     return "\n\n\n";
 }
@@ -248,7 +278,7 @@ sub line_chorus {
 	push(@s, "");
 	push(@s, elt_handler($lineobject->{body}));
 	# push(@s, "\x{00A0}  "); # nbsp
-	push(@s, "---------------  \n");
+	push(@s, "--------  ");
    return @s;
 }
 $line_routines{line_chorus} = \&line_chorus;
@@ -349,153 +379,6 @@ sub elt_handler {
   }
   return @lines;
 }
-$line_routines{line_comment_italic} = \&line_comment_italic;
-
-
-sub line_image {
-    my ( $elt ) = @_;
-	return "![](".$elt->{uri}.")";
-}
-$line_routines{line_image} = \&line_image;
-
-sub line_colb {
-    return "\n\n\n";
-}
-$line_routines{line_colb} = \&line_colb;
-
-sub line_chorus {
-    my ( $lineobject ) = @_; #
-	my @s;
-    push(@s, "**Chorus**");
-	push(@s, "");
-	push(@s, elt_handler($lineobject->{body}));
-	# push(@s, "\x{00A0}  "); # nbsp
-	push(@s, "---  ");
-   return @s;
-}
-$line_routines{line_chorus} = \&line_chorus;
-
-sub line_verse {
-	my ( $lineobject ) = @_; #
-	my @s;
-	push(@s, elt_handler($lineobject->{body}));
-	push(@s, "");	
-    # push(@s, "\x{00A0}  "); # nbsp
-	return @s;
-}
-$line_routines{line_verse} = \&line_verse;
-
-sub line_set { # potential comments in fe. Chorus or verse or .... complicated handling - potential contextsensitiv.
-    my ( $elt ) = @_;
-	if ( $elt->{name} eq "lyrics-only" ) {
-	$lyrics_only = $elt->{value}
-		unless $lyrics_only > 1;
-	}
-	# Arbitrary config values.
-	elsif ( $elt->{name} =~ /^(text\..+)/ ) {
-	my @k = split( /[.]/, $1 );
-	my $cc = {};
-	my $c = \$cc;
-	foreach ( @k ) {
-		$c = \($$c->{$_});
-	}
-	$$c = $elt->{value};
-	$config->augment($cc);
-	upd_config();
-	}
-    return "";
-}
-$line_routines{line_set} = \&line_set;
-
-sub line_tabline {
-    my ( $lineobject ) = @_;
-	return  "\t".$lineobject->{text};
-}
-$line_routines{line_tabline} = \&line_tabline;
-
-sub line_tab {
-    my ( $lineobject ) = @_;
-	my @s;
-	push(@s, "**Tabulatur**  "); #@todo
-	push(@s, "");	
-	push(@s, map { "\t".$_ } elt_handler($lineobject->{body}) ); #maybe this need to go for code markup as well´?
-    return @s;
-}
-$line_routines{line_tab} = \&line_tab;
-
-sub line_grid { 
-    my ( $lineobject ) = @_;
-	my @s;
-	push(@s, "**Grid**  ");
-	push(@s, "");
-	push(@s, elt_handler($lineobject->{body}));
-    # push(@s, "\x{00A0}  ");
-	push(@s, "");
-    return @s;
-}
-$line_routines{line_grid} = \&line_grid;
-
-sub line_gridline {
-    my ( $elt ) = @_;
-	my @a = @{ $elt->{tokens} };
-	@a = map { $_->{class} eq 'chord'
-			 ? $_->{chord}
-			 : $_->{symbol} } @a;
-    return "\t".join("", @a);
-}
-$line_routines{line_gridline} = \&line_gridline;
-
-sub elt_handler {
-    my ( $elts ) = @_; # reference to array
-    my $cref; #command reference to subroutine
-	my $init_context = 1;
-	my $ctx = "";
-
-    my @lines;
-	my $last_type='';
-    foreach my $elt (@{ $elts }) {
-		if (($elt->{type} eq 'verse') && ($last_type =~ /comment/)){ 
-			push(@lines, "");
-		}
-    # Gang of Four-Style - sort of command pattern 
-    my $sub_type = "line_".$elt->{type}; # build command "line_<linetype>"
-     if (defined $line_routines{$sub_type}) {
-        $cref = $line_routines{$sub_type}; #\&$sub_type; # due to use strict - we need to get an reference to the command 
-        push(@lines, &$cref($elt)); # call line with actual line-object
-    }
-    else {
-        push(@lines, line_default($elt)); # default = empty line
-    }
-  $last_type = $elt->{type};
-  }
-  return @lines;
-}
-
-#################
-
-# package Text::Layout::Text;
-
-# use parent 'Text::Layout';
-
-# # Eliminate warning when HTML backend is loaded together with Text backend.
-# no warnings 'redefine';
-
-# sub new {
-#     my ( $pkg, @data ) = @_;
-#     my $self = $pkg->SUPER::new;
-#     $self;
-# }
-
-# sub render {
-#     my ( $self ) = @_;
-#     my $res = "";
-#     foreach my $fragment ( @{ $self->{_content} } ) {
-# 	next unless length($fragment->{text});
-# 	$res .= $fragment->{text};
-#     }
-#     $res;
-# }
-
 
 #################
 

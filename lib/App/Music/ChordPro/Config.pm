@@ -1522,7 +1522,7 @@ sub default_config() {
           "songsonly" : true,
       },
     },
-	"LaTeX" : { // please be aware that LaTeX Song Package require Verse
+	"LaTeX" : { 
           "template_include_path" : ["."],
           "template_songbook" : "songbook.tt",
           "template_comment" : "comment.tt",
@@ -1535,6 +1535,8 @@ sub default_config() {
           "endchorus_tag" : "\\endchorus",
           "beginverse_tag" : "\\beginverse",
           "endverse_tag" : "\\endverse",
+          "beginabc_tag" : "\\begin{abc}",
+          "endabc_tag" : "\\end{abc}",		  
           "beginlilypond_tag" : "\\begin{lilypond}",
           "endlilypond_tag" : "\\end{lilypond}",
 		   "begingrid_tag" : "\\begin{singlespace*}\n\\begin{verbatim}",

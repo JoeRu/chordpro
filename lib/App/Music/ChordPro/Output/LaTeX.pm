@@ -18,9 +18,6 @@ use App::Music::ChordPro::Output::Common;
 use Template;
 use LaTeX::Encode;
 
-# debug
-#use Data::Dumper qw(Dumper);
-
 my $single_space = 0;		# suppress chords line when empty
 my $lyrics_only = 0;		# suppress all chords lines
 my %gtemplatatevar = ();
@@ -31,11 +28,9 @@ my $gcfg;
 sub generate_songbook {
     my ( $self, $sb ) = @_;
     my @songs;
-
     $gcfg = $::config->{LaTeX};
-
     $gtemplate = Template->new({
-        INCLUDE_PATH => $gcfg->{template_include_path},
+        INCLUDE_PATH => [@{$gcfg->{template_include_path}}, ::rsc_or_file("res/templates/")],
         INTERPOLATE  => 1,
     }) || die "$Template::ERROR\n";
 
@@ -56,26 +51,23 @@ sub generate_songbook {
 # some not implemented feature is requested. will be removed.
 sub line_default {
     my ( $lineobject, $ref_lineobjects ) = @_;
-   #return "not implemented ".$lineobject->{type}."\n";
     return "";
 }
 $line_routines{line_default} = \&line_default;
 
-# 'chords' => [
-#             '',
-#             'D',
-#             'G',
-#             'D'
-#             ],
-# 'type' => 'songline',
-# 'line' => 8,
-# 'phrases' => [
-#             'Swing ',
-#             'low, sweet ',
-#             'chari',
-#             'ot,'
-#             ],
-# 'context' => 'chorus'
+sub get_firstphrase{
+   my ( $elts ) = @_; # reference to array
+   my $line = "";
+   foreach my $elt (@{ $elts }) {
+       if($elt->{type} eq 'songline'){
+          foreach my $phrase (@{$elt->{phrases}}){
+                $line .=  $phrase;
+            }
+        return my_latex_encode($line);
+       }
+   }
+}
+
 sub line_songline {
     my ( $lineobject ) = @_;
     my $index = 0;
@@ -142,18 +134,6 @@ sub line_comment_italic {
 }
 $line_routines{line_comment_italic} = \&line_comment_italic;
 
-# \begin{figure}
-#   \includegraphics[width=\linewidth]{boat.jpg}
-#   \caption{A boat.}
-#   \label{fig:boat1}
-# \end{figure}
-# {
-#     'opts' => {},
-#     'line' => 46,
-#     'context' => 'verse',
-#     'uri' => 'test._22_Die_Ballade_vom_Pfeifer.png',
-#     'type' => 'image'
-# },
 sub line_image {
     my ( $lineobject ) = @_;
     my $image = '';
@@ -168,11 +148,6 @@ sub line_colb {
 }
 $line_routines{line_colb} = \&line_colb;
 
-# 'type' => 'set',
-#     'context' => 'chorus',
-#     'line' => 16,
-#     'name' => 'label',
-#     'value' => 'Refrain'
 sub line_chorus {
     my ( $lineobject ) = @_; #
    return $gcfg->{beginchorus_tag} ."\n". 
@@ -217,18 +192,6 @@ sub line_grid {
 }
 $line_routines{line_grid} = \&line_grid;
 
-sub line_ly { # LaTeX has native Lilypond support - just put the content to Tex file
-    my ( $lineobject ) = @_;
-    $myreturn = $gcfg->{beginlilypond_tag}."\n";
-    foreach my $elt (@{ $lineobject->{body} }) {
-        foreach my $lpond_data (@{$elt->data}){
-            $myreturn .= $lpond_data."\n";
-        }
-    }
-    $myreturn .= $gcfg->{endlilypond_tag} ."\n";
-}
-$line_routines{line_ly} = \&line_ly;
-
 sub line_gridline {
     my ( $lineobject ) = @_;
     my $line = '';
@@ -239,15 +202,12 @@ sub line_gridline {
         $line .= "\t\t";
     }
     foreach my $token (@{ $lineobject->{tokens} }){
-#        $line .= elt_handler($token);
         if ($token->{class} eq 'chord'){
             $line .= $token->{chord};
         }
         else {
            $line .= $token->{symbol};
         }
-         #space, symbol, bar, repeat, repeat2
-         # chord
     }
     if(defined $lineobject->{comment}){
         $line .= $lineobject->{comment}->{text};
@@ -256,11 +216,36 @@ sub line_gridline {
 }
 $line_routines{line_gridline} = \&line_gridline;
 
+sub line_ly { # LaTeX has native Lilypond support - just put the content to Tex file
+    my ( $lineobject ) = @_;
+    my $myreturn = $gcfg->{beginlilypond_tag}."\n";
+    foreach my $elt (@{ $lineobject->{body} }) {
+        foreach my $lpond_data (@{$elt->{data}}){
+            $myreturn .= $lpond_data."\n";
+        }
+    }
+    $myreturn .= $gcfg->{endlilypond_tag} ."\n";
+    return $myreturn;
+}
+$line_routines{line_ly} = \&line_ly;
+
+sub line_abc { # LaTeX has native Lilypond support - just put the content to Tex file
+    my ( $lineobject ) = @_;
+    my $myreturn = $gcfg->{beginabc_tag}."\n";
+    foreach my $elt (@{ $lineobject->{body} }) {
+        foreach my $abc_data (@{$elt->{data}}){
+            $myreturn .= $abc_data."\n";
+        }
+    }
+    $myreturn .= $gcfg->{endabc_tag} ."\n";
+    return $myreturn;
+}
+$line_routines{line_abc} = \&line_abc;
+
 sub elt_handler {
     my ( $elts ) = @_; # reference to array
     my $cref; #command reference to subroutine
-#    while ( @{ $elts } ) { # for each line
-#    my $elt = shift(@{ $elts }); # remove from array / reference / why?
+
     my $lines = "";
     foreach my $elt (@{ $elts }) {
     # Gang of Four-Style - sort of command pattern 
@@ -299,32 +284,29 @@ sub my_latex_encode{
 
 sub generate_song {
     my ( $s ) = @_;
+    %gtemplatatevar = ();
 
-    # my $tidy      = $::options->{tidy};
-  #  $single_spvace = $::options->{'single-space'};
-  #  $lyrics_only  = $::config->{settings}->{'lyrics-only'};
-
+    if ( defined $s->{meta} ) {
+		$gtemplatatevar{meta} = my_latex_encode($s->{meta});
+    }
+    $gtemplatatevar{meta}->{index} = get_firstphrase($s->{body}); # needs unstructured data - .. redesign?
+    
   # asume songline a verse when no context is applied. # check https://github.com/ChordPro/chordpro/pull/211
+  # Songbook needs to have a verse otherwise the chords-makro is not in the right context
 	foreach my $item ( @{ $s->{body} } ) {
 	if ( $item->{type} eq "songline" &&  $item->{context} eq '' ){
 		$item->{context} = 'verse';
 	}} # end of pull -- 
     $s->structurize; # removes empty lines 
 
-    # open my $FH, '>', 'dump.txt';
-    # print $FH Dumper $s;
-    # close $FH;
-    %gtemplatatevar = ();
+
     for ( $s->{title} // "Untitled" ) {
-		$gtemplatatevar{title} = latex_encode($s->{title});
+		$gtemplatatevar{title} = my_latex_encode($s->{title});
     }
     if ( defined $s->{subtitle} ) {
-		$gtemplatatevar{subtitle} = latex_encode($s->{subtitle});
+		$gtemplatatevar{subtitle} = my_latex_encode($s->{subtitle});
     }
 
-    if ( defined $s->{meta} ) {
-		$gtemplatatevar{meta} = my_latex_encode($s->{meta});
-    }
 
     if ( defined $s->{chords}->{chords} ) {
        my @chords;
@@ -346,16 +328,12 @@ sub generate_song {
     my $song = '';
     $gtemplate->process($gcfg->{template_song}, \%gtemplatatevar, \$song) || die $gtemplate->error();
     
-    # open  $FH, '>', 'dump2.txt';
-    # print $FH Dumper %gtemplatatevar;
-    # close $FH;
-
     return $song;
 }
 
 1;
 
-
+#not implemented line-types
 # sub line_rechorus {
 #     my ( $lineobject ) = @_;
 # }

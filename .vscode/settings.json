@@ -1,9 +1,9 @@
 {
-    "perl-toolbox.syntax.includePaths": ["${workspaceFolder}/lib/", "/workspaces/chordpro/lib/"],
+    "perl-toolbox.syntax.includePaths": ["/workspace/lib/"],
 
     "perl": {
         "enable": true,
         "logLevel": 0,
-        "perlInc": ["/workspaces/chordpro/lib/", "${workspaceFolder}/lib/"]
+        "perlInc": ["/workspace/lib/"]
     }
 }
