@@ -217,6 +217,18 @@ sub line_grid {
 }
 $line_routines{line_grid} = \&line_grid;
 
+sub line_ly { # LaTeX has native Lilypond support - just put the content to Tex file
+    my ( $lineobject ) = @_;
+    $myreturn = $gcfg->{beginlilypond_tag}."\n";
+    foreach my $elt (@{ $lineobject->{body} }) {
+        foreach my $lpond_data (@{$elt->data}){
+            $myreturn .= $lpond_data."\n";
+        }
+    }
+    $myreturn .= $gcfg->{endlilypond_tag} ."\n";
+}
+$line_routines{line_ly} = \&line_ly;
+
 sub line_gridline {
     my ( $lineobject ) = @_;
     my $line = '';

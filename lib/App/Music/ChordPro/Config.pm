@@ -1535,6 +1535,8 @@ sub default_config() {
           "endchorus_tag" : "\\endchorus",
           "beginverse_tag" : "\\beginverse",
           "endverse_tag" : "\\endverse",
+          "beginlilypond_tag" : "\\begin{lilypond}",
+          "endlilypond_tag" : "\\end{lilypond}",
 		   "begingrid_tag" : "\\begin{singlespace*}\n\\begin{verbatim}",
           "endgrid_tag" : "\\end{verbatim}}\n\\end{singlespace*}",
 		   "begintab_tag" : "\\begin{singlespace*}\n\\begin{verbatim}",

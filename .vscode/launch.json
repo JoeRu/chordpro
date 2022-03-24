@@ -14,7 +14,7 @@
             "execArgs": [],
             "root": "${workspaceRoot}", 
             "inc": ["${workspaceFolder}/lib/", "/workspaces/chordpro/lib/"],
-            "args": ["${workspaceFolder}/test_1.cho", "--output=${workspaceFolder}/test.md"],
+            "args": ["${workspaceFolder}/test_lilypond.cho", "--output=${workspaceFolder}/test.tex"],
             "env": {},
             "debugRaw": false,
             "debugLog": false,
@@ -26,12 +26,12 @@
             "request": "launch",
             "name": "Perl-Debug md debug test",
             "console": "integratedTerminal",
-            "program": "${workspaceFolder}/test.pl", // "script/chordpro.pl",test.pl
+            "program": "${workspaceFolder}/xtest.pl", // "script/chordpro.pl",test.pl
             "exec": "perl",
             "execArgs": [],
             "root": "${workspaceRoot}", 
             "inc": ["${workspaceFolder}/lib/", "/workspaces/chordpro/lib/"],
-            "args": ["--no-default-configs","${workspaceFolder}/t/md/30_cho_1.cho", "--output=${workspaceFolder}/test.md"],
+            "args": ["--no-default-configs","${workspaceFolder}/test_lilypond.cho", "--output=${workspaceFolder}/test.tex"],
             "env": {},
             "debugRaw": false,
             "debugLog": false,
