@@ -17,6 +17,7 @@ use warnings;
 use App::Music::ChordPro::Output::Common;
 use Template;
 use LaTeX::Encode;
+use String::Similarity;
 
 our $CHORDPRO_LIBRARY;
 
@@ -78,17 +79,44 @@ sub line_default {
 }
 $line_routines{line_default} = \&line_default;
 
-sub get_firstphrase{
-   my ( $elts ) = @_; # reference to array
+sub get_firstline{
+   my ( $s ) = @_;
+   my ( $elts ) = $s->{body}; # reference to array
    my $line = "";
    foreach my $elt (@{ $elts }) {
        if($elt->{type} eq 'songline'){
           foreach my $phrase (@{$elt->{phrases}}){
                 $line .=  $phrase;
             }
-        return my_latex_encode($line);
+        last;
        }
    }
+   return $line;
+}
+
+
+sub get_firstphrase{
+   my ( $s ) = @_;
+   my ( $elts ) = $s->{body}; # reference to array
+   my $line = "";
+   my $title = $s->{title};
+   foreach my $elt (@{ $elts }) {
+       if($elt->{type} eq 'songline'){
+          foreach my $phrase (@{$elt->{phrases}}){
+                $line .=  $phrase;
+            }
+        # return my_latex_encode($line);
+        $line =~ s/[\/:]//g;
+        $line =~ s/[,. !'´?]*$//;
+        last;
+       }
+   }
+   my $return_val = ''; 
+   my $similarity = similarity $title, $line;
+   $return_val = $line if ($similarity < 0.42) ;
+  # print "Simalirity of '$title' and '$line' is $similarity ";
+  #print $return_val;
+   return latex_encode($return_val);
 }
 
 sub line_songline {
@@ -282,12 +310,41 @@ sub my_latex_encode{
 sub generate_song {
     my ( $s ) = @_;
     my %gtemplatatevar = ();
-
+# source file
     if ( defined $s->{meta} ) {
 		$gtemplatatevar{meta} = my_latex_encode($s->{meta});
     }
-    $gtemplatatevar{meta}->{index} = get_firstphrase($s->{body}); # needs unstructured data - .. redesign?
+    $gtemplatatevar{meta}->{index} = get_firstphrase($s); # needs unstructured data - .. redesign?
     
+    if ( defined $s->{source} ) {
+		$gtemplatatevar{source} = $s->{source};
+        my $song_info = $s->{source}->{file};
+        $song_info =~ s/\.(cho|pro)/\.md/;
+
+        if (-e $song_info){
+            $gtemplatatevar{song_info} = $song_info;
+        }
+        my $song_picture = $s->{source}->{file};
+        $song_picture =~ s/\.(cho|pro)/\.png/;
+        if (-e $song_picture){
+            $gtemplatatevar{picture} = $song_picture;
+        }
+        $song_picture = $s->{source}->{file}; # qr code to song is existing
+        $song_picture =~ s/\.(cho|pro)/\_qr\.png/;
+        if (-e $song_picture){
+            $gtemplatatevar{picture_qr} = $song_picture;
+        }
+        else{
+           
+            print 'wp post create --post_author=4 --post_title="'.$s->{title}.'" --post_category="Krimskrams" --post_status=publish --tags_input="Liederbuch" --post_content="Komponist: '. ( $s->{meta}->{composer}[0] // ' ') .'<br> Lyrik: '. ( $s->{meta}->{lyricist}[0] // ' ') .' <p> '.(get_firstline($s)).'"'."\n";
+        }
+        $song_picture = $s->{source}->{file}; # intermidiate play to song exists
+        $song_picture =~ s/\.(cho|pro)/\_zw\.png/;
+        if (-e $song_picture){
+            $gtemplatatevar{picture_zw} = $song_picture;
+        }
+    }
+
   # asume songline a verse when no context is applied. # check https://github.com/ChordPro/chordpro/pull/211
   # Songbook needs to have a verse otherwise the chords-makro is not in the right context
 	foreach my $item ( @{ $s->{body} } ) {

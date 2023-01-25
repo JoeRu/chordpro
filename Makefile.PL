@@ -51,8 +51,18 @@ WriteMakefile
 		    'List::Util'		  => 1.33,
 		    'Storable'			  => 3.08,
 		   # These are only used by the LaTeX backend
-		   # 'Template'			  => 3.010,
-		   # 'LaTeX::Encode'		  => 0.092.0,
+		    'Template'			  => 3.010,
+		    'LaTeX::Encode'		  => 0.092.0,
+			'String::Interpolate::Named'  => 1.01,
+		    'File::LoadLines'		  => 1.02,
+		    'File::HomeDir'		  => 1.004,,
+		    'Image::Info'		  => 1.41,
+		    'List::Util'		  => 1.33,
+		    'Storable'			  => 3.08,
+			'Template'			  => 3.010,
+			'File::Slurp'         => 9999.32,
+			'String::Similarity' => 1.04,
+           
 		   },
 
  CONFIGURE_REQUIRES => {

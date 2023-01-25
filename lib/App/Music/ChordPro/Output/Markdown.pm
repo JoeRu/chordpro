@@ -11,6 +11,9 @@ use strict;
 use warnings;
 use App::Music::ChordPro::Output::Common;
 use Text::Layout::Markdown;
+use File::Basename;
+use File::Slurp;
+use Data::Dumper;
 
 my $single_space = 0;		# suppress chords line when empty
 my $lyrics_only = 0;		# suppress all chords lines
@@ -38,7 +41,7 @@ sub generate_songbook {
 			push(@book, "") if $options->{'backend-option'}->{tidy};
 		}
 		push(@book, @{generate_song($song)});
-		push(@book, "---------------  \n"); #Horizontal line between each song
+		push(@book, "<div style=\"page-break-after: always\" /> \n"); #Horizontal line between each song
 	}
 
     push( @book, "");
@@ -79,20 +82,60 @@ sub generate_song {
 	push(@s, map { +"## $_" } @{$s->{subtitle}});
     }
 
+    if ( defined $s->{meta} ) {
+		my $metam = "";
+		if (defined $s->{meta}->{composer}[0]){
+		$metam = "t: *". $s->{meta}->{composer}[0]."*";
+		}
+		if ((defined $s->{meta}->{lyricist}[0]) && (defined $s->{meta}->{composer}[0])){
+		$metam .= ", "; 
+		}
+		if (defined $s->{meta}->{lyricist}[0]){
+		$metam .= "m: *". $s->{meta}->{lyricist}[0]."*\n" ;
+		}
+		push(@s, $metam);
+	#	print $metam;
+	#	print Dumper($s->{meta});
+    }
+
 	if ( $lyrics_only eq 0 ){
 		my $all_chords = "";
 		# https://chordgenerator.net/D.png?p=xx0212&s=2 # reuse of other projects (https://github.com/einaregilsson/ChordImageGenerator)?
 		# generate png-out of this project? // fingers also possible - but not set in basics.
 		foreach my $mchord (@{$s->{chords}->{chords}}){
 			# replace -1 with 'x' - alternative '-'
-			my $frets = join("", map { if($_ eq '-1'){ $_ = 'x'; } +"$_"} @{$s->{chordsinfo}->{$mchord}->{frets}});
-			$all_chords .= "![$mchord](https://chordgenerator.net/$mchord.png?p=$frets&s=2) ";
+#			my $frets = join("", map { if($_ eq '-1'){ $_ = 'x'; } +"$_"} @{$s->{chordsinfo}->{$mchord}->{frets}});
+#			$all_chords .= "![$mchord](https://chordgenerator.net/$mchord.png?p=$frets) "; # &s=2 size
+			my $mc = $mchord;
+			$mc =~ s/[#]/is/;
+			$mc =~ s/\//\_/;
+
+			$all_chords .= "![$mchord](Akkorde_klein/$mc.png) "; 
 			
 		}
 		push(@s, $all_chords);
 		push(@s, "");
   	}  
 	push(@s, elt_handler($s->{body}));
+
+    if ( defined $s->{source} ) {
+        my $song_info = $s->{source}->{file};
+        $song_info =~ s/\.(cho|pro)/\.md/;
+
+        if (-e $song_info){
+			push(@s, "");
+			push(@s, read_file($song_info, { binmode => ':utf8' }));
+			push(@s, "");
+        }
+        my $song_picture = $s->{source}->{file};
+        $song_picture =~ s/\.(cho|pro)/\.png/;
+        if (-e $song_picture){
+  			push(@s, "");
+			my($filename, $dirs, $suffix) = fileparse($song_picture); # remove path
+			push(@s, "![]($filename)");
+			push(@s, "");			  
+        }
+	}
     return \@s;
 }
 
@@ -182,7 +225,7 @@ sub line_songline {
 $line_routines{line_songline} = \&line_songline;
 
 sub line_newpage {
-    return "---------------  \n";
+    return "<div style=\"page-break-after: always\" />  \n";
 }
 $line_routines{line_newpage} = \&line_newpage;
 
@@ -248,7 +291,7 @@ sub line_chorus {
 	push(@s, "");
 	push(@s, elt_handler($lineobject->{body}));
 	# push(@s, "\x{00A0}  "); # nbsp
-	push(@s, "---------------  \n");
+	push(@s, "\n \n \n");
    return @s;
 }
 $line_routines{line_chorus} = \&line_chorus;
