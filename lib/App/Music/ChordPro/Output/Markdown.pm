@@ -14,6 +14,7 @@ use Text::Layout::Markdown;
 use File::Basename;
 use File::Slurp;
 use Data::Dumper;
+use File::Basename;
 
 my $single_space = 0;		# suppress chords line when empty
 my $lyrics_only = 0;		# suppress all chords lines
@@ -77,7 +78,21 @@ sub generate_song {
  
     $s->structurize;
     my @s;
-    push(@s, "# " . $s->{title}) if defined $s->{title};
+
+# starts with digits - asuming song-number
+	my $title = $s->{title} if defined $s->{title};
+    if ( defined $s->{source} ) {
+
+		my @suffixlist;
+		my ($name,$path,$suffix) = fileparse($s->{source}->{file},@suffixlist);
+        $name =~ s/(\d+).*\.(pro|cho)/$1/;
+        if ($name ne ""){
+			$title = $name ." - ". $title;
+		}
+	}
+
+    push(@s, "# " . $title) ;
+
     if ( defined $s->{subtitle} ) {
 	push(@s, map { +"## $_" } @{$s->{subtitle}});
     }
