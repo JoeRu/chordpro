@@ -88,11 +88,7 @@ sub get_firstline{
           foreach my $phrase (@{$elt->{phrases}}){
                 $line .=  $phrase;
             }
-        if ($line !~ m/zwischenspiel/gi ) { 
-            last; 
-        } else {
-            $line = "";
-        }
+        last;
        }
    }
    return $line;
@@ -112,7 +108,11 @@ sub get_firstphrase{
         # return my_latex_encode($line);
         $line =~ s/[\/:]//g;
         $line =~ s/[,. !'´?]*$//;
-        IF ($line !~ m/zwischenspiel/gi) last;
+        if ($line !~ m/zwischenspiel/gi ) { 
+            last; 
+        } else {
+            $line = "";
+        }
        }
    }
    my $return_val = ''; 
