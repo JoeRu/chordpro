@@ -22,6 +22,8 @@ pp/macos/README.html
 pp/macos/libtool.pl
 pp/macos/pp.pl
 pp/macos/reloc.pl
+pp/share/create-dmg/support/eula-resources-template.xml
+pp/share/create-dmg/support/template.applescript
 pp/macos/vfix.pl
 pp/pp2ppl.pl
 pp/appimage/AppRun

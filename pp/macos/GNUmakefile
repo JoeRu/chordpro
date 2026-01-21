@@ -151,6 +151,7 @@ dmg1 :
 		--add-file "READ ME FIRST.html" README.html  540 250 \
 		--hide-extension "READ ME FIRST.html" \
 		--background "${ROOT}/lib/ChordPro/res/icons/chordpro-bg.png" \
+		--no-internet-enable \
 		"${DMGNAME}" "${APPDIR}"
 
 clean ::
