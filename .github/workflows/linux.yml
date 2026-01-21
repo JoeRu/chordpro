@@ -25,7 +25,7 @@ jobs:
       - name: Install HarfBuzz
         run: |
           apt-get update
-          apt-get install libharfbuzz-dev
+          apt-get install -y libharfbuzz-dev
       - name: Install Dependencies
         run: |
             cpanm --installdeps --notest .
