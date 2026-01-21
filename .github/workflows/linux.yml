@@ -24,8 +24,8 @@ jobs:
         run: perl -V
       - name: Install HarfBuzz
         run: |
-          sudo apt-get update
-          sudo apt-get install libharfbuzz-dev
+          apt-get update
+          apt-get install libharfbuzz-dev
       - name: Install Dependencies
         run: |
             cpanm --installdeps --notest .
