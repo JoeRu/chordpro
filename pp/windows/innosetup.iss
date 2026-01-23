@@ -10,8 +10,8 @@
 # define BuildNum	27
 
 [Setup]
-ArchitecturesInstallIn64BitMode=x64 arm64 ia64
-ArchitecturesAllowed=x64 arm64 ia64
+ArchitecturesInstallIn64BitMode=x64 arm64
+ArchitecturesAllowed=x64 arm64
 AppID={#APPID}
 AppName={#APP}
 AppVersion={#V_MAJ}.{#V_MIN}.{#V_AUX}.{#BuildNum}.0
