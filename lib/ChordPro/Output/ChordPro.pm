@@ -468,6 +468,11 @@ sub songline ( $song, $elt ) {
 sub gridline ( $song, $elt ) {
 
     my $line = "";
+
+    if ( $elt->{margin} ) {
+	$line .= fq( $elt->{margin}->{text} );
+    }
+
     for ( @{ $elt->{tokens} } ) {
 	$line .= " " if $line;
 	if ( $_->{class} eq "chord" ) {
