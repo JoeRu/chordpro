@@ -95,7 +95,7 @@ method preview( $args, %opts ) {
 	}
     }
 
-    if ( $preferences{enable_configfile} ) {
+    if ( $preferences{enable_configfile} && $preferences{configfile} ) {
 	$haveconfig++;
 	push( @ARGV, '--config', $preferences{configfile} );
 
