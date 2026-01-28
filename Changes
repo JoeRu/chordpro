@@ -23,7 +23,9 @@
 
     - Improve the macOS GitHub action.
 
-    - Prevent "Error: : No such file or directory" when first starting GUI.
+    - Prevent "Error: : No such file or directory" when first starting GUI
+
+    - Fix mangling of data: URIs in {image}.
 
     !Bug Fixes
 

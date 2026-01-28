@@ -1883,7 +1883,8 @@ sub dir_image {
 		return;
 	    }
 	}
-	else {
+	# Do not affect base64 data strings.
+	elsif ( $uri !~ /^data:/ ) {
 	    $uri = expand_tilde($uri);
 	}
     }
