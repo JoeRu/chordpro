@@ -1147,9 +1147,6 @@ package JSON::Boolean {
     our $true  = do { bless \(my $dummy = 1) => __PACKAGE__ };
     our $false = do { bless \(my $dummy = 0) => __PACKAGE__ };
 
-    # For JSON::PP export.
-    sub TO_JSON { ${$_[0]} ? $true : $false }
-
 }
 
 ################
