@@ -27,6 +27,11 @@
 
     - Fix mangling of data: URIs in {image}.
 
+    - Eliminate JSON::PP (use XS instead). Try loading JSON with XS
+      first. If that fails, use the much slower relaxed JSON parser.
+      This gives a performance improvement of over 10% when the
+      guitar.json is converted to not relaxed.
+
     !Bug Fixes
 
     - Fixed issue #315, #357, #512, #526 (thanks Merijn) #541, #580 and more.

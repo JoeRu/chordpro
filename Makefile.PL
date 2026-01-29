@@ -26,7 +26,6 @@ my $mv =
     'File::HomeDir'		   => 1.004,
     'IPC::Run3'			   => 0.049,
     'Image::Info'		   => 1.41,
-    'JSON::PP'			   => 2.27203,
     'JSON::XS'			   => 4.03,
     'JavaScript::QuickJS'	   => 0.18,
     'LWP::Protocol::https'	   => 6.14, # File::LoadLines

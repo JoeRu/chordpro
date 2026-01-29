@@ -329,6 +329,11 @@ sub chordpro {
 	}
 	# Don't close STDOUT!
     }
+
+    if ( $options->{verbose} ) {
+	my $st = json_stats;
+	warn("JSON: xs = ", $st->{xs}, ", rr = ", $st->{rr}, "\n");
+    }
 }
 
 sub ::dump {
@@ -1372,9 +1377,11 @@ sub runtime_info {
 	require JavaScript::QuickJS;
 	$vv->("JavaScript::QuickJS");
     };
-    my $i = json_parser();
-    $vv->( $i->{parser} );
-    $p[-1]->{relaxed} = "relaxed" if $i->{relaxed};
+
+    eval {
+	require JSON::Relaxed;
+	$vv->( "JSON::Relaxed" );
+    };
 
     eval {
 	require JSON::XS;
