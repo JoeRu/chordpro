@@ -807,13 +807,11 @@ pdf {
     // Legacy settings. These will be converted to new style page controls.
     // However, if a config contains any new style page controls they
     // will all be ignoredd.
-    /*
-    even-odd-pages  : true
-    pagealign-songs : true
-    sort-pages :      false
-    front-matter :    false
-    back-matter :     false
-    */
+    //    even-odd-pages  : true
+    //    pagealign-songs : true
+    //    sort-pages :      false
+    //    front-matter :    false
+    //    back-matter :     false
 
     // Formats.
     // Pages have two title elements and one footer element. They also
