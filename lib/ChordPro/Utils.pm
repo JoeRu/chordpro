@@ -289,7 +289,7 @@ sub json_load( $json, $source = "<builtin>" ) {
     $jx->relaxed;
 
     # Glue lines, so we have at lease some relaxation.
-    $json =~ s/"\s*\\\n\s*"//g;
+    $json =~ s/"\s*\\\r?\n\s*"//g;
 
     my $data;
     $json_last = "xs";
