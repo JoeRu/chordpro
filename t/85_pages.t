@@ -23,7 +23,7 @@ my $csv = $base . "csv";
 my $front = $base . "front.pdf";
 my $back  = $base . "back.pdf";
 
-use ChordPro::Output::PDF;
+use ChordPro::Output::PDF::Configurator;
 my $api = ChordPro::Output::PDF::config_pdfapi;
 
 my $p = $api->new( file => $front );

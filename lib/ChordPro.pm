@@ -178,15 +178,30 @@ sub chordpro {
     }
 
     $options->{generate} ||= "PDF";
+
+    # Register backend name and load its Configurator, if any.
     my $pkg = "ChordPro::Output::".$options->{generate};
+    $options->{backend} = $pkg;
+    eval "require $pkg"."::Configurator";
+    warn("Warning: No configurator for ", $options->{generate}, "\n$@")
+      if $options->{trace} && $@;
+
+    # One configurator to bind them all.
+    # This will also call the backend Configurator, if any.
+    use ChordPro::Config;
+    $config = ChordPro::Config::configurator({});
+
+    # Now load the real backend. Note that the actual module name
+    # may be changed by config.
+    if ( exists($config->{lc($options->{generate})})
+	 && exists($config->{lc($options->{generate})}->{module}) ) {
+	$options->{generate} = $config->{lc($options->{generate})}->{module};
+    }
+    $pkg = "ChordPro::Output::".$options->{generate};
     eval "require $pkg;";
     die("No backend for ", $options->{generate}, "\n$@") if $@;
     $options->{backend} = $pkg;
     $pkg->version if $options->{verbose} && $pkg->can("version");
-
-    # One configurator to bind them all.
-    use ChordPro::Config;
-    $config = ChordPro::Config::configurator({});
 
     # Parse the input(s).
     use ChordPro::Songbook;

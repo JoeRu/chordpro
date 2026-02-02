@@ -32,6 +32,12 @@
       This gives a performance improvement of over 10% when the
       guitar.json is converted to not relaxed.
 
+    !Internal
+
+    - Move backend configurator(s) into a separate file.
+
+    - Add (experimental) provisions for new HTML backend.
+
     !Bug Fixes
 
     - Fixed issue #315, #357, #512, #526 (thanks Merijn) #541, #580 and more.

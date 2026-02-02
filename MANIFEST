@@ -30,6 +30,7 @@ lib/ChordPro/Output/MMA.pm
 lib/ChordPro/Output/Markdown.pm
 lib/ChordPro/Output/Meta.pm
 lib/ChordPro/Output/PDF.pm
+lib/ChordPro/Output/PDF/Configurator.pm
 lib/ChordPro/Output/PDF/Grid.pm
 lib/ChordPro/Output/PDF/KeyboardDiagram.pm
 lib/ChordPro/Output/PDF/Song.pm
