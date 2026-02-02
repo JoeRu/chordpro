@@ -234,7 +234,7 @@ sub chordpro {
 	}
 	for ( qw( filelist dir ) ) {
 	    next unless defined $opts{$_};
-	    $gopts{$_} = $opts{$_} eq "" ? undef : $opts{$_};
+	    $gopts{$_} = $opts{$_} eq "" ? undef : expand_tilde($opts{$_});
 	}
 	unless ( @w ) {
 	    progress( msg => $file ) if @ARGV > 1 && $file !~ /^--/;
