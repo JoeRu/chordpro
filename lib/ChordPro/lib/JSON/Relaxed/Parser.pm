@@ -6,7 +6,7 @@ use utf8;
 
 package JSON::Relaxed::Parser;
 
-our $VERSION = "0.098";
+our $VERSION = "0.099";
 
 class JSON::Relaxed::Parser;
 
@@ -1132,8 +1132,6 @@ method _data_printer( $ddp ) {
 
 # This class distinguises booleans true and false from numeric 1 and 0.
 
-use JSON::PP ();
-
 package JSON::Boolean {
 
     sub as_perl( $self, %options ) { $self }
@@ -1144,9 +1142,6 @@ package JSON::Boolean {
 		 "0+"     => sub { ${$_[0]} },
 		 "bool"   => sub { !!${$_[0]} },
 		 fallback => 1;
-
-    # For JSON::PP export.
-    sub TO_JSON { ${$_[0]} ? $JSON::PP::true : $JSON::PP::false }
 
     # Boolean values.
     our $true  = do { bless \(my $dummy = 1) => __PACKAGE__ };

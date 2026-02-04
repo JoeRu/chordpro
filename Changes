@@ -10,11 +10,45 @@
     - ChordPro output: Suppress key directive when transocding to a
       movable system.
 
+    - Image files can now reside in folders next to the song.
+
+    - Image file names will now understand a leading `~`.
+
+    - Update ABC to 1.22.34.
+
+    - Duplicate lines in tables of contents and outlines are now skipped.
+
+    - Edwin (@edwinjc) contributed instrument settings and chords for
+      the Andean [Charango](https://en.wikipedia.org/wiki/Charango). Thanks!
+
+    - Improve the macOS GitHub action.
+
+    - Prevent "Error: : No such file or directory" when first starting GUI
+
+    - Fix mangling of data: URIs in {image}.
+
+    - Eliminate JSON::PP (use XS instead). Try loading JSON with XS
+      first. If that fails, use the much slower relaxed JSON parser.
+      This gives a performance improvement of over 10% when the
+      guitar.json is converted to not relaxed.
+
+    !Internal
+
+    - Move backend configurator(s) into a separate file.
+
+    - Add (experimental) provisions for new HTML backend.
+
     !Bug Fixes
 
     - Fixed issue #315, #357, #512, #526 (thanks Merijn) #541, #580 and more.
+    - Fixed issue #630.1.
+    - Fixed issue #636.
 
-6.090.0
+6.090.1 2026-01-03
+
+    - Emergency fix for illegal date in PDF.
+
+6.090.0 2025-10-31
 
     !Highlights
 
