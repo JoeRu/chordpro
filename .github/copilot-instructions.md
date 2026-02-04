@@ -365,4 +365,3 @@ Documented existing `{format}.module` config pattern for backend selection:
   - Unit tests for resolution methods avoid template path complexity
 - Tests: `t/html5paged/07_phase4_config.t` (23 tests), comprehensive config resolution coverage
 - Documentation: `docs/content/ChordPro-Configuration-HTML5.md` (Phase 4 section, 186 lines)
-- Reference: `ai-docs/PHASE4_COMPLETE.md`, `ai-docs/PHASE4_TESTS_DOCS_COMPLETE.md`
