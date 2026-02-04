@@ -251,6 +251,15 @@ Songs are arrays of element hashes:
    - **Why**: The eval{} only protects the immediate hash access, not nested keys; must eval{} full path then clone
    - **Phase 4 Discovery**: Manifests as "Attempt to access disallowed key" in Template::Toolkit processing
    - **Resolution Methods**: Create _resolve_* methods that extract, validate, and clone config data before template processing
+24. **Backend Module Override Pattern**: ChordPro supports config-driven backend selection via `{format}.module` key:
+   - **Pattern**: Config key `{format}.module` overrides default backend after config load (ChordPro.pm lines 197-200)
+   - **Example**: `{"html": {"module": "HTML5"}}` makes .html files use HTML5 backend instead of legacy HTML
+   - **Timing**: File extension sets initial backend (lines 125-151), config overrides later (lines 197-200)
+   - **Precedence**: CLI `--generate` flag > `{format}.module` config > file extension default
+   - **Applies to all formats**: html, pdf, latex, etc. - consistent pattern across backends
+   - **Use Case**: Allows users to opt-in to new backends without changing file extensions or CLI flags
+   - **Backward Compatibility**: Defaults unchanged; users explicitly opt-in via config
+   - **Phase 5 Discovery**: Feature already existed, just needed documentation
 
 ## Recent Architectural Efforts
 The project is migrating from monolithic backends (PDF.pm - 2800 lines) to modular Object::Pad-based architecture. See `Design/ARCHITECTURE_COMPARISON.md` and `Design/HTML5_*.md` for detailed rationale. **Follow the Markdown.pm pattern for new work**, not PDF.pm.
@@ -338,6 +347,20 @@ HTML5Paged backend now supports PDF configuration options via hybrid precedence:
 - **Critical Lessons Learned**:
   - Must eval{} each nested key access separately (not just top-level)
   - Template syntax for dashed keys: `.item('key-name')` not `.'key-name'`
+
+#### Step 5: Config-Driven Backend Selection (Feb 2026)
+Documented existing `{format}.module` config pattern for backend selection:
+- **Feature Discovery**: ChordPro.pm already implemented module-based backend override (lines 197-200)
+- **Documentation Only**: No code changes needed - feature existed but was undocumented
+- **Config Pattern**: `{"html": {"module": "HTML5"}}` selects HTML5 backend for .html files
+- **Use Case**: Users can opt-in to modern HTML5 backend without changing file extensions
+- **Timing**: File extension → initial backend (lines 125-151), config → override (lines 197-200)
+- **Backward Compatible**: Defaults to "HTML" (legacy); users explicitly opt-in to "HTML5"
+- **Universal Pattern**: Same mechanism works for all formats (pdf.module, latex.module, etc.)
+- **Implementation**: Updated `chordpro.json` config comments, added copilot-instructions.md section
+- **Testing**: All 108 tests pass; manual verification with config files confirms functionality
+- **Lesson**: Always check for existing patterns before implementing new features - saves time and maintains consistency
+- Reference: `ai-docs/STEP5_IMPLEMENTATION_SUMMARY.md`, `ai-docs/changes-bugs.md` (Step 5)
   - Clone restricted hashes before template processing: `{ %$hashref }`
   - Unit tests for resolution methods avoid template path complexity
 - Tests: `t/html5paged/07_phase4_config.t` (23 tests), comprehensive config resolution coverage
