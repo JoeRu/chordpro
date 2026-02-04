@@ -1272,9 +1272,11 @@
     
     // Settings for HTML output.
     html {
-    
-        // The actual backend module.
-        module : HTML
+        // Backend module selection for .html files: "HTML" (legacy) or "HTML5" (modern).
+        // When not specified, defaults to "HTML" for backward compatibility.
+        // Use this to opt-in to modern HTML5 output without changing file extension.
+        // This overrides the default backend after config is loaded.
+        module: HTML
     
         // Stylesheets for display and printing.
         styles {
