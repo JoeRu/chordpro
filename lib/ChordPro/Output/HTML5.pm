@@ -37,28 +37,21 @@ class ChordPro::Output::HTML5
         );
         
         # Initialize Template::Toolkit (following LaTeX.pm pattern)
-        my $config = $self->config // {};
-        my $html5_cfg = eval { $config->{html5} } // {};
+        my $config = $self->config;
         
-        my $template_path = CP->findres("templates");
-        unless ($template_path) {
-            # Fallback for tests - try relative paths
-            for my $path ("../lib/ChordPro/res/templates", "lib/ChordPro/res/templates", "../blib/lib/ChordPro/res/templates") {
-                if (-d $path) {
-                    $template_path = $path;
-                    last;
-                }
-            }
-        }
+        # Unlock config to access (following PDF.pm pattern)
+        $config->unlock;
+        my $html5_cfg = $config->{html5};
         
-        my $include_path = eval { $html5_cfg->{template_include_path} } // [];
+        # Use findresdirs to get all template directories  
+        # Make a copy of the array to avoid modifying config directly
+        my $include_path = [ @{$html5_cfg->{template_include_path} // []} ];
+        push( @$include_path, @{CP->findresdirs( "templates" )} );
+        
+        $config->lock;
         
         $template_engine = Template->new({
-            INCLUDE_PATH => [
-                @$include_path,
-                $template_path,
-                $main::CHORDPRO_LIBRARY
-            ],
+            INCLUDE_PATH => $include_path,
             INTERPOLATE => 1,
         }) || die "$Template::ERROR\n";
     }
@@ -69,10 +62,16 @@ class ChordPro::Output::HTML5
 
     method _process_template($template_name, $vars) {
         my $output = '';
-        my $config = $self->config // {};
-        my $html5_cfg = eval { $config->{html5} } // {};
-        my $template = eval { $html5_cfg->{templates}->{$template_name} } 
-                       // "html5/$template_name.tt";
+        my $config = $self->config;
+        
+        $config->unlock;
+        my $html5_cfg = $config->{html5};
+        my $template = $html5_cfg->{templates}->{$template_name};
+        $config->lock;
+        
+        unless (defined $template) {
+            die "Template '$template_name' not found in config";
+        }
         
         $template_engine->process($template, $vars, \$output)
             || die "Template error ($template_name): " . $template_engine->error();

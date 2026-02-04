@@ -41,23 +41,12 @@ class ChordPro::Output::HTML5Paged
             $cfg = $config->{html5}->{paged} // {};
         }
         
-        my $template_path = CP->findres("templates");
-        unless ($template_path) {
-            # Fallback for tests - try relative paths
-            for my $path ("../lib/ChordPro/res/templates", "lib/ChordPro/res/templates", "../blib/lib/ChordPro/res/templates") {
-                if (-d $path) {
-                    $template_path = $path;
-                    last;
-                }
-            }
-        }
+        # Use findresdirs to get all template directories
+        my $include_path = $cfg->{template_include_path} // [];
+        push( @$include_path, @{CP->findresdirs( "templates" )} );
         
         $template_engine = Template->new({
-            INCLUDE_PATH => [
-                @{$cfg->{template_include_path} // []},
-                $template_path,
-                $CHORDPRO_LIBRARY
-            ],
+            INCLUDE_PATH => $include_path,
             INTERPOLATE => 1,
         }) || die "$Template::ERROR\n";
     }
