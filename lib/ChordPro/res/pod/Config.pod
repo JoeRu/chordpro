@@ -1164,6 +1164,10 @@
     // Settings for HTML output.
     // Styles for display and printing.
     html {
+        // Backend module selection for .html files: "HTML" (legacy) or "HTML5" (modern).
+        // When not specified, defaults to "HTML" for backward compatibility.
+        // Use this to opt-in to modern HTML5 output without changing file extension.
+        // This overrides the default backend after config is loaded.
         module: HTML
         styles {
     	display : chordpro.css

@@ -41,6 +41,11 @@ ChordPro is a Perl-based lyrics and chords formatting program that generates pro
 - Access via global `$config` and `$options` variables
 - Config hierarchy: builtin → sysconfig → userconfig → CLI options
 - Test configs: Use `ChordPro::Config::configurator()` without args for minimal setup
+- **Backend selection via config**: Each output format can override its default backend via the `module` key:
+  - `html.module`: Select backend for .html files ("HTML" legacy or "HTML5" modern)
+  - Example: `{ "html": { "module": "HTML5" } }` makes .html files use HTML5 backend
+  - Backend selection happens after config load (see `lib/ChordPro.pm` lines 197-200)
+  - Command-line `--generate` flag always takes precedence over config
 
 ## AI Agent Output Conventions
 
