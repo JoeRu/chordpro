@@ -197,6 +197,7 @@ Songs are arrays of element hashes:
    - Clone to plain hashes before passing to Template::Toolkit: `{ %$hashref }` or extract to temp vars first
    - NEVER do `$template_vars->{colors} = $config->{css}->{colors} // {}` - the `// {}` returns empty restricted hash
    - Correct pattern: `my $cfg = eval { $config->{css}->{colors} } // {}; $vars->{colors} = { %$cfg };`
+   - **Phase 4 Lesson**: Must wrap EACH key access in eval{}, not just top-level hash. Wrong: `eval { $config->{pdf} }->{theme}`. Right: `eval { $config->{pdf}->{theme} }`
    - Errors like "Attempt to access disallowed key 'X' in a restricted hash" mean you passed restricted hash to template
 18. **Template::Toolkit Integration**: When adding template support (following LaTeX.pm pattern):
    - MUST add config section with `template_include_path` array (e.g., `html5.paged.template_include_path`)
@@ -204,11 +205,13 @@ Songs are arrays of element hashes:
    - Test environment needs fallback paths - `CP->findres("templates")` returns undef in tests from `t/` directory
    - Template INCLUDE directives need full path relative to INCLUDE_PATH: `[% INCLUDE 'html5paged/base.tt' %]` NOT `[% INCLUDE 'base.tt' %]`
    - Always run `make` after template changes - templates may be cached in `blib/`
+   - **Phase 4 Lesson**: Template syntax for dash-containing keys: Use `.item('key-name')` NOT `.'key-name'`. Example: `theme.item('foreground-medium')` not `theme.'foreground-medium'`
 19. **Template Array Checks**: Template::Toolkit array checks must avoid numeric comparisons on empty values:
    - **GOOD**: `[% IF subtitle.0 %]` (checks first element exists) or `[% IF meta.artist %]` (truthiness)
    - **BAD**: `[% IF subtitle.size > 0 %]` or `[% IF meta.artist.size > 0 %]` (causes "Argument '' isn't numeric" warnings)
    - Reason: Empty metadata arrays can contain empty strings, causing numeric comparison warnings
    - Pattern applies to all metadata fields: artist, composer, subtitle, album, etc.
+   - **Phase 4 Lesson**: This pattern discovered through actual runtime warnings, not code inspection
 20. **Chord Object Type Handling**: Chords appear as multiple types throughout rendering pipeline:
    - **Hash refs** (parse-time): `{name => "C", ...}`
    - **ChordPro::Chords::Appearance objects** (runtime): Use `->chord_display()` method
@@ -236,6 +239,13 @@ Songs are arrays of element hashes:
    - **Base template includes**: Reference css/ subdirectory: `[% INCLUDE 'html5/css/typography.tt' %]`
    - **Config references**: Update template paths to include css/: `"html5/css/base.tt"` not `"html5/base.tt"`
    - Users can distinguish template types by directory without inspecting file contents
+23. **CRITICAL - Config Resolution for Template Variables**: When passing config values to templates:
+   - **Problem**: Restricted hashes + nested access + template variable assignment creates errors
+   - **Wrong Pattern**: `$vars->{theme} = eval { $config->{pdf} }->{theme} // {};` (theme gets restricted hash)
+   - **Correct Pattern**: Each key level needs separate eval{}: `my $theme = eval { $config->{pdf}->{theme} } // {}; $vars->{theme} = { %$theme };`
+   - **Why**: The eval{} only protects the immediate hash access, not nested keys; must eval{} full path then clone
+   - **Phase 4 Discovery**: Manifests as "Attempt to access disallowed key" in Template::Toolkit processing
+   - **Resolution Methods**: Create _resolve_* methods that extract, validate, and clone config data before template processing
 
 ## Recent Architectural Efforts
 The project is migrating from monolithic backends (PDF.pm - 2800 lines) to modular Object::Pad-based architecture. See `Design/ARCHITECTURE_COMPARISON.md` and `Design/HTML5_*.md` for detailed rationale. **Follow the Markdown.pm pattern for new work**, not PDF.pm.
@@ -304,3 +314,27 @@ Both HTML5 and HTML5Paged backends fully refactored to use Template::Toolkit (fo
 - **Lessons**: Template array checks must use `.0` or truthiness (not `.size > 0`), chord objects require cascading type checks
 - Reference: `ai-docs/HTML5_TEMPLATE_MIGRATION_COMPLETE.md`, `ai-docs/complete_templates.md`
 - Tests: `t/75_html5.t` (11 tests), `t/76_html5paged.t` (11 tests), all 108 tests passing
+
+#### Phase 4: PDF Config Compatibility (Dec 2025)
+HTML5Paged backend now supports PDF configuration options via hybrid precedence:
+- **Hybrid Config**: `html5.paged.* > pdf.* > defaults` allows PDF configs to work with HTML5Paged
+- **Theme Colors**: `pdf.theme.foreground`, `pdf.theme.background`, etc. → CSS variables
+- **Spacing Multipliers**: `pdf.spacing.lyrics`, `pdf.spacing.chords`, etc. → CSS spacing
+- **Chorus Styling**: `pdf.chorus.bar.offset/width/color` → CSS border properties
+- **Grid Styling**: `pdf.diagrams.symbols.color`, `pdf.chordgrid.volta.color` → CSS colors
+- **Page Spacing**: `pdf.headspace`, `pdf.footspace` → @page margin sizing
+- **Implementation Pattern**: 
+  - Config resolution methods: `_resolve_theme_colors()`, `_resolve_spacing()`, `_resolve_chorus_styles()`, `_resolve_grid_styles()`
+  - Each method extracts config, validates, converts to CSS-friendly format
+  - Methods handle restricted hashes safely with eval{} wrapping
+  - Results passed to templates as plain hashes with CSS variable mappings
+- **Color Conversion**: `_convert_color_to_css()` handles color format normalization (#RGB, #RRGGBB, named colors)
+- **Template Integration**: All Phase 4 values exposed as CSS variables in variables.tt templates
+- **Critical Lessons Learned**:
+  - Must eval{} each nested key access separately (not just top-level)
+  - Template syntax for dashed keys: `.item('key-name')` not `.'key-name'`
+  - Clone restricted hashes before template processing: `{ %$hashref }`
+  - Unit tests for resolution methods avoid template path complexity
+- Tests: `t/html5paged/07_phase4_config.t` (23 tests), comprehensive config resolution coverage
+- Documentation: `docs/content/ChordPro-Configuration-HTML5.md` (Phase 4 section, 186 lines)
+- Reference: `ai-docs/PHASE4_COMPLETE.md`, `ai-docs/PHASE4_TESTS_DOCS_COMPLETE.md`
