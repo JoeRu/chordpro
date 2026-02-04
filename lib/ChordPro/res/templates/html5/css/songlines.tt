@@ -31,7 +31,7 @@
 }
 
 .cp-chord-empty {
-    visibility: hidden;
+    display: none;
 }
 
 .cp-lyrics {
