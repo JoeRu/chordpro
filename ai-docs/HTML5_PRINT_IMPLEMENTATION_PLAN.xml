@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation-plan>
+  <summary>
+    HTML5 Print Mode Feature Completeness Implementation Plan
+    
+    This plan addresses the gaps identified between HTML5 print mode and PDF backend.
+    Features are prioritized by impact and complexity. High priority features focus on
+    essential songbook functionality (TOC, headers/footers, dual-page layout).
+  </summary>
+
+  <!-- HIGH PRIORITY FEATURES -->
+
+  <feature>
+    <title>Table of Contents (TOC) Generation</title>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      Essential feature for multi-song songbooks. PDF has sophisticated TOC support
+      with multiple TOCs, grouping, and page references. HTML5 print lacks this entirely.
+      Users need this for professional songbook production. The feature is feasible using
+      paged.js hooks for page number tracking and Template::Toolkit for rendering.
+    </reason>
+    <priority>High</priority>
+    <implementation-risks>
+      <risk>
+        Paged.js async rendering: Page numbers only available after paged.js completes layout.
+        Mitigation: Use paged.js "afterRendered" hook to populate TOC page numbers dynamically.
+      </risk>
+      <risk>
+        Performance with large songbooks: Generating TOC for 100+ songs may slow rendering.
+        Mitigation: Optimize data structures, use efficient sorting algorithms, test with large books.
+      </risk>
+      <risk>
+        Config compatibility: TOC config structure differs between PDF and HTML5.
+        Mitigation: Reuse existing "contents" config from chordpro.json, extend as needed.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        Study existing TOC implementation in lib/ChordPro/Output/PDF.pm (search for "toc", "contents").
+        Understand how PDF backend uses ChordPro::Output::Common::prep_outlines() for TOC data.
+      </task>
+      <task id="2">
+        Add TOC support to HTML5.pm backend:
+        - Add _generate_toc() method to create TOC structure from songbook
+        - Extract metadata (title, artist, page) from each song
+        - Support multiple TOC types from config (by title, by artist, custom)
+        - Handle hierarchical breaks (e.g., group by first letter)
+      </task>
+      <task id="3">
+        Create TOC templates in lib/ChordPro/res/templates/html5/paged/:
+        - toc.tt: Main TOC container with title
+        - toc-entry.tt: Individual TOC line with metadata and page number placeholder
+        - Add CSS for TOC styling (leader dots, page numbers)
+      </task>
+      <task id="4">
+        Integrate paged.js hooks for page number resolution:
+        - Use data-page-ref attributes on TOC entries
+        - Add JavaScript in paged mode to populate page numbers after rendering
+        - Test with paged.js "afterRendered" event
+      </task>
+      <task id="5">
+        Add TOC config support in chordpro.json:
+        - Reuse existing "contents" array structure
+        - Add html5.paged.toc.* config options for HTML5-specific settings
+        - Support omit, template, fields, break, format options
+      </task>
+      <task id="6">
+        Create comprehensive tests in testing/html5paged/:
+        - Test single TOC generation
+        - Test multiple TOCs (by title, by artist)
+        - Test hierarchical breaks
+        - Test TOC with 50+ songs for performance
+        - Verify page number accuracy
+      </task>
+    </implementation-details>
+  </feature>
+
+  <feature>
+    <title>Enhanced Headers/Footers with Format Templates</title>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      Currently HTML5 has basic headers/footers but lacks PDF's format template variants
+      (first, title, default, even pages). Professional songbooks need different headers
+      for title pages vs content pages. This extends existing Phase 4 implementation
+      which already has basic format support. Implementation is straightforward using
+      CSS @page selectors and existing template infrastructure.
+    </reason>
+    <priority>High</priority>
+    <implementation-risks>
+      <risk>
+        CSS @page selector complexity: Different rules for :first, :left, :right pages.
+        Mitigation: Follow CSS Paged Media spec, test with Chrome/paged.js.
+      </risk>
+      <risk>
+        Config bloat: Adding more format variants increases config complexity.
+        Mitigation: Use sensible defaults, document clearly, follow PDF config structure.
+      </risk>
+      <risk>
+        Even page mirroring: Left/right parts must swap on even pages automatically.
+        Mitigation: Use CSS @page :left/:right with separate margin box rules.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        Review current Phase 4 headers/footers implementation in HTML5.pm.
+        Identify _generate_format_rules() method and understand current format parsing.
+      </task>
+      <task id="2">
+        Extend _generate_format_rules() to support format variants:
+        - Parse pdf.formats.first, pdf.formats.title, pdf.formats.even separately
+        - Generate CSS @page :first rules for first page format
+        - Generate CSS @page :left rules for even pages (mirrors left/right)
+        - Generate CSS @page :right rules for odd pages
+        - Default to "default" format if variant not specified
+      </task>
+      <task id="3">
+        Add even page margin box mirroring logic:
+        - For even pages, swap top-left ↔ top-right, bottom-left ↔ bottom-right
+        - Ensure page numbers appear on outside edges (left on even, right on odd)
+        - Test with sample songbook to verify mirroring
+      </task>
+      <task id="4">
+        Update templates in lib/ChordPro/res/templates/html5/paged/css/:
+        - Extend page-setup.tt to include :first, :left, :right selectors
+        - Add support for title page detection (data-title-page attribute)
+        - Ensure backward compatibility with existing single format
+      </task>
+      <task id="5">
+        Add config examples to chordpro.json documentation:
+        - Show pdf.formats.first example
+        - Show pdf.formats.title example
+        - Show pdf.formats.even example for bound songbooks
+        - Document three-part format string syntax (left||center||right)
+      </task>
+      <task id="6">
+        Create tests in testing/html5paged/:
+        - Test first page format different from default
+        - Test title page format
+        - Test even page mirroring (verify page numbers on outside)
+        - Test all three formats combined in one songbook
+      </task>
+    </implementation-details>
+  </feature>
+
+  <!-- Continuing with other features... truncated for length -->
+
+  <feature>
+    <title>Song Compaction (Optimal Page Layout)</title>
+    <implementation-decision>denied</implementation-decision>
+    <reason>
+      Song compaction optimizes page usage by rearranging songs to minimize page turns.
+      This requires complex layout simulation. The benefit doesn't justify the
+      implementation cost and performance impact. Users can manually arrange songs.
+    </reason>
+    <priority>Low</priority>
+    <implementation-risks>N/A (feature denied)</implementation-risks>
+    <implementation-details>N/A (feature denied)</implementation-details>
+  </feature>
+
+  <feature>
+    <title>PDF Bookmarks/Outlines</title>
+    <implementation-decision>denied</implementation-decision>
+    <reason>
+      PDF bookmarks are a PDF-specific feature with no HTML equivalent.
+      HTML5 already supports sticky TOC with anchor links as alternative.
+    </reason>
+    <priority>N/A</priority>
+    <implementation-risks>N/A (feature denied)</implementation-risks>
+    <implementation-details>N/A (feature denied)</implementation-details>
+  </feature>
+
+</implementation-plan>
