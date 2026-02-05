@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Comprehensive HTML5Paged backend test - generates complete songbooks for print
+# Comprehensive HTML5 paged mode test - generates complete songbooks for print
 # Similar to 74_latex.t
 
 use strict;
@@ -20,7 +20,7 @@ my $test = 0;
 
 plan tests => 1+$numtests;
 
-diag("Testing ", scalar(@files), " cho files with HTML5Paged backend");
+diag("Testing ", scalar(@files), " cho files with HTML5 paged mode");
 
 our $options;
 
@@ -30,11 +30,22 @@ foreach my $file ( sort @files ) {
     #diag("Testing: $file");
     ( my $out = $file ) =~ s/\.cho/.paged.tmp/;
     
+    # Create temporary config file for HTML5 paged mode
+    my $cfg_file = "out/html5paged_test_config.json";
+    open my $cfg_fh, '>:utf8', $cfg_file or die "Cannot create $cfg_file: $!";
+    print $cfg_fh '{"html5":{"mode":"print"}}';
+    close $cfg_fh;
+    
+    # Use HTML5 backend with paged mode configuration
     @ARGV = ( "--no-default-configs",
-              "--generate", "HTML5Paged",
+              "--generate", "HTML5",
+              "--config", $cfg_file,
               "--output", $out,
               $file );
     ::run();
+    
+    # Clean up config file
+    unlink($cfg_file);
     
     # Test that file was generated
     ok( -f $out, $file );

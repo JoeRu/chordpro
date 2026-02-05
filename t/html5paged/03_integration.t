@@ -9,7 +9,7 @@ use ChordPro::Songbook;
 
 plan tests => 8;
 
-use_ok('ChordPro::Output::HTML5Paged');
+use_ok('ChordPro::Output::HTML5');
 
 # Test full document generation with headers/footers
 my $test_config = {
@@ -56,7 +56,7 @@ my $s = ChordPro::Songbook->new;
 $s->parse_file(\$song_data, { nosongline => 1 });
 ok(scalar(@{$s->{songs}}) == 1, "Song parsed");
 
-my $paged = ChordPro::Output::HTML5Paged->new(
+my $paged = ChordPro::Output::HTML5->new(
     config => $test_config,
     options => { output => undef },
 );

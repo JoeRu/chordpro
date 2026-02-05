@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Test HTML5Paged format configuration (headers/footers)
+# Test HTML5 format configuration (headers/footers)
 # Tests Phase 3: Headers & Footers Configuration
 
 use strict;
@@ -12,7 +12,7 @@ use ChordPro::Songbook;
 
 plan tests => 22;
 
-use_ok('ChordPro::Output::HTML5Paged');
+use_ok('ChordPro::Output::HTML5');
 
 # =================================================================
 # Test 1: Basic format configuration parsing
@@ -20,6 +20,7 @@ use_ok('ChordPro::Output::HTML5Paged');
 
 my $config_basic = {
     %$config,
+    html5 => { mode => 'print' },
     pdf => {
         papersize => 'a4',
         formats => {
@@ -40,7 +41,7 @@ my $config_basic = {
     },
 };
 
-my $backend = ChordPro::Output::HTML5Paged->new(
+my $backend = ChordPro::Output::HTML5->new(
     config => $config_basic,
     options => { output => undef },
 );
@@ -76,6 +77,7 @@ like($css, qr/\@page :first/, "Has first page format");
 
 my $config_three_part = {
     %$config,
+    html5 => { mode => 'print' },
     pdf => {
         formats => {
             default => {
@@ -85,7 +87,7 @@ my $config_three_part = {
     },
 };
 
-my $backend2 = ChordPro::Output::HTML5Paged->new(
+my $backend2 = ChordPro::Output::HTML5->new(
     config => $config_three_part,
     options => { output => undef },
 );
@@ -104,6 +106,7 @@ like($css2, qr/\@bottom-right/, "Has right margin box");
 
 my $config_complex = {
     %$config,
+    html5 => { mode => 'print' },
     pdf => {
         formats => {
             default => {
@@ -114,7 +117,7 @@ my $config_complex = {
     },
 };
 
-my $backend3 = ChordPro::Output::HTML5Paged->new(
+my $backend3 = ChordPro::Output::HTML5->new(
     config => $config_complex,
     options => { output => undef },
 );
@@ -130,6 +133,7 @@ like($css3, qr/string\(song-subtitle\)/, "Subtitle metadata");
 
 my $config_empty = {
     %$config,
+    html5 => { mode => 'print' },
     pdf => {
         formats => {
             first => {
@@ -143,7 +147,7 @@ my $config_empty = {
     },
 };
 
-my $backend4 = ChordPro::Output::HTML5Paged->new(
+my $backend4 = ChordPro::Output::HTML5->new(
     config => $config_empty,
     options => { output => undef },
 );

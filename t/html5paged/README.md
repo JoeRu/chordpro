@@ -1,11 +1,11 @@
-# HTML5Paged Backend Test Suite
+# HTML5 Paged Mode Test Suite
 
-This directory contains unit tests for the HTML5Paged output backend, focusing on Paged.js-specific features.
+This directory contains unit tests for the HTML5 output backend with paged mode (print/pagination features).
 
 ## Test Files
 
-- **01_base.t** - Basic HTML5Paged functionality
-  - Object creation and inheritance
+- **01_base.t** - Basic HTML5 paged functionality
+  - Object creation and configuration
   - Method availability
   - Song generation
 
@@ -24,7 +24,7 @@ This directory contains unit tests for the HTML5Paged output backend, focusing o
 
 ## Running Tests
 
-Run all HTML5Paged tests:
+Run all paged mode tests:
 ```bash
 perl -Ilib t/html5paged/*.t
 ```

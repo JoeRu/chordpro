@@ -1182,7 +1182,65 @@ html {
 
 // Settings for HTML5 backend.
 html5 {
-    status: "work in progress"
+
+    // Include paths for templates.
+    template_include_path : []
+
+    // Templates for HTML/CSS generation.
+    templates {
+        // CSS template.
+        css : "html5/css/base.tt"
+        
+        // HTML templates.
+        songbook : "html5/songbook.tt"
+        song : "html5/song.tt"
+        comment : "html5/comment.tt"
+        image : "html5/image.tt"
+        songline : "html5/songline.tt"
+        chord_diagrams : "html5/chord-diagrams.tt"
+    }
+
+    // CSS customization.
+    css {
+        colors : {}
+        fonts : {}
+        sizes : {}
+        spacing : {}
+    }
+
+    // Settings for paged output (with paged.js pagination).
+    paged {
+
+        // Paper size for pagination (inherits from pdf.papersize if not set).
+        // papersize : "a4"
+
+        // Page margins in points (inherits from pdf margins if not set).
+        // margintop : 80
+        // marginbottom : 40
+        // marginleft : 40
+        // marginright : 40
+
+        // Include paths for templates.
+        template_include_path : []
+
+        // Templates for HTML/CSS generation.
+        templates {
+            // CSS template.
+            css : "html5/paged/css/base.tt"
+            
+            // HTML templates (override html5 templates).
+            songbook : "html5/paged/songbook.tt"
+            song : "html5/paged/song.tt"
+        }
+
+        // CSS customization.
+        css {
+            colors : {}
+            fonts : {}
+            sizes : {}
+            spacing : {}
+        }
+    }
 }
 
 // Settings for LaTeX backend.
@@ -1233,7 +1291,7 @@ html5 {
         spacing : {}
     }
 
-    // Settings for HTML5Paged backend (with paged.js pagination).
+    // Settings for paged output (with paged.js pagination).
     paged {
 
         // Paper size for pagination (inherits from pdf.papersize if not set).
@@ -1251,11 +1309,11 @@ html5 {
         // Templates for HTML/CSS generation.
         templates {
             // CSS template.
-            css : "html5paged/css/base.tt"
+            css : "html5/paged/css/base.tt"
             
             // HTML templates (override html5 templates).
-            songbook : "html5paged/songbook.tt"
-            song : "html5paged/song.tt"
+            songbook : "html5/paged/songbook.tt"
+            song : "html5/paged/song.tt"
         }
 
         // CSS customization.

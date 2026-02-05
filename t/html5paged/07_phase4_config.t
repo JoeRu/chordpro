@@ -9,7 +9,7 @@ use ChordPro::Songbook;
 
 plan tests => 23;
 
-use_ok('ChordPro::Output::HTML5Paged');
+use_ok('ChordPro::Output::HTML5');
 
 # Test: PDF Config Compatibility
 # Validates theme colors, spacing, chorus bars, and grid styling
@@ -18,8 +18,8 @@ use_ok('ChordPro::Output::HTML5Paged');
 # Test 1: Theme Color Resolution with Defaults
 # =============================================================================
 
-my $backend1 = ChordPro::Output::HTML5Paged->new(
-    config => $config,
+my $backend1 = ChordPro::Output::HTML5->new(
+    config => { %$config, html5 => { mode => 'print' } },
     options => { output => undef },
 );
 

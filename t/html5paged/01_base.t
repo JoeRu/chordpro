@@ -9,14 +9,14 @@ use ChordPro::Songbook;
 
 plan tests => 12;
 
-use_ok('ChordPro::Output::HTML5Paged');
+use_ok('ChordPro::Output::HTML5');
 
-# Create HTML5Paged backend
-my $paged = ChordPro::Output::HTML5Paged->new(
+# Create HTML5 backend
+my $paged = ChordPro::Output::HTML5->new(
     config => $config,
     options => { output => undef },
 );
-ok($paged, "HTML5Paged object created");
+ok($paged, "HTML5 object created");
 
 # Test that it inherits from HTML5
 isa_ok($paged, 'ChordPro::Output::HTML5', "Inherits from HTML5");
@@ -49,7 +49,7 @@ ok(scalar(@{$s->{songs}}) == 1, "Song parsed");
 my $song = $s->{songs}[0];
 
 my $output = $paged->generate_song($song);
-ok($output, "HTML5Paged output generated");
+ok($output, "HTML5 output generated");
 
 # Test that output contains song content
 like($output, qr/<div class="cp-song"/, "Output contains song container");

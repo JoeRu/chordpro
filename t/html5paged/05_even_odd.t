@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Test HTML5Paged even/odd page format configuration
+# Test HTML5 even/odd page format configuration
 # Tests Phase 3: Even/Odd Page Differences
 
 use strict;
@@ -12,7 +12,7 @@ use ChordPro::Songbook;
 
 plan tests => 15;
 
-use_ok('ChordPro::Output::HTML5Paged');
+use_ok('ChordPro::Output::HTML5');
 
 # =================================================================
 # Test 1: Even page formats with left/right swapping
@@ -20,6 +20,7 @@ use_ok('ChordPro::Output::HTML5Paged');
 
 my $config_even_odd = {
     %$config,
+    html5 => { mode => 'print' },
     pdf => {
         papersize => 'a4',
         formats => {
@@ -35,7 +36,7 @@ my $config_even_odd = {
     },
 };
 
-my $backend = ChordPro::Output::HTML5Paged->new(
+my $backend = ChordPro::Output::HTML5->new(
     config => $config_even_odd,
     options => { output => undef },
 );
@@ -66,6 +67,7 @@ like($css, qr/"Even Right"/, "Even right content present");
 
 my $config_with_odd = {
     %$config,
+    html5 => { mode => 'print' },
     pdf => {
         formats => {
             'default-odd' => {
@@ -75,7 +77,7 @@ my $config_with_odd = {
     },
 };
 
-my $backend2 = ChordPro::Output::HTML5Paged->new(
+my $backend2 = ChordPro::Output::HTML5->new(
     config => $config_with_odd,
     options => { output => undef },
 );
@@ -90,6 +92,7 @@ like($css2, qr/"Odd Center"/, "Odd page content present");
 
 my $config_title_variants = {
     %$config,
+    html5 => { mode => 'print' },
     pdf => {
         formats => {
             'title' => {
@@ -102,7 +105,7 @@ my $config_title_variants = {
     },
 };
 
-my $backend3 = ChordPro::Output::HTML5Paged->new(
+my $backend3 = ChordPro::Output::HTML5->new(
     config => $config_title_variants,
     options => { output => undef },
 );

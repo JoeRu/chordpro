@@ -1281,20 +1281,66 @@
         // Stylesheets for display and printing.
         styles {
     
-            // Relative path to a CSS file to use for styling HTML output.
-            default : chordpro.css
+    // Settings for HTML5 backend.
+    html5 {
     
-            // Relative path to a CSS file to use for styling displayed HTML output on screen media.
-            screen : ""
+        // Include paths for templates.
+        template_include_path : []
     
-            // Relative path to a CSS file to use for styling printed HTML output.
-            print : chordpro_print.css
+        // Templates for HTML/CSS generation.
+        templates {
+            // CSS template.
+            css : "html5/css/base.tt"
+            
+            // HTML templates.
+            songbook : "html5/songbook.tt"
+            song : "html5/song.tt"
+            comment : "html5/comment.tt"
+            image : "html5/image.tt"
+            songline : "html5/songline.tt"
+            chord_diagrams : "html5/chord-diagrams.tt"
+        }
     
-            // Embed the styles instead of linking to them.
-            embed : false
+        // CSS customization.
+        css {
+            colors : {}
+            fonts : {}
+            sizes : {}
+            spacing : {}
+        }
     
-            // Legacy style for `"screen"`.
-            display : ""
+        // Settings for paged output (with paged.js pagination).
+        paged {
+    
+            // Paper size for pagination (inherits from pdf.papersize if not set).
+            // papersize : "a4"
+    
+            // Page margins in points (inherits from pdf margins if not set).
+            // margintop : 80
+            // marginbottom : 40
+            // marginleft : 40
+            // marginright : 40
+    
+            // Include paths for templates.
+            template_include_path : []
+    
+            // Templates for HTML/CSS generation.
+            templates {
+                // CSS template.
+                css : "html5/paged/css/base.tt"
+                
+                // HTML templates (override html5 templates).
+                songbook : "html5/paged/songbook.tt"
+                song : "html5/paged/song.tt"
+            }
+    
+            // CSS customization.
+            css {
+                colors : {}
+                fonts : {}
+                sizes : {}
+                spacing : {}
+            }
         }
     }
     
@@ -1346,7 +1392,7 @@
             spacing : {}
         }
     
-        // Settings for HTML5Paged backend (with paged.js pagination).
+        // Settings for paged output (with paged.js pagination).
         paged {
     
             // Paper size for pagination (inherits from pdf.papersize if not set).
@@ -1364,11 +1410,11 @@
             // Templates for HTML/CSS generation.
             templates {
                 // CSS template.
-                css : "html5paged/css/base.tt"
+                css : "html5/paged/css/base.tt"
                 
                 // HTML templates (override html5 templates).
-                songbook : "html5paged/songbook.tt"
-                song : "html5paged/song.tt"
+                songbook : "html5/paged/songbook.tt"
+                song : "html5/paged/song.tt"
             }
     
             // CSS customization.
