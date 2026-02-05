@@ -9,7 +9,7 @@ use ChordPro::Songbook;
 
 plan tests => 13;
 
-use_ok('ChordPro::Output::HTML5Paged');
+use_ok('ChordPro::Output::HTML5');
 
 # Test configuration with headers/footers
 my $test_config = {
@@ -36,11 +36,11 @@ my $test_config = {
     },
 };
 
-my $paged = ChordPro::Output::HTML5Paged->new(
+my $paged = ChordPro::Output::HTML5->new(
     config => $test_config,
     options => { output => undef },
 );
-ok($paged, "HTML5Paged with custom config created");
+ok($paged, "HTML5 with custom config created");
 
 # Test _format_content_string method
 can_ok($paged, '_format_content_string');

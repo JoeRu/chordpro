@@ -7,6 +7,18 @@ ChordPro is a Perl-based lyrics and chords formatting program that generates pro
 **Main Entry**: `lib/ChordPro.pm` - orchestrates parsing and output generation
 **Architecture**: Parser → Song Structure → Backend Renderer
 
+### HTML5 Backend Architecture
+The HTML5 backend (`lib/ChordPro/Output/HTML5.pm`) supports multiple output modes:
+- **Responsive Mode** (default): Fluid layout for screens, mobile-friendly
+- **Screen Mode**: Fixed layout optimized for screen display
+- **Print Mode**: Paginated output with paged.js integration for PDF generation
+
+Configuration: Set via `html5.mode` config (values: "responsive", "screen", "print")
+
+**Helper Modules**:
+- `lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm` - Converts PDF format specs to CSS @page rules
+- `lib/ChordPro/Output/ChordDiagram/SVG.pm` - Generates SVG chord diagrams
+
 ## Critical Architecture Patterns
 
 ### Song Processing Pipeline
@@ -105,7 +117,7 @@ perl -Ilib script/chordpro.pl --generate=HTML5 input.cho -o output.html
   ok(!differ("out/$out", "ref/$out"));
   ```
 
-### Testing HTML5 Backends
+### Testing HTML5 Backend
 - `generate_song()` returns song HTML only (no headers/CSS), `generate_songbook()` returns full document
 - For song-level tests, check for content presence rather than full document structure
 - Example test pattern:
@@ -115,7 +127,7 @@ perl -Ilib script/chordpro.pl --generate=HTML5 input.cho -o output.html
   like($html, qr/expected-content/, "Contains expected content");
   ```
 - Backend modules must handle both chord info as blessed objects (runtime) and plain hash refs (tests)
-- When testing inheritance (HTML5Paged from HTML5), verify inherited functionality is present without re-testing implementation details
+- HTML5 backend supports multiple modes (responsive, screen, print) via `html5.mode` config
 
 ### Chord System
 - **Multiple notation systems**: standard (C, D, E...), solfege (Do, Re, Mi...), Nashville (1, 2, 3...), Roman (I, II, III...)
@@ -189,9 +201,9 @@ Songs are arrays of element hashes:
 6. **SVG rendering**: SVG `<line>` elements require explicit `stroke="#color"` attributes - CSS classes alone are insufficient for visibility
 7. **CSS sizing for HTML outputs**: Use `em` units (e.g., `width: 4em`) instead of fixed pixels for better scalability across different font sizes
 8. **Module flexibility**: When creating reusable modules, support both blessed objects and plain hash refs for maximum compatibility (check `ref($obj) eq 'HASH'` vs object methods)
-9. **HTML5Paged inheritance**: HTML5Paged extends HTML5 via Object::Pad's `:isa()` - changes to HTML5 automatically propagate. HTML5Paged's `generate_paged_css()` must include ALL CSS rules (it doesn't call parent's CSS generation)
+9. **Template consolidation**: HTML5 templates organized in unified structure: `html5/` for normal output, `html5/paged/` for paged.js features. Paged mode reuses shared CSS (typography, variables) while adding paged-specific templates (string-set, page-setup, layout)
 10. **Module organization**: Reusable output modules go in `lib/ChordPro/Output/ComponentName/`, NOT `lib/ChordPro/lib/` (Perl's @INC won't find them there)
-11. **CRITICAL - Backend Structurization**: Never call `$song->structurize()` in `lib/ChordPro.pm` central dispatch - each backend must handle its own structurization needs. Some backends (ChordPro.pm output) require unstructured songs with `start_of_`/`end_of_` directives. Call `$song->structurize()` in backend's `generate_song()` method if needed (HTML5.pm does this, inherited by HTML5Paged.pm)
+11. **CRITICAL - Backend Structurization**: Never call `$song->structurize()` in `lib/ChordPro.pm` central dispatch - each backend must handle its own structurization needs. Some backends (ChordPro.pm output) require unstructured songs with `start_of_`/`end_of_` directives. Call `$song->structurize()` in backend's `generate_song()` method if needed (HTML5.pm does this)
 12. **CRITICAL - Build After Changes**: After modifying Perl modules, always run `make` before testing. The `blib/` directory caches compiled code - tests will use old code until rebuilt. Test failures showing old behavior often mean you forgot to rebuild
 13. **Test Promotion Workflow**: Develop new tests in `testing/` directory, then move to production (`t/`) after verification. Use numbered prefixes matching test category (e.g., `t/html5paged/04_formats.t`)
 14. **CRITICAL - Song Metadata Access**: Metadata is stored in `$song->{meta}` hash, NOT at top level. Always use `$song->{meta}->{artist}` not `$song->{artist}`. Reference `lib/ChordPro/Output/ChordPro.pm` (lines 77-95) for canonical metadata access pattern. All metadata fields are arrayrefs, even single-value fields like album/duration - iterate or use `[0]` index
@@ -240,9 +252,10 @@ Songs are arrays of element hashes:
 22. **Template Organization**: Separate CSS templates from structural HTML templates for clarity:
    - **Structure**: CSS templates in `templates/{backend}/css/` subdirectory
    - **HTML5**: `lib/ChordPro/res/templates/html5/` (structural), `html5/css/` (styling)
-   - **HTML5Paged**: `lib/ChordPro/res/templates/html5paged/` (structural), `html5paged/css/` (styling)
-   - **Base template includes**: Reference css/ subdirectory: `[% INCLUDE 'html5/css/typography.tt' %]`
-   - **Config references**: Update template paths to include css/: `"html5/css/base.tt"` not `"html5/base.tt"`
+   - **HTML5 Paged**: `lib/ChordPro/res/templates/html5/paged/` (paged-specific templates), `html5/paged/css/` (paged CSS)
+   - **Shared Templates**: Paged mode reuses `html5/css/typography.tt` and `html5/css/variables.tt`
+   - **Base template includes**: Reference css/ subdirectory: `[% INCLUDE 'html5/css/typography.tt' %]` or `[% INCLUDE 'html5/paged/css/page-setup.tt' %]`
+   - **Config references**: Use full paths: `"html5/css/base.tt"`, `"html5/paged/css/base.tt"`
    - Users can distinguish template types by directory without inspecting file contents
 23. **CRITICAL - Config Resolution for Template Variables**: When passing config values to templates:
    - **Problem**: Restricted hashes + nested access + template variable assignment creates errors
@@ -264,27 +277,27 @@ Songs are arrays of element hashes:
 ## Recent Architectural Efforts
 The project is migrating from monolithic backends (PDF.pm - 2800 lines) to modular Object::Pad-based architecture. See `Design/ARCHITECTURE_COMPARISON.md` and `Design/HTML5_*.md` for detailed rationale. **Follow the Markdown.pm pattern for new work**, not PDF.pm.
 
-### Recent Additions (Dec 2025)
+### Recent Additions (Dec 2025 - Feb 2026)
 
-#### SVG Chord Diagrams
-HTML5 and HTML5Paged backends now support inline SVG chord diagrams:
+#### SVG Chord Diagrams (Dec 2025)
+HTML5 backend supports inline SVG chord diagrams:
 - Implementation in `lib/ChordPro/Output/HTML5.pm` methods: `render_chord_diagrams()`, `generate_chord_diagram_svg()`
 - Standalone reusable module: `lib/ChordPro/Output/ChordDiagram/SVG.pm`
 - Diagrams sized at `4em` width for scalability with font size
 - Respects config settings: `diagrams.show`, `diagrams.sorted`, `diagrams.suppress`
-- Tests: `testing/145_chord_diagrams_svg.t`, `testing/146_html5_chord_diagrams.t`, `testing/147_html5paged_chord_diagrams.t`
+- Tests: `t/html5/` test suite validates chord diagram rendering
 - **Integration Pattern**: Use `field $svg_generator;` with `BUILD { $svg_generator = ChordPro::Output::ChordDiagram::SVG->new(escape_fn => sub { $self->escape_text(@_) }); }` in Object::Pad classes
 
-#### HTML5Paged Headers & Footers (Phase 3)
-Full headers/footers configuration support reusing PDF's `pdf.formats` config:
-- **Format Parsing**: `_generate_format_rules()` in `lib/ChordPro/Output/HTML5Paged.pm` parses format specs (e.g., `"%{title}||%{page}"`)
+#### HTML5 Paged Mode - Headers & Footers (Dec 2025)
+Full headers/footers configuration support for paged output reusing PDF's `pdf.formats` config:
+- **Format Parsing**: `_generate_format_rules()` in `lib/ChordPro/Output/HTML5.pm` parses format specs (e.g., `"%{title}||%{page}"`)
 - **CSS @page Margin Boxes**: Generates `@top-left`, `@bottom-center`, etc. with content from metadata
-- **Metadata via Data Attributes**: Song title/artist/album exposed as `data-title`, `data-artist`, etc. attributes on `<section class="song">` elements
+- **Metadata via Data Attributes**: Song title/artist/album exposed as `data-title`, `data-artist`, etc. attributes on elements
 - **CSS string-set Pattern**: Must use `string-set: song-title attr(data-title);` NOT `content()` for metadata capture
 - **Even/Odd Pages**: Format variants (`first`, `title`, `even`, `odd`) with automatic left/right margin box swapping for even pages
 - **Three-Part Format**: Format strings split by `||` into left/center/right parts, mapped to appropriate margin boxes
-- Implementation: `generate_song()` override adds metadata attributes, `_generate_format_rules()` creates CSS
-- Tests: `t/html5paged/04_formats.t`, `05_even_odd.t`, `06_e2e.t` (50 tests total)
+- Implementation: Paged mode methods add metadata attributes and generate format CSS rules
+- Tests: `t/html5paged/` test suite (50+ tests total)
 - Config example:
   ```json
   {
@@ -302,36 +315,36 @@ Full headers/footers configuration support reusing PDF's `pdf.formats` config:
   ```
 
 #### Enhanced Metadata & Layout Directives (Dec 2025)
-Complete metadata and layout directive support in HTML5/HTML5Paged backends:
-- **Metadata Fields**: arranger, copyright, lyricist, duration now fully supported in ChordProBase, HTML5, HTML5Paged
+Complete metadata and layout directive support in HTML5 backend:
+- **Metadata Fields**: arranger, copyright, lyricist, duration now fully supported in ChordProBase and HTML5
 - **Layout Directives**: new_page, new_physical_page, column_break, columns implemented as CSS styling
 - **Access Pattern**: Must use `$song->{meta}->{field}` NOT `$song->{field}` - metadata lives in separate hash
 - **Array Iteration**: All metadata is stored as arrayrefs, even single values: `foreach my $val (@{$meta->{field}}) { ... }`
 - Reference implementation: `lib/ChordPro/Output/ChordPro.pm` lines 77-95 shows canonical metadata access
-- Tests: `t/75_html5.t`, `t/76_html5paged.t` validate backend functionality
-#### Template::Toolkit Refactoring (HTML5/HTML5Paged - Dec 2025)
-Both HTML5 and HTML5Paged backends fully refactored to use Template::Toolkit (following LaTeX.pm pattern):
+- Tests: `t/75_html5.t` validates backend functionality
+#### Template::Toolkit Refactoring (HTML5 - Dec 2025)
+HTML5 backend fully refactored to use Template::Toolkit (following LaTeX.pm pattern):
 - **Architecture**: Zero hardcoded HTML/CSS in backend code, all markup in separate template files
 - **Template Location**: 
-  - HTML5: `lib/ChordPro/res/templates/html5/` (structural: songbook.tt, song.tt, songline.tt, comment.tt, image.tt, chord-diagrams.tt)
-  - HTML5: `lib/ChordPro/res/templates/html5/css/` (styling: base.tt, typography.tt, songlines.tt, sections.tt, tab-grid.tt, chord-diagrams.tt, print-media.tt, body-page.tt, variables.tt)
-  - HTML5Paged: `lib/ChordPro/res/templates/html5paged/` (structural: songbook.tt, song.tt - inherits other HTML5 templates)
-  - HTML5Paged: `lib/ChordPro/res/templates/html5paged/css/` (styling: base.tt, string-set.tt, page-setup.tt, variables.tt, typography.tt, layout.tt, print-media.tt)
+  - HTML5 Normal: `lib/ChordPro/res/templates/html5/` (structural: songbook.tt, song.tt, songline.tt, comment.tt, image.tt, chord-diagrams.tt)
+  - HTML5 CSS: `lib/ChordPro/res/templates/html5/css/` (styling: base.tt, typography.tt, songlines.tt, sections.tt, tab-grid.tt, chord-diagrams.tt, print-media.tt, body-page.tt, variables.tt)
+  - HTML5 Paged: `lib/ChordPro/res/templates/html5/paged/` (songbook.tt, song.tt)
+  - HTML5 Paged CSS: `lib/ChordPro/res/templates/html5/paged/css/` (base.tt, string-set.tt, page-setup.tt, layout.tt, print-media.tt)
+  - **Shared**: Paged mode reuses `html5/css/typography.tt` and `html5/css/variables.tt`
 - **Config Section**: `html5.templates.{css|songbook|song|songline|comment|image|chord_diagrams}`, `html5.paged.templates.{css|songbook|song}`
 - **Integration Pattern**: 
   - Template helper: `_process_template($name, $vars)` method handles all template processing
-  - Element renderers: Individual methods for each type (`_render_songline_template`, `_render_comment_template`, `_render_image_template`)
-  - Dispatch pattern: `_process_song_body()` iterates elements, calls appropriate renderer (LaTeX.pm elt_handler pattern)
+  - Element renderers: Individual methods for each type
+  - Dispatch pattern: `_process_song_body()` iterates elements, calls appropriate renderer
   - Main methods: `generate_song()`, `generate_songbook()`, `render_chord_diagrams()` all template-driven
-- **Grid Rendering Exception**: `render_gridline()` uses direct HTML generation (grid token structure too complex/performance-sensitive for templates)
-- **Benefits**: Modular organization, user-customizable templates via config, easier maintenance, consistent pattern across backends
+- **Grid Rendering Exception**: `render_gridline()` uses direct HTML generation (grid structure too complex for templates)
+- **Benefits**: Modular organization, user-customizable templates via config, easier maintenance
 - **Lessons**: Template array checks must use `.0` or truthiness (not `.size > 0`), chord objects require cascading type checks
-- Reference: `ai-docs/HTML5_TEMPLATE_MIGRATION_COMPLETE.md`, `ai-docs/complete_templates.md`
-- Tests: `t/75_html5.t` (11 tests), `t/76_html5paged.t` (11 tests), all 108 tests passing
+- Tests: `t/75_html5.t` validates functionality
 
 #### Phase 4: PDF Config Compatibility (Dec 2025)
-HTML5Paged backend now supports PDF configuration options via hybrid precedence:
-- **Hybrid Config**: `html5.paged.* > pdf.* > defaults` allows PDF configs to work with HTML5Paged
+HTML5 paged mode supports PDF configuration options via hybrid precedence:
+- **Hybrid Config**: `html5.paged.* > pdf.* > defaults` allows PDF configs to work with HTML5 paged output
 - **Theme Colors**: `pdf.theme.foreground`, `pdf.theme.background`, etc. → CSS variables
 - **Spacing Multipliers**: `pdf.spacing.lyrics`, `pdf.spacing.chords`, etc. → CSS spacing
 - **Chorus Styling**: `pdf.chorus.bar.offset/width/color` → CSS border properties
@@ -365,3 +378,22 @@ Documented existing `{format}.module` config pattern for backend selection:
   - Unit tests for resolution methods avoid template path complexity
 - Tests: `t/html5paged/07_phase4_config.t` (23 tests), comprehensive config resolution coverage
 - Documentation: `docs/content/ChordPro-Configuration-HTML5.md` (Phase 4 section, 186 lines)
+
+#### Template Consolidation (Feb 2026)
+Unified HTML5 template structure for better organization and maintainability:
+- **Consolidation**: Merged `HTML5Helper/` templates into `html5/paged/` subfolder structure
+- **Benefits**: Single template hierarchy, reduced duplication, clearer organization
+- **Structure**: 
+  - `html5/` - Normal/responsive output templates (15 files)
+  - `html5/paged/` - Paged output specific templates (7 files)
+  - Shared CSS: typography.tt and variables.tt used by both modes
+- **Eliminated Duplicates**: Removed duplicate typography.tt and variables.tt from paged templates
+- **Path Updates**: All config references updated from `HTML5Helper/` to `html5/paged/`
+- **Backward Compatibility**: Config paths updated, no API changes
+- **Critical Lessons**:
+  - Template consolidation requires careful INCLUDE path updates
+  - Shared templates reduce maintenance burden and ensure consistency
+  - Always verify tests pass after structural changes
+  - Directory structure should reflect logical relationships (paged as subset of html5)
+- Reference: `ai-docs/TEMPLATE_CONSOLIDATION_PLAN.md`
+- Tests: All HTML5 tests pass after consolidation

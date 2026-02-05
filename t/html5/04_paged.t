@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Test HTML5Paged backend
+# Test HTML5 backend with paged mode
 
 use strict;
 use warnings;
@@ -9,22 +9,28 @@ use File::Temp qw(tempfile);
 use FindBin qw($Bin);
 use lib "$Bin/../lib";
 
-# Test 1: Module loads
-BEGIN { use_ok('ChordPro::Output::HTML5Paged') };
+use ChordPro::Testing;
 
-# Test 2: Can create instance
+# Test 1: Module loads
+BEGIN { use_ok('ChordPro::Output::HTML5') };
+
+# Test 2: Can create instance with paged config
+# Modify the global $config to enable paged mode
+my $paged_config = { %$config, html5 => { mode => 'print' } };
+
 my $backend;
 eval {
-    $backend = ChordPro::Output::HTML5Paged->new(
-        config => {},
+    $backend = ChordPro::Output::HTML5->new(
+        config => $paged_config,
         options => {},
     );
 };
+diag("Error: $@") if $@;
 ok(!$@, 'Backend instantiation succeeds');
-isa_ok($backend, 'ChordPro::Output::HTML5Paged', 'Backend is correct class');
+isa_ok($backend, 'ChordPro::Output::HTML5', 'Backend is correct class');
 
-# Test 3: Backend extends HTML5
-isa_ok($backend, 'ChordPro::Output::HTML5', 'Backend extends HTML5');
+# Test 3: Backend extends ChordProBase
+isa_ok($backend, 'ChordPro::Output::ChordProBase', 'Backend extends ChordProBase');
 
 # Test 4: Check paged.js script inclusion in document begin
 my $doc_begin = $backend->render_document_begin({ title => 'Test', songs => 1 });

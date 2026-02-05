@@ -1203,7 +1203,7 @@
             spacing : {}
         }
     
-        // Settings for HTML5Paged backend (with paged.js pagination).
+        // Settings for paged output (with paged.js pagination).
         paged {
     
             // Paper size for pagination (inherits from pdf.papersize if not set).
@@ -1221,11 +1221,11 @@
             // Templates for HTML/CSS generation.
             templates {
                 // CSS template.
-                css : "html5paged/css/base.tt"
+                css : "html5/paged/css/base.tt"
                 
                 // HTML templates (override html5 templates).
-                songbook : "html5paged/songbook.tt"
-                song : "html5paged/song.tt"
+                songbook : "html5/paged/songbook.tt"
+                song : "html5/paged/song.tt"
             }
     
             // CSS customization.
@@ -1286,7 +1286,7 @@
             spacing : {}
         }
     
-        // Settings for HTML5Paged backend (with paged.js pagination).
+        // Settings for paged output (with paged.js pagination).
         paged {
     
             // Paper size for pagination (inherits from pdf.papersize if not set).
@@ -1304,11 +1304,11 @@
             // Templates for HTML/CSS generation.
             templates {
                 // CSS template.
-                css : "html5paged/css/base.tt"
+                css : "html5/paged/css/base.tt"
                 
                 // HTML templates (override html5 templates).
-                songbook : "html5paged/songbook.tt"
-                song : "html5paged/song.tt"
+                songbook : "html5/paged/songbook.tt"
+                song : "html5/paged/song.tt"
             }
     
             // CSS customization.

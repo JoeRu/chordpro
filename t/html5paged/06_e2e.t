@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# End-to-end test for HTML5Paged headers/footers
+# End-to-end test for HTML5 headers/footers
 # Generates actual HTML output and verifies complete document structure
 
 use strict;
@@ -12,7 +12,7 @@ use ChordPro::Songbook;
 
 plan tests => 13;
 
-use_ok('ChordPro::Output::HTML5Paged');
+use_ok('ChordPro::Output::HTML5');
 
 # =================================================================
 # Create test configuration with complete format specification
@@ -20,6 +20,7 @@ use_ok('ChordPro::Output::HTML5Paged');
 
 my $test_config = {
     %$config,
+    html5 => { mode => 'print' },
     pdf => {
         papersize => 'a4',
         margintop => 80,
@@ -90,12 +91,12 @@ ok(scalar(@{$sb->{songs}}) == 2, "Two songs parsed");
 # Generate complete HTML document
 # =================================================================
 
-my $backend = ChordPro::Output::HTML5Paged->new(
+my $backend = ChordPro::Output::HTML5->new(
     config => $test_config,
     options => { output => undef },
 );
 
-my $html_lines = ChordPro::Output::HTML5Paged->generate_songbook($sb);
+my $html_lines = ChordPro::Output::HTML5->generate_songbook($sb);
 ok($html_lines, "Songbook generated");
 
 my $html = join('', @$html_lines);

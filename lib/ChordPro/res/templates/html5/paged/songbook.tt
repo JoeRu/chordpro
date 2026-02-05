@@ -1,4 +1,4 @@
-[%# ChordPro HTML5Paged Songbook Template
+[%# ChordPro HTML5 Paged Output Songbook Template
     Extends html5/songbook.tt with paged.js integration
     Variables:
       - title: Songbook title
@@ -10,7 +10,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ChordPro HTML5Paged Backend">
+    <meta name="generator" content="ChordPro HTML5 Backend (Paged Mode)">
     <title>[% title | html %]</title>
 
     <!-- Paged.js for pagination -->

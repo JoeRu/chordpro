@@ -5,16 +5,16 @@ package main;
 our $config;
 our $options;
 
-package ChordPro::Output::HTML5Paged::FormatGenerator;
+package ChordPro::Output::HTML5Helper::FormatGenerator;
 
-# PDF format → CSS @page rule translator for HTML5Paged backend
-# Extracts format parsing logic from HTML5Paged.pm for reusability
+# PDF format → CSS @page rule translator for HTML5 backend
+# Extracts format parsing logic for reusability
 
 use v5.26;
 use Object::Pad;
 use utf8;
 
-class ChordPro::Output::HTML5Paged::FormatGenerator {
+class ChordPro::Output::HTML5Helper::FormatGenerator {
     field $config :param;
     field $options :param = {};
     
@@ -235,13 +235,13 @@ $boxes
 
 =head1 NAME
 
-ChordPro::Output::HTML5Paged::FormatGenerator - PDF format to CSS @page translator
+ChordPro::Output::HTML5Helper::FormatGenerator - PDF format to CSS @page translator
 
 =head1 SYNOPSIS
 
-    use ChordPro::Output::HTML5Paged::FormatGenerator;
+    use ChordPro::Output::HTML5Helper::FormatGenerator;
     
-    my $generator = ChordPro::Output::HTML5Paged::FormatGenerator->new(
+    my $generator = ChordPro::Output::HTML5Helper::FormatGenerator->new(
         config => $config,
         options => $options,
     );
@@ -274,6 +274,6 @@ pdf.formats configuration.
 
 =head1 SEE ALSO
 
-L<ChordPro::Output::HTML5Paged>
+L<ChordPro::Output::HTML5>
 
 =cut
