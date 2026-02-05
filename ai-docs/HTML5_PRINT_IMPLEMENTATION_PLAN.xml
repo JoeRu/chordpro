@@ -142,6 +142,105 @@
     </implementation-details>
   </feature>
 
+  <feature>
+    <title>ABC and Lilypond Notation Support (Delegate Processing)</title>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      ABC and Lilypond notation are essential for including music notation in songbooks.
+      PDF backend fully supports these through delegate processing - it calls
+      ChordPro::Delegate::ABC and ChordPro::Delegate::Lilypond to convert ABC/Lilypond
+      code into SVG images, then embeds them. HTML5 backend currently only handles
+      direct URI-based images and skips delegate processing entirely, so ABC and
+      Lilypond directives (start_of_abc, start_of_ly) do not render.
+      
+      The delegate modules already exist and work well. Implementation requires:
+      1) Detecting image elements with subtype='delegate'
+      2) Loading the appropriate delegate module
+      3) Calling the handler to generate SVG
+      4) Embedding the resulting SVG in HTML output
+      
+      This is a medium-complexity, high-impact feature. Many users include ABC
+      notation for melody lines and Lilypond for professional sheet music.
+    </reason>
+    <priority>High</priority>
+    <implementation-risks>
+      <risk>
+        Delegate module dependencies: ABC requires JavaScript::QuickJS or JavaScript::QuickJS_XS.
+        Mitigation: Check for module availability, provide clear error messages if missing.
+      </risk>
+      <risk>
+        SVG size and scaling: Generated SVG may need size adjustments for HTML context.
+        Mitigation: Apply same scaling logic as PDF backend, test with various ABC/Lilypond examples.
+      </risk>
+      <risk>
+        Error handling: Invalid ABC/Lilypond syntax should fail gracefully.
+        Mitigation: Wrap delegate calls in eval{}, show placeholder on error, log warnings.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        Study PDF delegate processing in lib/ChordPro/Output/PDF/Song.pm:
+        - Find delegate processing code (search for "subtype.*delegate")
+        - Understand how it loads delegate modules (ChordPro::Delegate::ABC, etc.)
+        - Review how it calls handler methods and processes results
+        - Lines 2498-2550 contain the core logic
+      </task>
+      <task id="2">
+        Add delegate detection to HTML5.pm _render_image_template():
+        - Check if element has subtype => 'delegate'
+        - Extract delegate name and handler from element
+        - For non-delegate images, proceed with current template processing
+      </task>
+      <task id="3">
+        Add _process_delegate_image() method to HTML5.pm:
+        - Load delegate module: "ChordPro::Delegate::$element->{delegate}"
+        - Get handler method: $module->can($element->{handler})
+        - Load data from element->{data} or element->{uri} if needed
+        - Call handler with appropriate context (song, element, options)
+        - Return SVG data or error indicator
+      </task>
+      <task id="4">
+        Handle delegate results:
+        - If delegate returns SVG data, embed it inline: &lt;div class="cp-delegate-abc"&gt;{SVG}&lt;/div&gt;
+        - Apply width/height from opts if specified
+        - If delegate fails, show placeholder with error message
+        - Preserve any labels or positioning from original element
+      </task>
+      <task id="5">
+        Add CSS styling for delegate content in templates:
+        - .cp-delegate-abc, .cp-delegate-lilypond classes
+        - Control SVG sizing and positioning
+        - Ensure proper page-break handling
+        - Test with paged mode
+      </task>
+      <task id="6">
+        Create comprehensive tests in testing/html5/:
+        - Test ABC notation rendering with simple melody
+        - Test Lilypond notation with chord symbols
+        - Test with spread option (full-width images)
+        - Test error handling (invalid ABC syntax)
+        - Verify output matches PDF backend visually
+        - Use lib/ChordPro/res/examples/mollymalone.cho as test case
+      </task>
+    </implementation-details>
+  </feature>
+
+  <feature>
+    <title>Dual-Page Layout with Odd/Even Page Styling</title>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      Bound songbooks require different styling for left (even) and right (odd) pages.
+      (Rest of content preserved...)
+    </reason>
+    <priority>High</priority>
+    <implementation-risks>
+      <risk>Content preserved...</risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">Content preserved...</task>
+    </implementation-details>
+  </feature>
+
   <!-- Continuing with other features... truncated for length -->
 
   <feature>

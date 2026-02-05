@@ -49,10 +49,10 @@ This document analyzes the HTML5 print mode feature completeness compared to the
 | Colors (256+) | ✅ Full | ✅ Full | Complete | - |
 | Theme colors | ✅ Full | ✅ Full | Complete | - |
 | **Images & Media** |
-| Inline images | ✅ Full | ✅ Full | Complete | - |
-| SVG embedding | ✅ Full | ✅ Full | Complete | - |
-| ABC notation | ✅ Full | ✅ Full | Complete | - |
-| Lilypond notation | ✅ Full | ✅ Full | Complete | - |
+| Inline images (URI-based) | ✅ Full | ✅ Full | Complete | - |
+| SVG embedding (URI-based) | ✅ Full | ✅ Full | Complete | - |
+| ABC notation (delegate processing) | ✅ Full | ❌ Missing | Gap | High |
+| Lilypond notation (delegate processing) | ✅ Full | ❌ Missing | Gap | High |
 | **Special Elements** |
 | Comments (plain/italic/boxed) | ✅ Full | ✅ Full | Complete | - |
 | Tabs (tablature) | ✅ Full | ✅ Full | Complete | - |
@@ -92,41 +92,55 @@ This document analyzes the HTML5 print mode feature completeness compared to the
    - **Impact**: Essential for bound songbooks with facing pages
    - **Complexity**: Medium - CSS @page :left/:right selectors
 
+4. **ABC Notation (Delegate Processing)**
+   - **Status**: Missing
+   - **Impact**: Essential for music notation in songbooks
+   - **PDF Implementation**: Uses ChordPro::Delegate::ABC to generate SVG from ABC code
+   - **Complexity**: Medium - need to integrate delegate processing pipeline
+   - **Note**: Regular images work fine; only delegate-based image generation is missing
+
+5. **Lilypond Notation (Delegate Processing)**
+   - **Status**: Missing
+   - **Impact**: Essential for professional music notation
+   - **PDF Implementation**: Uses ChordPro::Delegate::Lilypond to generate SVG from Lilypond code
+   - **Complexity**: Medium - need to integrate delegate processing pipeline
+   - **Note**: Same delegate processing infrastructure as ABC
+
 ### Medium Priority Gaps
 
-4. **Song Sorting**
+6. **Song Sorting**
    - **Status**: Missing
    - **Impact**: User convenience for organizing songbooks
    - **Complexity**: Low - sort before rendering
 
-5. **Page Alignment (Songs to Right Pages)**
+7. **Page Alignment (Songs to Right Pages)**
    - **Status**: Missing
    - **Impact**: Professional binding with songs always on right-facing pages
    - **Complexity**: Medium - requires page tracking and filler pages
 
-6. **TOC Hierarchical Breaks**
+8. **TOC Hierarchical Breaks**
    - **Status**: Missing
    - **Impact**: Better organization for large songbooks
    - **Complexity**: Medium - extends TOC implementation
 
 ### Low Priority Gaps
 
-7. **Song Compaction**
+9. **Song Compaction**
    - **Status**: Missing
    - **Impact**: Optimizes page usage (nice-to-have)
    - **Complexity**: High - requires layout simulation
 
-8. **Cover/Front/Back Matter**
-   - **Status**: Missing
-   - **Impact**: Professional presentation (workaround: external tools)
-   - **Complexity**: Low - static page insertion
+10. **Cover/Front/Back Matter**
+    - **Status**: Missing
+    - **Impact**: Professional presentation (workaround: external tools)
+    - **Complexity**: Low - static page insertion
 
-9. **Keyboard Diagrams**
-   - **Status**: Placeholder only
-   - **Impact**: Limited use case (mostly string instruments)
-   - **Complexity**: Medium - SVG rendering logic
+11. **Keyboard Diagrams**
+    - **Status**: Placeholder only
+    - **Impact**: Limited use case (mostly string instruments)
+    - **Complexity**: Medium - SVG rendering logic
 
-10. **Debug Output**
+12. **Debug Output**
     - **Status**: Partial
     - **Impact**: Development convenience
     - **Complexity**: Low - add debug classes/comments
@@ -217,12 +231,15 @@ All new features will:
 
 ### Must Have (High Priority)
 - ✅ Table of Contents with page numbers
+- ✅ ABC notation support (delegate processing)
+- ✅ Lilypond notation support (delegate processing)
 - ✅ Enhanced headers/footers with format templates
 - ✅ Odd/even page support
 
 ### Should Have (Medium Priority)
 - ✅ Song sorting
 - ✅ Page alignment for binding
+- ✅ TOC hierarchical breaks
 
 ### Nice to Have (Low Priority)
 - ✅ Song compaction
@@ -231,12 +248,15 @@ All new features will:
 
 ## Conclusion
 
-The HTML5 print mode is **~70% feature-complete** compared to PDF. The main gaps are in:
+The HTML5 print mode is **~65% feature-complete** compared to PDF. The main gaps are in:
 1. **Table of Contents** (missing entirely)
-2. **Enhanced page layout** (partial implementation)
-3. **Songbook organization** (sorting, alignment)
+2. **ABC/Lilypond Notation** (missing delegate processing)
+3. **Enhanced page layout** (partial implementation)
+4. **Songbook organization** (sorting, alignment)
 
-These features are **feasible to implement** using paged.js and existing ChordPro infrastructure. The implementation should be **incremental** with thorough testing at each stage.
+**Key Discovery**: Regular images and grids ARE fully supported. The gap is specifically in **delegate-based image generation** (ABC, Lilypond), which requires integrating the delegate processing pipeline that converts ABC/Lilypond code to SVG.
+
+These features are **feasible to implement** using paged.js and existing ChordPro infrastructure. The delegate processing is particularly straightforward as the modules already exist and just need to be called from HTML5 backend. The implementation should be **incremental** with thorough testing at each stage.
 
 ---
 

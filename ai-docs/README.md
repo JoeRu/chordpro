@@ -19,22 +19,24 @@
 
 ## Feature Summary
 
-### ✅ Implement (9 features)
+### ✅ Implement (11 features)
 
 #### High Priority
 1. **Table of Contents** - Essential for multi-song books, ~8-12 hours
-2. **Enhanced Headers/Footers** - Format variants, ~4-6 hours
-3. **Dual-Page Layout** - Odd/even styling, ~3-4 hours
+2. **ABC Notation** - Delegate processing for music notation, ~3-4 hours
+3. **Lilypond Notation** - Delegate processing for professional notation, ~3-4 hours
+4. **Enhanced Headers/Footers** - Format variants, ~4-6 hours
+5. **Dual-Page Layout** - Odd/even styling, ~3-4 hours
 
 #### Medium Priority
-4. **Song Sorting** - User convenience, ~2-3 hours
-5. **Page Alignment** - Songs to right pages, ~3-4 hours
-6. **TOC Hierarchical Breaks** - Better organization, ~2-3 hours
+6. **Song Sorting** - User convenience, ~2-3 hours
+7. **Page Alignment** - Songs to right pages, ~3-4 hours
+8. **TOC Hierarchical Breaks** - Better organization, ~2-3 hours
 
 #### Low Priority
-7. **Cover/Front/Back Matter** - Professional polish, ~3-4 hours
-8. **Keyboard Diagrams** - Piano chord rendering, ~6-8 hours
-9. **Debug Output** - Development tool, ~2-3 hours
+9. **Cover/Front/Back Matter** - Professional polish, ~3-4 hours
+10. **Keyboard Diagrams** - Piano chord rendering, ~6-8 hours
+11. **Debug Output** - Development tool, ~2-3 hours
 
 ### ❌ Denied (4 features)
 
