@@ -1,0 +1,1382 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation-plan>
+  <metadata>
+    <title>HTML5 Print Mode Missing Features Implementation Plan</title>
+    <version>2.0</version>
+    <date>2026-02-06</date>
+    <status>Consolidated from previous analysis</status>
+    <summary>
+      This plan consolidates all documentation for HTML5 print feature parity with PDF backend.
+      Organizes 18 features into 3 parallel execution branches with verification steps and unit tests.
+      6 features are denied with justification.
+    </summary>
+  </metadata>
+
+  <architecture>
+    <description>
+      Parallel Branch Architecture for Implementation
+
+                              [START]
+                                 |
+               +-----------------+-----------------+
+               |                 |                 |
+          [BRANCH A]        [BRANCH B]        [BRANCH C]
+         Core + Songbook    Content + Layout   CSS/Styling
+               |                 |                 |
+          1. Paged Mode     3. Rechorus       6. Comment Box
+          2. FormatGen      4. Delegates      7. Section Labels
+               |            5. Annotations     8. Grid Bars
+          [MERGE A]         10. Image Align    9. Volta
+               |            11. Diagram Pos        |
+          15. TOC           12. Chords-Under  [BRANCH C DONE]
+          16. Odd/Even      13. Inline Chords
+          17. Cover/Matter  14. Keyboard Diag
+          18. Song Sorting        |
+               |            [BRANCH B DONE]
+               |                 |
+               +-----------------+
+                        |
+                  [FINAL MERGE]
+    </description>
+  </architecture>
+
+  <!-- ================================================================== -->
+  <!-- BRANCH A: Core Infrastructure + Songbook (Sequential - Foundation)  -->
+  <!-- ================================================================== -->
+
+  <feature id="1">
+    <title>Paged Mode Activation</title>
+    <branch>A</branch>
+    <priority>CRITICAL</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      This is the foundational blocker. The entire paged mode infrastructure (templates in html5/paged/,
+      FormatGenerator, CSS @page rules) exists but is never activated because HTML5.pm never checks
+      html5.mode config and never selects paged templates. Without this, features 2, 15-18 cannot work.
+      This is a relatively small code change with massive impact.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        Changing template selection could break existing HTML5 output if the paged templates have
+        rendering gaps vs the non-paged templates.
+        Mitigation: Make paged mode opt-in only (activated by `html5.mode = "print"` config),
+        so default behavior is unchanged. Add fallback to non-paged templates if paged template files are missing.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm`, locate the `generate_songbook()` method (around line 796).
+        Add logic to check `$config->{html5}->{mode}` for value "print" or "paged". When detected,
+        override the template paths to use `html5.paged.templates` from config instead of `html5.templates`.
+        The config keys are already defined in `chordpro.json` lines 1286-1317 under `html5.paged.templates`
+        with paths like `html5/paged/songbook.tt`, `html5/paged/song.tt`, `html5/paged/css/base.tt`.
+      </task>
+      <task id="2">
+        In `generate_default_css()` (around line 736), when paged mode is active, use the paged CSS
+        base template (`html5/paged/css/base.tt`) which includes the `@page` rules and paged.js
+        integration instead of the regular CSS base template.
+      </task>
+      <task id="3">
+        Update `generate_song()` (around line 446) to pass metadata as template variables when paged
+        mode is active: `data_title`, `data_subtitle`, `data_artist`, `data_album`, `data_composer`,
+        `data_lyricist`, `data_copyright`, `data_year`, `data_key`, `data_capo`. Extract these from
+        `$song->{meta}` (all values are arrayrefs, join with ", " for display). The paged song.tt
+        template already has conditionals that will activate once these variables are provided.
+      </task>
+      <task id="4">
+        Update the test `t/76_html5paged.t` to verify that paged mode is actually activated:
+        check that paged.js script is included, that the paged songbook template is used,
+        and that data-* attributes appear in song divs when metadata is present.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Set config `{"html5":{"mode":"print"}}` and generate HTML5 output</step>
+        <step order="2">Verify paged.js script tag is present in output</step>
+        <step order="3">Verify @page CSS rules are present in output</step>
+        <step order="4">Verify data-* attributes on song divs contain metadata</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/76_html5paged.t</file>
+          <description>Test paged mode activation with config</description>
+          <assertions>
+            - Output contains paged.js script inclusion
+            - Output contains @page CSS rules
+            - Song divs have data-title attributes when song has title metadata
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="2">
+    <title>FormatGenerator Integration (Headers/Footers/Page Numbers)</title>
+    <branch>A</branch>
+    <priority>CRITICAL</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      FormatGenerator (`lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm`) is a complete, working
+      module that translates PDF format configs (headers/footers with %{title}, %{page}, etc.) into
+      CSS @page margin-box rules. It handles default/title/first page formats, odd/even variants,
+      and metadata substitutions. It is simply never instantiated or called. Wiring it in gives
+      headers, footers, page numbers, and odd/even differentiation in one step.
+    </reason>
+    <depends-on>1</depends-on>
+    <implementation-risks>
+      <risk>
+        CSS Paged Media @page margin boxes require paged.js polyfill for browser support.
+        Mitigation: The polyfill is already loaded in the paged songbook template.
+      </risk>
+      <risk>
+        FormatGenerator hardcodes font-size 10pt and color #666 - may not match user's theme.
+        Mitigation: Make FormatGenerator read font config from `pdf.formats` config or add
+        HTML5-specific format overrides.
+      </risk>
+      <risk>
+        `string()` CSS function requires corresponding `string-set` rules on elements with
+        data-* attributes - this depends on Feature 1 (metadata passthrough).
+        Mitigation: Implement Feature 1 first.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm` `generate_default_css()` method (around line 736),
+        when paged mode is active: import and instantiate `ChordPro::Output::HTML5Helper::FormatGenerator`
+        with `$config` and `$options`. Call `$generator->generate_rules()` to get CSS @page rules.
+        Pass the result as the `format_rules` template variable to the paged CSS base template.
+        The template already has `[% format_rules %]` placeholder at line 10 of `html5/paged/css/base.tt`.
+      </task>
+      <task id="2">
+        Verify that the paged CSS string-set template (`html5/paged/css/string-set.tt`) correctly
+        maps data-* attributes to CSS string-set properties. The rules should be:
+        `.cp-song[data-title] { string-set: song-title attr(data-title); }` etc. for title,
+        subtitle, artist, album, composer, lyricist, copyright, duration.
+      </task>
+      <task id="3">
+        Enhance FormatGenerator to respect theme colors: instead of hardcoded `color: #666`,
+        read from `$config->{pdf}->{theme}->{'foreground-medium'}` with fallback to `#666`.
+        Similarly, font-size should default to `10pt` but allow override from config.
+      </task>
+      <task id="4">
+        Add tests that generate paged HTML5 output with format config and verify that CSS
+        @page rules appear in the output with correct margin-box content (e.g., `counter(page)`,
+        `string(song-title)`).
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Configure pdf.formats.default with header/footer format strings</step>
+        <step order="2">Generate paged HTML5 output</step>
+        <step order="3">Verify CSS contains @page rules with margin boxes</step>
+        <step order="4">Verify page numbers appear in browser print preview</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/77_html5_formatgen.t</file>
+          <description>Test FormatGenerator CSS output</description>
+          <assertions>
+            - CSS contains @page { @top-center { content: ... } } rules
+            - CSS contains counter(page) for page numbers
+            - CSS contains string(song-title) for title references
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="15">
+    <title>Table of Contents</title>
+    <branch>A</branch>
+    <priority>HIGH</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      Essential feature for multi-song songbooks. PDF has sophisticated TOC support with multiple
+      TOCs, grouping, and page references. HTML5 print lacks this entirely. Users need this for
+      professional songbook production. The feature is feasible using paged.js hooks for page
+      number tracking and Template::Toolkit for rendering.
+    </reason>
+    <depends-on>1, 2</depends-on>
+    <implementation-risks>
+      <risk>
+        Paged.js async rendering: Page numbers only available after paged.js completes layout.
+        Mitigation: Use paged.js "afterRendered" hook to populate TOC page numbers dynamically.
+      </risk>
+      <risk>
+        Performance with large songbooks: Generating TOC for 100+ songs may slow rendering.
+        Mitigation: Optimize data structures, use efficient sorting algorithms, test with large books.
+      </risk>
+      <risk>
+        Config compatibility: TOC config structure differs between PDF and HTML5.
+        Mitigation: Reuse existing "contents" config from chordpro.json, extend as needed.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        Study existing TOC implementation in lib/ChordPro/Output/PDF.pm (search for "toc", "contents").
+        Understand how PDF backend uses ChordPro::Output::Common::prep_outlines() for TOC data.
+      </task>
+      <task id="2">
+        Add TOC support to HTML5.pm backend:
+        - Add _generate_toc() method to create TOC structure from songbook
+        - Extract metadata (title, artist, page) from each song
+        - Support multiple TOC types from config (by title, by artist, custom)
+        - Handle hierarchical breaks (e.g., group by first letter)
+      </task>
+      <task id="3">
+        Create TOC templates in lib/ChordPro/res/templates/html5/paged/:
+        - toc.tt: Main TOC container with title
+        - toc-entry.tt: Individual TOC line with metadata and page number placeholder
+        - Add CSS for TOC styling (leader dots, page numbers)
+      </task>
+      <task id="4">
+        Integrate paged.js hooks for page number resolution:
+        - Use data-page-ref attributes on TOC entries
+        - Add JavaScript in paged mode to populate page numbers after rendering
+        - Test with paged.js "afterRendered" event
+      </task>
+      <task id="5">
+        Add TOC config support in chordpro.json:
+        - Reuse existing "contents" array structure
+        - Add html5.paged.toc.* config options for HTML5-specific settings
+        - Support omit, template, fields, break, format options
+      </task>
+      <task id="6">
+        Create comprehensive tests in testing/html5paged/:
+        - Test single TOC generation
+        - Test multiple TOCs (by title, by artist)
+        - Test hierarchical breaks
+        - Test TOC with 50+ songs for performance
+        - Verify page number accuracy
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create songbook with 5+ songs</step>
+        <step order="2">Enable TOC via config</step>
+        <step order="3">Generate paged HTML5 output</step>
+        <step order="4">Verify TOC appears with song titles</step>
+        <step order="5">In browser print preview, verify page numbers are accurate</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/78_html5_toc.t</file>
+          <description>Test TOC generation</description>
+          <assertions>
+            - TOC container div present with class cp-toc
+            - Each song has entry in TOC
+            - TOC entries have data-page-ref attributes
+            - TOC respects config omit setting
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="16">
+    <title>Odd/Even Page Differentiation</title>
+    <branch>A</branch>
+    <priority>MEDIUM</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      PDF supports different headers/footers for odd (right) and even (left) pages - important for
+      book-style double-sided printing. The FormatGenerator already handles this: it generates CSS
+      `:left` and `:right` @page pseudo-selectors and swaps left/right content for even pages.
+      This feature becomes available automatically once FormatGenerator is integrated (Feature 2).
+      The only additional work is ensuring the CSS works correctly with paged.js.
+    </reason>
+    <depends-on>2</depends-on>
+    <implementation-risks>
+      <risk>
+        CSS @page :left/:right selectors require the CSS `@page { }` writing-mode context and
+        paged.js support.
+        Mitigation: paged.js 0.4.3 (already loaded in paged templates) supports :left/:right pseudo-selectors.
+      </risk>
+      <risk>
+        Content swapping (left footer on even pages becomes right footer) is already handled in FormatGenerator.
+        Mitigation: Verify with test output.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        This feature is primarily delivered by Feature 2 (FormatGenerator integration). Verify that
+        when `pdf.formats.default-even` exists in config, FormatGenerator produces
+        `@page :left { ... }` rules with swapped left/right content.
+      </task>
+      <task id="2">
+        Add specific test: provide config with
+        `{"pdf":{"formats":{"default":{"footer":["","","%{page}"]},"default-even":{"footer":["%{page}","",""]}}}}"`
+        and verify the CSS output has both `@page { @bottom-right { content: counter(page); } }`
+        and `@page :left { @bottom-left { content: counter(page); } }`.
+      </task>
+      <task id="3">
+        Test with paged.js in a browser to verify visual output shows page numbers alternating sides
+        on odd/even pages.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Configure even page format variant</step>
+        <step order="2">Generate paged HTML5 output</step>
+        <step order="3">Verify CSS contains @page :left and @page :right rules</step>
+        <step order="4">In browser, verify page numbers alternate sides</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/79_html5_oddeven.t</file>
+          <description>Test odd/even page CSS generation</description>
+          <assertions>
+            - CSS contains @page :left rules
+            - CSS contains @page :right rules
+            - Left/right content swapped appropriately
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="17">
+    <title>Songbook Parts (Cover, Front Matter, Back Matter)</title>
+    <branch>A</branch>
+    <priority>LOW</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      PDF supports inserting cover pages (from a PDF file), front matter, and back matter into the
+      songbook. For HTML5, cover/matter content could be HTML files or images. This is a lower-priority
+      feature but valuable for generating complete songbook documents in HTML5 format, especially in
+      paged/print mode.
+    </reason>
+    <depends-on>1</depends-on>
+    <implementation-risks>
+      <risk>
+        PDF cover pages use embedded PDF pages, which don't have an HTML equivalent.
+        Mitigation: Support HTML files as cover/matter content (new config key `html5.cover`),
+        or support images. Also could support the same PDF files by converting them to images
+        or embedding via `&lt;object&gt;` tag.
+      </risk>
+      <risk>
+        In paged mode, cover/matter needs correct page-break handling.
+        Mitigation: Wrap in `&lt;div class="cp-cover" style="page-break-after: always;"&gt;` for clean separation.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        Add config support for `html5.cover`, `html5.front-matter`, `html5.back-matter` accepting
+        HTML file paths or image file paths.
+      </task>
+      <task id="2">
+        In `generate_songbook()`, before the song loop, read and insert front matter content.
+        After the song loop, insert back matter. Cover content goes before everything, wrapped
+        in a page-break div.
+      </task>
+      <task id="3">
+        Add CSS for `.cp-cover`, `.cp-front-matter`, `.cp-back-matter` with appropriate page break
+        rules for paged mode.
+      </task>
+      <task id="4">
+        Fallback: if config points to a PDF file (for backwards compatibility with pdf.cover),
+        show a message or skip gracefully rather than trying to embed it.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create cover.html and matter.html files</step>
+        <step order="2">Configure html5.cover and html5.front-matter</step>
+        <step order="3">Generate paged HTML5 output</step>
+        <step order="4">Verify cover appears first, front matter before songs</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/80_html5_songbook_parts.t</file>
+          <description>Test songbook parts insertion</description>
+          <assertions>
+            - Cover content appears before TOC and songs
+            - Front matter appears after cover, before songs
+            - Back matter appears after all songs
+            - Page breaks applied correctly
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="18">
+    <title>Song Sorting</title>
+    <branch>A</branch>
+    <priority>LOW</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      PDF supports sorting songs by title, subtitle, artist, etc. before rendering. HTML5 renders
+      songs in input order. Sorting is a backend-independent operation that should happen before
+      rendering. This is a small addition to `generate_songbook()` that improves songbook usability.
+    </reason>
+    <depends-on>1</depends-on>
+    <implementation-risks>
+      <risk>
+        Minimal - sorting is a well-understood operation. Only risk is sort key extraction from
+        song metadata.
+        Mitigation: Use `$song->{meta}->{title}->[0]` for title sort, etc. Handle missing
+        metadata gracefully (sort to end).
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm` `generate_songbook()`, before the song rendering loop,
+        check for sort config from `$config->{pdf}->{sortby}` (or future `html5.sortby`).
+        If present, sort the `$sb->{songs}` array by the specified field(s).
+      </task>
+      <task id="2">
+        Support the same sort syntax as PDF: array of field names with optional `+`/`-` prefix
+        for ascending/descending. Default to case-insensitive title sort.
+      </task>
+      <task id="3">
+        Test with a multi-song input where songs are in non-alphabetical order, and config
+        `{"pdf":{"sortby":["title"]}}`, verifying the HTML output has songs in alphabetical order.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create songbook with songs in non-alphabetical order</step>
+        <step order="2">Configure sortby: ["title"]</step>
+        <step order="3">Generate HTML5 output</step>
+        <step order="4">Verify songs appear in alphabetical order</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/81_html5_sorting.t</file>
+          <description>Test song sorting</description>
+          <assertions>
+            - Songs sorted alphabetically by title when configured
+            - Songs sorted by artist when configured
+            - Descending sort works with - prefix
+            - Missing metadata handled gracefully
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <!-- ================================================================== -->
+  <!-- BRANCH B: Content Rendering + Layout (Parallel - No dependencies)  -->
+  <!-- ================================================================== -->
+
+  <feature id="3">
+    <title>Chorus Recall (Rechorus)</title>
+    <branch>B</branch>
+    <priority>HIGH</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      The `rechorus` element type is completely missing from ChordProBase's dispatch table and
+      HTML5 rendering. When a song uses `{chorus}` to recall a previously defined chorus, the
+      HTML5 backend silently drops it. This is a significant functional gap - many songs rely
+      on chorus recall. The PDF backend supports three modes: quote (re-render chorus lines),
+      tag (show "Chorus" label), and choruslike (apply chorus styling). At minimum, quote and
+      tag modes should be implemented.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        The `rechorus` element has a `chorus` field containing the full chorus body when in
+        quote mode, which needs to be re-dispatched through the rendering pipeline. This could
+        cause issues if chorus elements contain sub-elements that are poorly handled.
+        Mitigation: Use the existing `handle_chorus()` method for quote mode rendering, which
+        already handles chorus body dispatch.
+      </risk>
+      <risk>
+        The choruslike mode requires applying chorus CSS class to non-chorus content.
+        Mitigation: Use an additional CSS class like `cp-choruslike` that mirrors `.cp-chorus` styling.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/ChordProBase.pm`, add `rechorus` to the dispatch table around
+        line 127 (after the grid handler):
+        `return $self->handle_rechorus($elt) if $type eq 'rechorus';`
+      </task>
+      <task id="2">
+        Add a `handle_rechorus()` method to ChordProBase that implements the three modes.
+        Read the chorus recall config from `$config->{pdf}->{chorus}->{recall}` (or a future
+        `html5.chorus.recall` config). For **quote mode** (`$recall->{quote}` is true): if
+        `$elt->{chorus}` exists, render it using `handle_chorus()` with the chorus body.
+        For **tag mode** (`$recall->{type}` and `$recall->{tag}`): render a comment-like element
+        with the tag text (e.g., "Chorus"). For **default**: render a simple "Chorus" indicator
+        div with class `cp-rechorus`.
+      </task>
+      <task id="3">
+        Add CSS for `.cp-rechorus` in the HTML5 CSS templates (sections.tt or a new rechorus section).
+        Style it similarly to a comment with italic text indicating chorus recall. For choruslike
+        mode, add `.cp-choruslike` class that mirrors `.cp-chorus` border/indent styling.
+      </task>
+      <task id="4">
+        Add test in `testing/` with a .cho file that uses `{chorus}` recall directive, verifying
+        the HTML5 output contains the recalled chorus content or tag.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create .cho file with {start_of_chorus}...{end_of_chorus} and later {chorus}</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify chorus content appears at both locations (quote mode) or tag appears (tag mode)</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/82_html5_rechorus.t</file>
+          <description>Test chorus recall rendering</description>
+          <assertions>
+            - Rechorus element not silently dropped
+            - Quote mode re-renders chorus content
+            - Tag mode shows "Chorus" label
+            - CSS class cp-rechorus applied
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="4">
+    <title>Delegate Support (ABC, LilyPond)</title>
+    <branch>B</branch>
+    <priority>HIGH</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      Delegates are a core ChordPro feature allowing embedding of ABC notation, LilyPond notation,
+      and strum patterns. The delegate system already generates SVG output (via abc2svg, ly2svg).
+      The legacy HTML backend supports delegates by embedding the SVG/image output directly.
+      HTML5's `handle_delegate()` returns empty string, completely dropping all delegate content.
+      Since delegates produce images/SVGs, the HTML5 backend can embed them directly as `&lt;img&gt;`
+      or inline `&lt;svg&gt;` elements.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        Delegate output may be PNG, SVG, or other formats. HTML5 needs to handle each type.
+        Mitigation: Check `$elt->{subtype}` which indicates `image-svg`, `image-png`, etc.
+        For SVG, inline the content; for raster images, use `&lt;img&gt;` with data URI or file path.
+      </risk>
+      <risk>
+        abc2svg produces JavaScript-dependent SVG that may need special handling in HTML context.
+        Mitigation: Use the same approach as the legacy HTML backend (lines 154-165 of HTML.pm)
+        which successfully embeds delegate output.
+      </risk>
+      <risk>
+        Delegates may not be installed on the user's system.
+        Mitigation: Handle gracefully - show placeholder text if delegate processing fails
+        (check `$elt->{data}` existence).
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm`, override `handle_delegate()` from ChordProBase.
+        Check `$elt->{subtype}` for the delegate type. Reference `lib/ChordPro/Output/HTML.pm`
+        lines 154-197 for the established pattern. For `image-svg` subtype: if `$elt->{data}`
+        contains SVG data, embed it inline wrapped in `&lt;div class="cp-delegate cp-delegate-svg"&gt;`.
+        For `image-png` or other image subtypes: if an asset/file was generated, use `&lt;img&gt;` tag
+        with the file path.
+      </task>
+      <task id="2">
+        Handle the case where delegate data is stored as an asset: check `$elt->{uri}` and
+        `$elt->{opts}` for file paths. Use the existing `render_image()` method for file-based
+        delegate output. Add class `cp-delegate` to distinguish from regular images.
+      </task>
+      <task id="3">
+        Add CSS for `.cp-delegate` in the HTML5 CSS templates. SVG delegates should be sized
+        responsively (max-width: 100%, height: auto). Add margin spacing consistent with other
+        block elements.
+      </task>
+      <task id="4">
+        Test with ABC notation input (create a .cho file with `{start_of_abc}...{end_of_abc}` block).
+        Verify the SVG output appears in the HTML5 output. If abc2svg is not available in the
+        test environment, test the fallback behavior (empty or placeholder).
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create .cho file with {start_of_abc}...{end_of_abc} block</step>
+        <step order="2">Generate HTML5 output (requires abc2svg or lilypond installed)</step>
+        <step order="3">Verify SVG content embedded in output</step>
+        <step order="4">Verify placeholder shown if delegate unavailable</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/83_html5_delegate.t</file>
+          <description>Test delegate embedding</description>
+          <assertions>
+            - Delegate element not silently dropped
+            - SVG content embedded for image-svg subtype
+            - CSS class cp-delegate applied
+            - Graceful fallback when delegate unavailable
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="5">
+    <title>Annotation Support</title>
+    <branch>B</branch>
+    <priority>MEDIUM</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      Annotations (marked with `*` prefix in chord positions, e.g., `[*N.C.]`) are treated as
+      non-chord text annotations in ChordPro. PDF renders them with distinct styling (not as
+      chord diagrams, different font/color). HTML5 currently renders them identically to regular
+      chords with no visual distinction. The chord info object has an `is_annotation` method
+      that can be checked.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        Minimal. The chord objects in the songline have an `info` method that returns chord info
+        with `is_annotation`. Need to check if the HTML5 chord rendering path accesses chord info.
+        Mitigation: In `render_songline()`, check if the chord object responds to
+        `->info->is_annotation` and add an `cp-annotation` CSS class when true.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm`, in the songline chord rendering logic (where chords
+        are converted to display text), add an annotation check:
+        `if (ref($chord) && $chord->can('info') && $chord->info && $chord->info->is_annotation)`
+        then add CSS class `cp-annotation` to the chord span instead of `cp-chord`.
+      </task>
+      <task id="2">
+        Add CSS for `.cp-annotation` in the typography template:
+        `font-style: italic; color: var(--cp-color-annotation, var(--cp-color-text)); font-weight: normal;`.
+        Annotations should look like text notes, not chord names.
+      </task>
+      <task id="3">
+        Ensure annotations are excluded from chord diagram generation - the `render_chord_diagrams()`
+        method should skip chords where `info->is_annotation` is true. Check if this is already handled.
+      </task>
+      <task id="4">
+        Test with a .cho file containing `[*N.C.]No chord` and `[*riff]Guitar part` annotations,
+        verifying they get the annotation class and not the chord class.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create .cho file with [*N.C.] and [*riff] annotations</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify annotations have cp-annotation class, not cp-chord</step>
+        <step order="4">Verify annotations not included in chord diagrams</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/84_html5_annotations.t</file>
+          <description>Test annotation rendering</description>
+          <assertions>
+            - Annotations have cp-annotation class
+            - Annotations styled differently from chords
+            - Annotations excluded from chord diagrams
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="10">
+    <title>Image Alignment and Sizing</title>
+    <branch>B</branch>
+    <priority>MEDIUM</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      HTML5 image rendering (`render_image()` line 333-346) only passes width/height attributes.
+      It does not handle: alignment (center/left/right from `{image: file.png align=center}`),
+      scale factor, or spread mode. PDF handles all these. Since images are a common ChordPro
+      feature, alignment at minimum should be supported.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        Image options come from the `$elt->{opts}` hash which may use different key names than expected.
+        Mitigation: Check the parser output in Song.pm for image directive parsing - the keys are
+        `align`, `width`, `height`, `scale`, `center`.
+      </risk>
+      <risk>
+        Spread images in HTML5 would need to span the full page width in paged mode, which requires
+        different CSS for screen vs print.
+        Mitigation: Use CSS class-based approach with media queries.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm` `render_image()` method (line 333-346), add handling for
+        the `align` option from `$opts`. Map alignment values to CSS: `center` -> `style="display:block; margin:0 auto;"`,
+        `left` -> `style="float:left; margin-right:1em;"`, `right` -> `style="float:right; margin-left:1em;"`.
+        Wrap image in a `&lt;div class="cp-image-container cp-image-align-{align}"&gt;` for more flexible CSS styling.
+      </task>
+      <task id="2">
+        Add `scale` support: if `$opts->{scale}` is present, multiply width/height by the scale factor,
+        or if dimensions are not specified, use `style="width: {scale*100}%;"` to scale relative to container.
+      </task>
+      <task id="3">
+        Add CSS for image alignment classes in the HTML5 CSS templates:
+        `.cp-image-align-center { text-align: center; }`, `.cp-image-align-left { float: left; }`,
+        `.cp-image-align-right { float: right; }`. Add `.cp-image-spread { width: 100%; }` for spread images.
+      </task>
+      <task id="4">
+        Also update `_render_image_template()` (line 128-137) to pass alignment and scale to the
+        template variables, and update the image.tt template accordingly.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create .cho file with {image: file.png align=center}</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify image wrapped in container with alignment class</step>
+        <step order="4">Verify visual alignment in browser</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/85_html5_image_align.t</file>
+          <description>Test image alignment</description>
+          <assertions>
+            - Center-aligned images have cp-image-align-center class
+            - Left/right floated images have appropriate classes
+            - Scale option applies correct width
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="11">
+    <title>Chord Diagram Positioning</title>
+    <branch>B</branch>
+    <priority>MEDIUM</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      HTML5 always renders chord diagrams in a fixed position (after metadata, before body).
+      PDF supports four positions: top (above first song line), bottom (after last song line),
+      right (in a side column), and below (after entire song). The `diagrams.placement` config
+      is never read by HTML5. Supporting at least top/bottom/below would improve layout
+      flexibility with minimal effort.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        The "right" placement requires a two-column layout with the song body on the left and
+        diagrams on the right. This is significantly more complex than top/bottom/below.
+        Mitigation: Implement top/bottom/below first using simple div ordering; defer "right"
+        placement to a future enhancement with CSS grid/flexbox layout.
+      </risk>
+      <risk>
+        In paged mode, bottom/below placement interacts with page breaks.
+        Mitigation: Use CSS `page-break-inside: avoid` on the diagrams container.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm` `generate_song()` method (around line 446-491), read
+        the diagram placement config from `$config->{pdf}->{diagrams}->{show}` (or a future
+        `html5.diagrams.show`). Values are: "top", "bottom", "right", "below", or false.
+        Instead of always inserting `chord_diagrams_html` before body in the song template,
+        pass it as a separate variable and let the template control placement.
+      </task>
+      <task id="2">
+        Update the song template (`html5/song.tt` and `html5/paged/song.tt`) to conditionally
+        place the chord diagrams div based on a `diagrams_position` template variable.
+        For "top": before body. For "bottom" or "below": after body.
+        For "right": use a CSS grid layout with body and diagrams side by side.
+      </task>
+      <task id="3">
+        Add CSS for right-side diagram placement:
+        `.cp-song-layout-right { display: grid; grid-template-columns: 1fr auto; gap: 1em; }`
+        `.cp-song-layout-right .cp-chord-diagrams { grid-column: 2; grid-row: 1 / -1; }`.
+      </task>
+      <task id="4">
+        Test with config `{"pdf":{"diagrams":{"show":"bottom"}}}` and verify diagrams appear
+        after the song body instead of before it.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Configure diagrams.show = "bottom"</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify chord diagrams appear after song body</step>
+        <step order="4">Test "right" placement shows side-by-side layout</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/86_html5_diagram_pos.t</file>
+          <description>Test chord diagram positioning</description>
+          <assertions>
+            - "top" places diagrams before body
+            - "bottom" places diagrams after body
+            - "right" uses grid layout
+            - diagrams_position template variable set correctly
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="12">
+    <title>Chords-Under Mode</title>
+    <branch>B</branch>
+    <priority>MEDIUM</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      PDF supports placing chords below the lyrics line instead of above (via `settings.chords-under`
+      config). This is a common request for certain musical styles. HTML5 always renders chords
+      above using flexbox column direction. Since the HTML5 songline uses a flex column layout
+      (`cp-chord-lyric-pair`), switching to chords-under is a simple CSS change (flex-direction: column-reverse).
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        Minimal - this is primarily a CSS change. The main risk is that the `chords-under` config
+        key uses a dash which requires `item()` access in Template::Toolkit.
+        Mitigation: Pass as a simple boolean template variable `chords_under` from the Perl code.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm`, in the CSS generation or song generation method,
+        read `$config->{settings}->{'chords-under'}` and pass it as a template variable `chords_under`
+        to the CSS template.
+      </task>
+      <task id="2">
+        In the CSS template (layout.tt or songline CSS), add a conditional: when `chords_under` is true,
+        set `.cp-chord-lyric-pair { flex-direction: column-reverse; }`. This reverses the chord/lyric
+        order within each pair, placing chords below lyrics.
+      </task>
+      <task id="3">
+        Also handle the case where chords-under affects spacing: when chords are under, the top
+        padding/margin of the chord span should become bottom padding. Add appropriate CSS adjustments.
+      </task>
+      <task id="4">
+        Test with config `{"settings":{"chords-under":true}}` and verify chord elements appear
+        after (below) lyric elements in the rendered HTML.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Configure settings.chords-under = true</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify CSS contains flex-direction: column-reverse</step>
+        <step order="4">Visually verify chords appear below lyrics</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/87_html5_chords_under.t</file>
+          <description>Test chords-under mode</description>
+          <assertions>
+            - CSS contains flex-direction: column-reverse when enabled
+            - Chord spacing adjusted appropriately
+            - Default mode unchanged (chords above)
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="13">
+    <title>Inline Chords Mode</title>
+    <branch>B</branch>
+    <priority>MEDIUM</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      PDF supports rendering chords inline within the lyrics text (e.g., "Amazing [G]grace how [C]sweet")
+      instead of above. This is useful for compact layouts and lyric sheets. HTML5's songline
+      rendering always uses the two-row chord-above layout. Inline mode requires a different
+      rendering approach in `render_songline()`.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        Inline chords fundamentally change the HTML structure - instead of chord-lyric pairs in
+        a flex container, inline chords are spans within a text flow. This requires a conditional
+        rendering path in `render_songline()`.
+        Mitigation: Check `$config->{settings}->{'inline-chords'}` and branch early in the songline renderer.
+      </risk>
+      <risk>
+        Inline chord format strings (e.g., `[%s]`) need to be parsed.
+        Mitigation: Use simple string substitution - replace `%s` with the chord name.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm` `render_songline()` method, add a check for
+        `$config->{settings}->{'inline-chords'}` at the start. When true, use an alternative
+        rendering path that outputs a single `&lt;div class="cp-songline cp-inline-chords"&gt;`
+        containing interleaved chord spans and lyric text in a single text flow:
+        `&lt;span class="cp-inline-chord"&gt;[Am]&lt;/span&gt;Amazing grace`.
+      </task>
+      <task id="2">
+        Support the inline-chords format string from config (`$config->{settings}->{'inline-chords'}`
+        can be a format string like `[%s]` or `(%s)`). Apply the format to each chord name before rendering.
+      </task>
+      <task id="3">
+        Add CSS for `.cp-inline-chord` in the typography template:
+        `font-weight: bold; color: var(--cp-color-chord);`. The inline-chords songline should
+        use normal text flow (no flexbox).
+      </task>
+      <task id="4">
+        Test with config `{"settings":{"inline-chords":"[%s]"}}` and a .cho file with chords,
+        verifying that output shows chords inline within lyrics text.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Configure settings.inline-chords = "[%s]"</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify chords appear inline as [Am], [G], etc.</step>
+        <step order="4">Verify format string applied correctly</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/88_html5_inline_chords.t</file>
+          <description>Test inline chords mode</description>
+          <assertions>
+            - Chords rendered inline within lyrics text
+            - Format string applied to chord names
+            - CSS class cp-inline-chord applied
+            - Normal text flow (no flex)
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="14">
+    <title>Keyboard Diagram Rendering</title>
+    <branch>B</branch>
+    <priority>MEDIUM</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      The SVG chord diagram module (`ChordDiagram/SVG.pm`) has a `generate_keyboard_diagram()`
+      stub that just returns "(keyboard)" text. The PDF backend has a full `KeyboardDiagram.pm`
+      (301 lines) that renders piano keys with highlighted pressed notes. Keyboard instruments
+      (piano, organ) are a supported instrument type in ChordPro. Implementing SVG keyboard
+      diagrams would complete instrument coverage for HTML5.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        SVG keyboard diagram rendering is non-trivial - requires drawing white keys, black keys,
+        and highlighting pressed keys.
+        Mitigation: Follow the same approach as the PDF KeyboardDiagram.pm but generate SVG path
+        elements instead of PDF drawing commands. The layout math (key positions, widths) is
+        directly portable.
+      </risk>
+      <risk>
+        Configuration (key count, base key C/F) needs to be read correctly.
+        Mitigation: Read from `$config->{pdf}->{kbdiagrams}` config which has `keys`, `base`,
+        `width`, `height`, `pressed` color settings.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/ChordDiagram/SVG.pm`, implement `generate_keyboard_diagram()`
+        (currently a stub at line 194). Port the rendering logic from
+        `lib/ChordPro/Output/PDF/KeyboardDiagram.pm`. Generate SVG with: a rectangle for the
+        keyboard outline, white key rectangles, black key rectangles overlaid, and filled
+        rectangles/circles for pressed keys. Use config values for dimensions
+        (`kbdiagrams.width`, `kbdiagrams.height`, `kbdiagrams.keys`).
+      </task>
+      <task id="2">
+        Handle the key mapping: the chord info object provides `kbkeys` field (array of MIDI
+        note numbers or key indices). Map these to physical key positions on the rendered
+        keyboard. Support both C-base and F-base layouts per config `kbdiagrams.base`.
+      </task>
+      <task id="3">
+        Style the SVG output: white keys get `fill: white; stroke: black;`, black keys get
+        `fill: black;`, pressed keys get `fill: {pressed-color}` (default blue from config).
+        Add chord name text above the keyboard.
+      </task>
+      <task id="4">
+        Test with a .cho file that uses keyboard instrument (`{instrument: piano}`) and has
+        chord definitions with keyboard voicings. Verify SVG keyboard diagrams appear in
+        the HTML5 output.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create .cho file with {instrument: piano}</step>
+        <step order="2">Add chords with keyboard voicings</step>
+        <step order="3">Generate HTML5 output</step>
+        <step order="4">Verify SVG keyboard diagrams rendered (not "(keyboard)" stub)</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/89_html5_keyboard.t</file>
+          <description>Test keyboard diagram rendering</description>
+          <assertions>
+            - SVG output contains keyboard elements (rectangles for keys)
+            - Pressed keys highlighted
+            - Chord name displayed
+            - Config options respected (key count, base)
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <!-- ================================================================== -->
+  <!-- BRANCH C: CSS/Styling (Parallel - Pure CSS)                        -->
+  <!-- ================================================================== -->
+
+  <feature id="6">
+    <title>Comment Box Styling</title>
+    <branch>C</branch>
+    <priority>HIGH</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      The `{comment_box}` directive renders in HTML5 as `&lt;div class="cp-comment_box"&gt;` via
+      ChordProBase but has zero CSS styling - it appears as unstyled text. This is a trivial
+      CSS addition. PDF renders it with a visible frame/border. This is a quick win.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        Minimal. This is purely CSS. Only risk is the class name using underscore (`cp-comment_box`)
+        which is unusual but valid CSS.
+        Mitigation: Use the existing class name as-is; it works fine in CSS selectors.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In the HTML5 CSS template for typography (`lib/ChordPro/res/templates/html5/css/typography.tt`),
+        add CSS rules for `.cp-comment_box`. Style it with:
+        `border: 1pt solid var(--cp-color-text, #000); padding: 0.3em 0.5em; margin: 0.5em 0; display: inline-block;`.
+        This mirrors PDF's comment_box frame rendering. Use the comment font styling (same size/color
+        as `.cp-comment`).
+      </task>
+      <task id="2">
+        Also add `.cp-comment_box` rules to the paged CSS typography template if it exists separately,
+        or verify the paged mode inherits from the base CSS.
+      </task>
+      <task id="3">
+        Add a simple test with a .cho file containing `{comment_box: This is boxed}` and verify
+        the HTML5 output contains the `cp-comment_box` class with the text.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create .cho file with {comment_box: Test text}</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify div has cp-comment_box class</step>
+        <step order="4">Verify CSS contains border styling for .cp-comment_box</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/90_html5_comment_box.t</file>
+          <description>Test comment box styling</description>
+          <assertions>
+            - Comment box element has cp-comment_box class
+            - CSS contains border rules for .cp-comment_box
+            - Visual rendering shows bordered box
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="7">
+    <title>Section Label Display</title>
+    <branch>C</branch>
+    <priority>HIGH</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      Section labels ("Verse 1:", "Chorus:", "Bridge:") are captured in `data-label` attributes
+      on section divs but never displayed - there are no CSS rules to render them. PDF shows
+      them as margin text. This is a CSS-only fix using `::before` pseudo-elements. It
+      significantly improves readability of the HTML output.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        Labels displayed via CSS `::before` content with `attr()` are not selectable/copyable
+        text in all browsers.
+        Mitigation: This is acceptable for label display; alternatively, add a
+        `&lt;span class="cp-section-label"&gt;` element in the HTML for better accessibility.
+      </risk>
+      <risk>
+        Label positioning in the margin may overlap with chorus bar styling.
+        Mitigation: Use left margin offset that accounts for both chorus indent and label width;
+        or display labels inline above the section rather than in margin.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        Add CSS rules to the sections.tt template for displaying section labels. Use the `data-label`
+        attribute:
+        `.cp-verse[data-label]::before, .cp-chorus[data-label]::before, .cp-bridge[data-label]::before,
+        .cp-tab[data-label]::before, .cp-grid[data-label]::before {
+          content: attr(data-label);
+          font-weight: bold;
+          font-size: 0.85em;
+          color: var(--cp-color-text, #000);
+          display: block;
+          margin-bottom: 0.2em;
+        }`.
+        This displays labels as a block element above the section content.
+      </task>
+      <task id="2">
+        Consider the PDF `labels.comment` config option which renders labels as comments instead.
+        For HTML5, use a CSS variable `--label-display` that can be set to `none` to hide labels,
+        defaulting to `block`.
+      </task>
+      <task id="3">
+        Verify labels render correctly in both regular and paged modes. Test with a .cho file
+        containing `{start_of_verse: Verse 1}` and `{start_of_chorus: Chorus}` directives.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create .cho file with {start_of_verse: Verse 1} and {start_of_chorus: Chorus}</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify data-label attributes present on section divs</step>
+        <step order="4">Verify CSS ::before rules display labels</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/91_html5_section_labels.t</file>
+          <description>Test section label display</description>
+          <assertions>
+            - Section divs have data-label attributes
+            - CSS contains ::before rules for label display
+            - Labels visible in browser rendering
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="8">
+    <title>Grid Bar Lines and Repeat Symbols</title>
+    <branch>C</branch>
+    <priority>MEDIUM</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      HTML5 grid rendering handles chord tokens but renders all non-chord tokens generically via
+      `$token->{symbol}`. It does not distinguish between bar types (|, ||, |:, :|, :|:) or
+      repeat symbols (%, %%). The PDF backend has a sophisticated Grid.pm (374 lines) that
+      renders each bar type with distinct visual styling. The HTML5 grid should at least render
+      the bar symbols with proper classes for CSS styling, and handle repeat symbols.
+    </reason>
+    <depends-on>None</depends-on>
+    <implementation-risks>
+      <risk>
+        Grid token structure may differ between structurized and non-structurized songs.
+        The token `{class}` field values need to be verified against actual parser output.
+        Mitigation: Add debug logging to dump token structures from real grid .cho files.
+      </risk>
+      <risk>
+        Complex bar line rendering (thick/thin combinations) requires careful CSS.
+        Mitigation: Use Unicode box-drawing characters or CSS borders for visual distinction.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `lib/ChordPro/Output/HTML5.pm` `render_gridline()` method (line 139-195), enhance the
+        non-chord token rendering. Instead of just using `$token->{symbol}`, check for specific
+        bar types. The token class values from the parser are: `bar` (regular |), `dbar` (double ||),
+        `rbar` (repeat start |:), `lbar` (repeat end :|), `lrbar` (both :|:).
+        Add specific CSS classes: `cp-grid-bar`, `cp-grid-dbar`, `cp-grid-rbar`, `cp-grid-lbar`, `cp-grid-lrbar`.
+        For repeat symbols class `rep1` (%) and `rep2` (%%), use `cp-grid-repeat`.
+      </task>
+      <task id="2">
+        Add CSS styling for each bar type in the tab-grid.tt CSS template. Use appropriate Unicode
+        or styled borders: regular bar = thin line, double bar = double thin, repeat bars = thick+thin
+        with dots. Example: `.cp-grid-rbar::after { content: ":"; }` for the dots portion of repeat bars.
+      </task>
+      <task id="3">
+        Handle volta brackets: when a gridline has volta information (`$element->{volta}`), render
+        a `&lt;span class="cp-grid-volta" data-volta="N"&gt;` wrapper around the relevant cells.
+        Add CSS for volta bracket display using top border + left vertical line for the bracket
+        shape and `::before` pseudo-element for the volta number.
+      </task>
+      <task id="4">
+        Test with a .cho file containing grid sections:
+        `{start_of_grid}\n| Am . . . | C . . . |\n|: Dm . | G . :|\n{end_of_grid}`
+        and verify each bar type gets the correct CSS class.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create .cho file with grid containing various bar types</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify bar tokens have specific CSS classes (cp-grid-bar, cp-grid-rbar, etc.)</step>
+        <step order="4">Verify CSS styles distinguish bar types visually</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/92_html5_grid_bars.t</file>
+          <description>Test grid bar line rendering</description>
+          <assertions>
+            - Regular bars have cp-grid-bar class
+            - Repeat bars have cp-grid-rbar/lbar classes
+            - Double bars have cp-grid-dbar class
+            - Repeat symbols rendered correctly
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <feature id="9">
+    <title>Volta Brackets</title>
+    <branch>C</branch>
+    <priority>MEDIUM</priority>
+    <implementation-decision>implement</implementation-decision>
+    <reason>
+      Volta brackets (first/second endings) are part of grid notation but have only a CSS class
+      stub in HTML5. PDF renders them as proper brackets above the grid cells with ending numbers.
+      This is primarily a CSS challenge - rendering bracket shapes with borders and positioning
+      the volta numbers.
+    </reason>
+    <depends-on>8</depends-on>
+    <implementation-risks>
+      <risk>
+        CSS bracket rendering using borders may not look perfect across all browsers/zoom levels.
+        Mitigation: Test with multiple browsers; consider using SVG for more precise bracket rendering
+        if CSS proves insufficient.
+      </risk>
+    </implementation-risks>
+    <implementation-details>
+      <task id="1">
+        In `render_gridline()`, when a volta is present on the gridline (`$element->{volta}`),
+        wrap the affected cells in a `&lt;span class="cp-grid-volta" data-volta="1"&gt;` element.
+        The volta value (1, 2, etc.) goes in the data attribute.
+      </task>
+      <task id="2">
+        Add CSS for volta brackets in tab-grid.tt:
+        `.cp-grid-volta {
+          position: relative;
+          border-top: 2px solid var(--cp-color-text);
+          border-left: 2px solid var(--cp-color-text);
+          padding-top: 0.5em;
+        }
+        .cp-grid-volta::before {
+          content: attr(data-volta) ".";
+          position: absolute;
+          top: -0.2em;
+          left: 0.2em;
+          font-size: 0.8em;
+        }`
+      </task>
+      <task id="3">
+        Test with a .cho file containing volta notation in grids. Verify the bracket shape and
+        numbers render correctly in the browser.
+      </task>
+    </implementation-details>
+    <verification>
+      <steps-to-verify>
+        <step order="1">Create .cho file with volta notation in grid</step>
+        <step order="2">Generate HTML5 output</step>
+        <step order="3">Verify volta spans have cp-grid-volta class and data-volta attribute</step>
+        <step order="4">Verify CSS renders bracket shape with ending number</step>
+      </steps-to-verify>
+      <unit-tests>
+        <unit-test>
+          <file>t/93_html5_volta.t</file>
+          <description>Test volta bracket rendering</description>
+          <assertions>
+            - Volta elements have cp-grid-volta class
+            - data-volta attribute contains ending number
+            - CSS creates visible bracket shape
+          </assertions>
+        </unit-test>
+      </unit-tests>
+    </verification>
+  </feature>
+
+  <!-- ================================================================== -->
+  <!-- DENIED FEATURES                                                     -->
+  <!-- ================================================================== -->
+
+  <denied-features>
+    <feature id="D1">
+      <title>Chords Column (Side Column)</title>
+      <reason>
+        PDF's chordscolumn feature renders all chords in a dedicated side column separate from
+        the lyrics. This is a complex layout that requires calculating chord positions relative
+        to lyrics, maintaining alignment, and managing a fixed-width column. In HTML/CSS, this
+        would require a fundamentally different rendering approach (CSS grid with a fixed side
+        column, position mapping between lyrics and chords). The complexity is high, the use
+        case is niche, and it interacts poorly with responsive web layouts. The chords-under
+        and inline-chords modes (Features 12-13) provide alternative compact layouts that serve
+        similar use cases.
+      </reason>
+    </feature>
+
+    <feature id="D2">
+      <title>Strum Patterns</title>
+      <reason>
+        Strum patterns are rendered by the `ChordPro::Delegate::Strum` module which generates
+        graphical strum notation. This is a delegate-based feature. Once Feature 4 (Delegate Support)
+        is implemented, strum patterns will work automatically if they produce image/SVG output
+        through the delegate pipeline. No separate implementation is needed - the delegate handler
+        will embed whatever output the Strum delegate produces.
+      </reason>
+    </feature>
+
+    <feature id="D3">
+      <title>PDF Bookmarks/Outlines</title>
+      <reason>
+        PDF bookmarks and outlines are a PDF-specific navigation feature (the sidebar tree in
+        PDF viewers). HTML has no equivalent - browsers provide their own navigation mechanisms.
+        The HTML5 TOC (Feature 15) serves the same purpose for HTML documents. Generating PDF
+        bookmarks from HTML is meaningless.
+      </reason>
+    </feature>
+
+    <feature id="D4">
+      <title>CSV Export (MobileSheets)</title>
+      <reason>
+        The CSV export is a PDF-specific companion feature for MSPro compatibility - it generates
+        a CSV file alongside the PDF for use in presentation software. This is not related to
+        HTML5 output and serves a specific PDF workflow. HTML5 has no equivalent need.
+      </reason>
+    </feature>
+
+    <feature id="D5">
+      <title>Font Embedding (TrueType/OpenType)</title>
+      <reason>
+        PDF embeds fonts directly into the document. HTML uses a fundamentally different model -
+        CSS @font-face declarations reference font files served alongside the HTML. The HTML5
+        backend already supports CSS font configuration through its template system. Adding
+        PDF-style font embedding would be architecturally inappropriate; instead, users should
+        configure CSS @font-face rules or use web fonts. The existing CSS variable system for
+        font families is sufficient.
+      </reason>
+    </feature>
+
+    <feature id="D6">
+      <title>Background PDF Page Underlays</title>
+      <reason>
+        PDF supports overlaying song content on top of a background PDF page (for custom paper,
+        letterheads, etc.). HTML has no mechanism to use PDF pages as backgrounds. The HTML
+        equivalent is CSS background-image which the HTML5 backend already supports via theme
+        colors and could be extended to support background images via CSS. However, translating
+        PDF page underlays to HTML is not feasible and represents a fundamentally different
+        rendering model.
+      </reason>
+    </feature>
+  </denied-features>
+
+  <!-- ================================================================== -->
+  <!-- SUMMARY STATISTICS                                                  -->
+  <!-- ================================================================== -->
+
+  <summary-statistics>
+    <total-features>18</total-features>
+    <implement>12</implement>
+    <denied>6</denied>
+    <by-priority>
+      <critical>2</critical>
+      <high>4</high>
+      <medium>8</medium>
+      <low>4</low>
+    </by-priority>
+    <by-branch>
+      <branch-a name="Core Infrastructure + Songbook">6</branch-a>
+      <branch-b name="Content Rendering + Layout">8</branch-b>
+      <branch-c name="CSS/Styling">4</branch-c>
+    </by-branch>
+  </summary-statistics>
+
+</implementation-plan>
