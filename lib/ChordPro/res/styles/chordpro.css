@@ -19,7 +19,7 @@ div.chorus {
 div.verse {
 }
 div.tab {
-    font-family: "mono";
+    font-family: monospace;
     font-size: 10pt;
     white-space: pre;
     border: 1pt solid;
@@ -76,7 +76,7 @@ div.rechorus {
     padding-left: 10pt;
 }
 div.tabline {
-    font-family: "mono";
+    font-family: monospace;
     font-size: 10pt;
     white-space: pre;
 }
