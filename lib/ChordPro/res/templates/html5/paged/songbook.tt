@@ -22,9 +22,59 @@
 </head>
 <body class="chordpro-songbook chordpro-paged">
     <div class="book-content">
+[% IF cover_html %]
+[% cover_html %]
+[% END %]
+[% IF front_matter_html %]
+[% front_matter_html %]
+[% END %]
+[% IF toc_html %]
+[% toc_html %]
+[% END %]
 [% FOREACH song IN songs %]
 [% song %]
 [% END %]
+[% IF back_matter_html %]
+[% back_matter_html %]
+[% END %]
     </div>
+    <script>
+        document.addEventListener("pagedjs:rendered", function () {
+            var entries = document.querySelectorAll(".cp-toc-entry[data-page-ref]");
+            if (!entries.length) {
+                return;
+            }
+
+            entries.forEach(function (entry) {
+                var ref = entry.getAttribute("data-page-ref");
+                if (!ref) {
+                    return;
+                }
+
+                var target = document.querySelector(ref);
+                if (!target) {
+                    return;
+                }
+
+                var page = target.closest(".pagedjs_page");
+                if (!page) {
+                    return;
+                }
+
+                var number = page.getAttribute("data-page-number") || page.dataset.pageNumber;
+                if (!number) {
+                    var numberEl = page.querySelector(".pagedjs_page_number");
+                    number = numberEl ? numberEl.textContent.trim() : "";
+                }
+
+                if (number) {
+                    var slot = entry.querySelector(".cp-toc-page");
+                    if (slot) {
+                        slot.textContent = number;
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>

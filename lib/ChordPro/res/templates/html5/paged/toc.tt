@@ -1,0 +1,24 @@
+[%# ChordPro HTML5 Paged TOC Template
+    Variables:
+      - label: TOC title
+      - entries: Array of { type, text, page_text, page_ref }
+      - toc_name: Identifier for this TOC
+%]
+<div class="cp-toc" data-toc-name="[% toc_name | html %]">
+[% IF label %]
+    <h1 class="cp-toc-title">[% label | html %]</h1>
+[% END %]
+    <div class="cp-toc-entries">
+[% FOREACH entry IN entries %]
+[% IF entry.type == 'break' %]
+        <div class="cp-toc-break">[% entry.text | html %]</div>
+[% ELSE %]
+        <div class="cp-toc-entry" data-page-ref="[% entry.page_ref | html %]">
+            <span class="cp-toc-text">[% entry.text | html %]</span>
+            <span class="cp-toc-dots"></span>
+            <span class="cp-toc-page">[% entry.page_text | html %]</span>
+        </div>
+[% END %]
+[% END %]
+    </div>
+</div>

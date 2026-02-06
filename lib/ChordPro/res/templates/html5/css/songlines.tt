@@ -14,6 +14,18 @@
     vertical-align: bottom;
 }
 
+[% IF chords_under %]
+.cp-chord-lyric-pair {
+    flex-direction: column-reverse;
+}
+
+.cp-chord,
+.cp-annotation {
+    padding-top: var(--cp-spacing-chord);
+    padding-bottom: 0;
+}
+[% END %]
+
 /* Spacing for chord-only pairs (chords with no lyrics) */
 .cp-chord-only {
     margin-right: 0.5em;
@@ -30,6 +42,18 @@
     padding-bottom: var(--cp-spacing-chord);
 }
 
+.cp-annotation {
+    font-family: var(--cp-font-text);
+    font-size: var(--cp-size-text);
+    color: var(--cp-color-annotation, var(--cp-color-text));
+    font-style: italic;
+    font-weight: normal;
+    line-height: calc(var(--spacing-chords, 1.2) * 1em);
+    min-height: 1.2em;
+    height: 1.2em;
+    padding-bottom: var(--cp-spacing-chord);
+}
+
 .cp-chord-empty {
     display: none;
 }
@@ -39,6 +63,24 @@
     font-size: var(--cp-size-text);
     white-space: pre;
     line-height: calc(var(--spacing-lyrics, 1.2) * 1em);
+}
+
+.cp-songline.cp-inline-chords {
+    display: block;
+}
+
+.cp-inline-chord {
+    font-family: var(--cp-font-chord);
+    font-size: var(--cp-size-chord);
+    color: var(--cp-color-chord);
+    font-weight: bold;
+}
+
+.cp-inline-annotation {
+    font-family: var(--cp-font-text);
+    font-size: var(--cp-size-text);
+    color: var(--cp-color-annotation, var(--cp-color-text));
+    font-style: italic;
 }
 
 /* Empty lines */

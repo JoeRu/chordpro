@@ -7,7 +7,7 @@
       - body_html: Pre-rendered song body content
       - data_title, data_subtitle, data_artist, data_album, etc.: Metadata for CSS string-set
 %]
-<div class="cp-song">
+<div class="cp-song[% IF diagrams_position == 'right' %] cp-song-layout-right[% END %]">
 [% IF title %]
     <h1 class="cp-title"[% IF data_title %] data-title="[% data_title | html %]"[% END %]>[% title | html %]</h1>
 [% END %]
@@ -64,9 +64,25 @@
 </div>
 [% END %]
 
-[% IF chord_diagrams_html %]
+[% IF chord_diagrams_html && diagrams_position == 'top' %]
+<div class="cp-song-diagrams">
 [% chord_diagrams_html %]
+</div>
 [% END %]
 
+[% IF diagrams_position == 'right' %]
+<div class="cp-song-body">
 [% body_html %]
+</div>
+<div class="cp-song-diagrams">
+[% chord_diagrams_html %]
+</div>
+[% ELSE %]
+[% body_html %]
+[% IF chord_diagrams_html && (diagrams_position == 'bottom' || diagrams_position == 'below') %]
+<div class="cp-song-diagrams">
+[% chord_diagrams_html %]
+</div>
+[% END %]
+[% END %]
 </div><!-- .cp-song -->

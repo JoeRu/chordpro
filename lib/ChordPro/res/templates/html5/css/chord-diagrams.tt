@@ -10,6 +10,38 @@
     border: 1px solid #ddd;
 }
 
+.cp-chord-diagrams-align-left {
+    justify-content: flex-start;
+}
+
+.cp-chord-diagrams-align-center {
+    justify-content: center;
+}
+
+.cp-chord-diagrams-align-right {
+    justify-content: flex-end;
+}
+
+.cp-chord-diagrams-align-spread {
+    justify-content: space-between;
+    width: 100%;
+}
+
+.cp-song-layout-right {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1em;
+    align-items: start;
+}
+
+.cp-song-layout-right .cp-song-body {
+    min-width: 0;
+}
+
+.cp-song-layout-right .cp-song-diagrams {
+    align-self: start;
+}
+
 .cp-chord-diagram {
     display: inline-block;
     margin: 0;
@@ -63,4 +95,18 @@
 .diagram-finger {
     font-size: 10px;
     fill: #666;
+}
+
+.diagram-key-white {
+    fill: #fff;
+    stroke: #000;
+}
+
+.diagram-key-black {
+    fill: #000;
+    stroke: #000;
+}
+
+.diagram-key-pressed {
+    stroke: #000;
 }

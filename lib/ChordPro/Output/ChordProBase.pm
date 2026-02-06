@@ -121,6 +121,7 @@ class ChordPro::Output::ChordProBase :abstract
 
         # Environment containers (with body)
         return $self->handle_chorus($elt)       if $type eq 'chorus';
+        return $self->handle_rechorus($elt)     if $type eq 'rechorus';
         return $self->handle_verse($elt)        if $type eq 'verse';
         return $self->handle_bridge($elt)       if $type eq 'bridge';
         return $self->handle_tab($elt)          if $type eq 'tab';
@@ -394,6 +395,51 @@ class ChordPro::Output::ChordProBase :abstract
             $output .= $self->dispatch_element($e);
         }
         $output .= $self->render_chorus_end();
+        return $output;
+    }
+
+    method handle_rechorus($elt) {
+        my $config = $self->config // {};
+        my $recall = eval { $config->{html5}->{chorus}->{recall} }
+          // eval { $config->{pdf}->{chorus}->{recall} }
+          // eval { $config->{text}->{chorus}->{recall} }
+          // {};
+
+        my $quote = eval { $recall->{quote} } // 0;
+        my $tag = eval { $recall->{tag} };
+        $tag = 'Chorus' if !defined($tag) || $tag eq '';
+        my $type = eval { $recall->{type} } // '';
+        my $choruslike = eval { $recall->{choruslike} } // 0;
+
+        if ( $quote && $elt->{chorus} ) {
+            return $self->handle_chorus({ body => $elt->{chorus} });
+        }
+
+        my $output = '';
+        if ( $type && $tag ne '' ) {
+            if ( $type eq 'comment' ) {
+                $output = $self->handle_comment({ text => $tag });
+            }
+            elsif ( $type eq 'comment_italic' ) {
+                $output = $self->handle_comment_italic({ text => $tag });
+            }
+            elsif ( $type eq 'comment_box' ) {
+                $output = $self->handle_comment_box({ text => $tag });
+            }
+        }
+
+        if ( $output eq '' ) {
+            $output = $self->render_section_begin('rechorus')
+              . $self->render_text($tag)
+              . $self->render_section_end('rechorus');
+        }
+
+        if ( $choruslike ) {
+            return $self->render_section_begin('choruslike')
+              . $output
+              . $self->render_section_end('choruslike');
+        }
+
         return $output;
     }
 

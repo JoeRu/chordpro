@@ -29,7 +29,7 @@ class ChordPro::Output::HTML5Helper::FormatGenerator {
     
     # Main entry point: generate all format rules from PDF config
     method generate_rules() {
-        my $pdf = $config->{pdf} // {};
+        my $pdf = eval { $config->{pdf} } // {};
         return $self->_generate_format_rules($pdf);
     }
     
@@ -38,47 +38,47 @@ class ChordPro::Output::HTML5Helper::FormatGenerator {
     # =================================================================
     
     method _generate_format_rules($pdf) {
-        my $formats = $pdf->{formats} // {};
+        my $formats = eval { $pdf->{formats} } // {};
         my @rules;
         
         # Generate rules for each format type
         # Default format (applies to all pages unless overridden)
-        push @rules, $self->_generate_format_rule('default', $formats->{default});
+        push @rules, $self->_generate_format_rule('default', eval { $formats->{default} }, undef);
         
         # Title page (first page of each song)
-        push @rules, $self->_generate_format_rule('title', $formats->{title}, 'title');
+        push @rules, $self->_generate_format_rule('title', eval { $formats->{title} }, 'title');
         
         # Very first page
-        push @rules, $self->_generate_format_rule('first', $formats->{first}, ':first');
+        push @rules, $self->_generate_format_rule('first', eval { $formats->{first} }, ':first');
         
         # Even pages (left in duplex printing)
         # CSS :left selector applies to left-facing pages in duplex printing
-        if (exists $formats->{'default-even'}) {
-            push @rules, $self->_generate_format_rule('default-even', $formats->{'default-even'}, ':left');
+        if (defined eval { $formats->{'default-even'} }) {
+            push @rules, $self->_generate_format_rule('default-even', eval { $formats->{'default-even'} }, ':left');
         }
         
         # Odd pages (right in duplex printing) 
         # CSS :right selector applies to right-facing pages in duplex printing
-        if (exists $formats->{'default-odd'}) {
-            push @rules, $self->_generate_format_rule('default-odd', $formats->{'default-odd'}, ':right');
+        if (defined eval { $formats->{'default-odd'} }) {
+            push @rules, $self->_generate_format_rule('default-odd', eval { $formats->{'default-odd'} }, ':right');
         }
         
         # Title page even/odd variants
-        if (exists $formats->{'title-even'}) {
-            push @rules, $self->_generate_format_rule('title-even', $formats->{'title-even'}, 'title:left');
+        if (defined eval { $formats->{'title-even'} }) {
+            push @rules, $self->_generate_format_rule('title-even', eval { $formats->{'title-even'} }, 'title:left');
         }
         
-        if (exists $formats->{'title-odd'}) {
-            push @rules, $self->_generate_format_rule('title-odd', $formats->{'title-odd'}, 'title:right');
+        if (defined eval { $formats->{'title-odd'} }) {
+            push @rules, $self->_generate_format_rule('title-odd', eval { $formats->{'title-odd'} }, 'title:right');
         }
         
         # First page even/odd (though :first usually takes precedence)
-        if (exists $formats->{'first-even'}) {
-            push @rules, $self->_generate_format_rule('first-even', $formats->{'first-even'}, ':first:left');
+        if (defined eval { $formats->{'first-even'} }) {
+            push @rules, $self->_generate_format_rule('first-even', eval { $formats->{'first-even'} }, ':first:left');
         }
         
-        if (exists $formats->{'first-odd'}) {
-            push @rules, $self->_generate_format_rule('first-odd', $formats->{'first-odd'}, ':first:right');
+        if (defined eval { $formats->{'first-odd'} }) {
+            push @rules, $self->_generate_format_rule('first-odd', eval { $formats->{'first-odd'} }, ':first:right');
         }
         
         return join("\n\n", grep { $_ } @rules);
@@ -86,6 +86,7 @@ class ChordPro::Output::HTML5Helper::FormatGenerator {
     
     method _generate_format_rule($format_name, $format_config, $page_selector=undef) {
         return '' unless $format_config;
+        return '' unless ref($format_config) eq 'HASH';
         
         # Determine page selector
         my $selector = $page_selector // $format_name;
@@ -151,6 +152,15 @@ $boxes
             $position = 'top';
         }
         
+        my $theme = eval { $config->{pdf}->{theme} } // {};
+        my $color = eval { $theme->{'foreground-medium'} } // '#666';
+
+        my $paged_cfg = eval { $config->{html5}->{paged} } // {};
+        my $font_size = eval { $paged_cfg->{'format-font-size'} }
+            // eval { $paged_cfg->{format_font_size} }
+            // eval { $config->{pdf}->{formats}->{'font-size'} }
+            // '10pt';
+
         for my $i (0..2) {
             # For even pages, swap left (0) and right (2) indices
             my $content_idx = $is_even_page && ($i == 0 || $i == 2) ? 2 - $i : $i;
@@ -163,8 +173,8 @@ $boxes
             # Generate margin box rule
             push @boxes, qq{    $box_name {
         content: $css_content;
-        font-size: 10pt;
-        color: #666;
+        font-size: $font_size;
+        color: $color;
     }};
         }
         
