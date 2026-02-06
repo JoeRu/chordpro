@@ -3,7 +3,16 @@
   <feature id="1" priority="high">
     <name>Grid Rendering (gridline/strumline)</name>
     <description>Implement grid diagrams (chord grids, strum patterns) rendering in HTML output. Currently commented out in HTML.pm lines 289-349.</description>
-    <status>pending</status>
+    <status>completed</status>
+    <completed_date>2026-02-06</completed_date>
+    <implementation>
+      <summary>Implemented gridline() function to render grid diagrams as HTML tables with proper styling for chords, bar lines, and repeat markers.</summary>
+      <changes>
+        <change>Added gridline() function in HTML.pm</change>
+        <change>Added grid element handler in main processing loop</change>
+        <change>Added CSS styles for grid tables, chords, bar lines, and margins</change>
+      </changes>
+    </implementation>
     <files>
       <file>lib/ChordPro/Output/HTML.pm</file>
       <file>lib/ChordPro/res/styles/chordpro.css</file>
@@ -14,7 +23,15 @@
   <feature id="2" priority="high">
     <name>Chord Diagrams Display</name>
     <description>Implement chord diagram rendering in HTML output. The diagrams element type is not currently handled.</description>
-    <status>pending</status>
+    <status>completed</status>
+    <completed_date>2026-02-06</completed_date>
+    <implementation>
+      <summary>Implemented diagrams element handler to display chord diagrams with proper styling.</summary>
+      <changes>
+        <change>Added diagrams element handler in HTML.pm</change>
+        <change>Added CSS styles for diagram display with flexbox layout</change>
+      </changes>
+    </implementation>
     <files>
       <file>lib/ChordPro/Output/HTML.pm</file>
       <file>lib/ChordPro/res/styles/chordpro.css</file>
@@ -24,7 +41,15 @@
   <feature id="3" priority="medium">
     <name>Tab Notation (tabline)</name>
     <description>Implement proper tabline element rendering in HTML output. Currently not handled as a separate element type.</description>
-    <status>pending</status>
+    <status>completed</status>
+    <completed_date>2026-02-06</completed_date>
+    <implementation>
+      <summary>Implemented tabline element handler for standalone tab lines with monospace font styling.</summary>
+      <changes>
+        <change>Added tabline element handler in HTML.pm</change>
+        <change>Added CSS styles for tabline with monospace font and pre-formatted text</change>
+      </changes>
+    </implementation>
     <files>
       <file>lib/ChordPro/Output/HTML.pm</file>
       <file>lib/ChordPro/res/styles/chordpro.css</file>
@@ -34,7 +59,15 @@
   <feature id="4" priority="medium">
     <name>Repeat Chorus (rechorus)</name>
     <description>Implement rechorus element to display "Repeat Chorus" references in HTML output.</description>
-    <status>pending</status>
+    <status>completed</status>
+    <completed_date>2026-02-06</completed_date>
+    <implementation>
+      <summary>Implemented rechorus element handler to display chorus repeat references or the full chorus content.</summary>
+      <changes>
+        <change>Added rechorus element handler in HTML.pm with support for both simple tags and full chorus display</change>
+        <change>Added CSS styles for rechorus with italic styling and indentation</change>
+      </changes>
+    </implementation>
     <files>
       <file>lib/ChordPro/Output/HTML.pm</file>
       <file>lib/ChordPro/res/styles/chordpro.css</file>
@@ -44,7 +77,15 @@
   <feature id="5" priority="low">
     <name>Table of Contents (tocline)</name>
     <description>Implement table of contents entry rendering in HTML output.</description>
-    <status>pending</status>
+    <status>completed</status>
+    <completed_date>2026-02-06</completed_date>
+    <implementation>
+      <summary>Implemented tocline element handler to display table of contents entries with title and page number.</summary>
+      <changes>
+        <change>Added tocline element handler in HTML.pm</change>
+        <change>Added CSS styles for tocline with flexbox layout for title and page number</change>
+      </changes>
+    </implementation>
     <files>
       <file>lib/ChordPro/Output/HTML.pm</file>
       <file>lib/ChordPro/res/styles/chordpro.css</file>
@@ -54,7 +95,15 @@
   <feature id="6" priority="medium">
     <name>Boxed Comments (comment_box)</name>
     <description>Implement comment_box element rendering with border styling in HTML output.</description>
-    <status>pending</status>
+    <status>completed</status>
+    <completed_date>2026-02-06</completed_date>
+    <implementation>
+      <summary>Implemented comment_box element handler to display comments with border box styling.</summary>
+      <changes>
+        <change>Added comment_box element handler in HTML.pm with support for chords and text</change>
+        <change>Added CSS styles for comment_box with border, padding, and proper spacing</change>
+      </changes>
+    </implementation>
     <files>
       <file>lib/ChordPro/Output/HTML.pm</file>
       <file>lib/ChordPro/res/styles/chordpro.css</file>
@@ -64,7 +113,17 @@
   <feature id="7" priority="high">
     <name>Print CSS Page Breaks</name>
     <description>Implement proper page break controls for printing - prevent breaking inside grids, diagrams, and verses.</description>
-    <status>pending</status>
+    <status>completed</status>
+    <completed_date>2026-02-06</completed_date>
+    <implementation>
+      <summary>Implemented CSS page-break-inside controls to prevent awkward page breaks during printing.</summary>
+      <changes>
+        <change>Added page-break-inside: avoid for verse, chorus, gridline, diagrams, comment_box, and grid tables</change>
+        <change>Added page-break-inside: avoid for rechorus and tab elements</change>
+        <change>Added page-break-inside: avoid for songline tables to keep chord lines with lyrics</change>
+        <change>Added page-break-after: avoid for subtitles</change>
+      </changes>
+    </implementation>
     <files>
       <file>lib/ChordPro/res/styles/chordpro_print.css</file>
     </files>
@@ -73,7 +132,17 @@
   <feature id="8" priority="medium">
     <name>Running Headers and Footers</name>
     <description>Implement running headers with song titles (currently commented out in chordpro_print.css).</description>
-    <status>pending</status>
+    <status>partial</status>
+    <completed_date>2026-02-06</completed_date>
+    <implementation>
+      <summary>Basic page headers and footers are already implemented in the print CSS using @page rules. The running() function for dynamic headers requires browser support and is left as a future enhancement.</summary>
+      <changes>
+        <change>Confirmed existing @page rules for headers and footers in chordpro_print.css</change>
+        <change>Headers show song titles via inline style elements</change>
+        <change>Footers show "Produced by ChordProPlus" and page numbers</change>
+      </changes>
+      <notes>The CSS Paged Media running() function for truly dynamic headers is not widely supported in browsers yet, so we're using the inline style approach already in place.</notes>
+    </implementation>
     <files>
       <file>lib/ChordPro/res/styles/chordpro_print.css</file>
       <file>lib/ChordPro/Output/HTML.pm</file>

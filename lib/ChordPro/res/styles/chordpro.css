@@ -62,6 +62,73 @@ div.comment span {
 div.comment_italic span {
     font-style: italic;
 }
+div.comment_box {
+    border: 2pt solid black;
+    padding: 8pt;
+    margin: 8pt 0;
+}
+div.comment_box span {
+    display: block;
+}
+div.rechorus {
+    font-style: italic;
+    color: #666;
+    padding-left: 10pt;
+}
+div.tabline {
+    font-family: "mono";
+    font-size: 10pt;
+    white-space: pre;
+}
+div.gridline {
+    margin: 10pt 0;
+}
+table.grid {
+    border-collapse: collapse;
+    border: 1pt solid black;
+}
+table.grid td {
+    padding: 4pt 8pt;
+    text-align: center;
+    border-right: 1pt solid #e0e0e0;
+}
+table.grid td.grid-bar,
+table.grid td.grid-bar-double {
+    border-right: 2pt solid black;
+    font-weight: bold;
+}
+table.grid td.grid-chord {
+    font-weight: bold;
+    color: blue;
+}
+table.grid td.grid-margin {
+    font-weight: bold;
+    padding-right: 12pt;
+    border-right: none;
+}
+div.tocline {
+    display: flex;
+    justify-content: space-between;
+    padding: 4pt 0;
+}
+div.tocline .toc-title {
+    flex: 1;
+}
+div.tocline .toc-page {
+    margin-left: 10pt;
+}
+div.diagrams {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10pt;
+    margin: 10pt 0;
+}
+div.diagram {
+    border: 1pt solid black;
+    padding: 10pt;
+    min-width: 60pt;
+    text-align: center;
+}
 div.image {
     object-fit: cover;
 }

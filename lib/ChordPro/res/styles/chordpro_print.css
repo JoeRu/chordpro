@@ -26,3 +26,31 @@
 div.title {
     display: none;
 }
+
+/* Page break controls for better printing */
+div.verse,
+div.chorus,
+div.gridline,
+div.diagrams,
+div.comment_box,
+table.grid {
+    page-break-inside: avoid;
+}
+
+div.rechorus {
+    page-break-inside: avoid;
+}
+
+div.tab {
+    page-break-inside: avoid;
+}
+
+/* Keep chord lines with their lyrics */
+table.songline {
+    page-break-inside: avoid;
+}
+
+/* Avoid page breaks after headings */
+div.subtitle {
+    page-break-after: avoid;
+}

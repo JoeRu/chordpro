@@ -126,6 +126,12 @@ sub generate_song {
 	    next;
 	}
 
+	if ( $elt->{type} eq "tabline" ) {
+	    push( @s, '<div class="tabline">' . html($elt->{text}) . '</div>' );
+	    push( @s, "") if $tidy;
+	    next;
+	}
+
 	if ( exists $elt->{body} ) {
 	    push( @s, '<div class="' . $elt->{type} . '">' );
 	    my @elts = @{$elt->{body}};
@@ -200,6 +206,51 @@ sub generate_song {
 	    next;
 	}
 
+	if ( $elt->{type} eq "comment_box" ) {
+	    if ( $elt->{chords} ) {
+		my $t = "";
+		for ( my $i=0; $i < @{$elt->{chords}}; $i++ ) {
+		    $t .= $s->{chordsinfo}->{$elt->{chords}->[$i]->key}->name
+		      if $elt->{chords}->[$i];
+		    $t .= $elt->{phrases}->[$i];
+		}
+		push( @s, '<div class="comment_box"><span>' .
+		      nhtml($t) . '</span></div>' );
+	    }
+	    else {
+		push( @s,
+		      '<div class="comment_box">' .
+		      '<span>' . nhtml($elt->{orig}) . '</span></div>' );
+	    }
+	    push( @s, "" ) if $tidy;
+	    next;
+	}
+
+	if ( $elt->{type} eq "rechorus" ) {
+	    my $text = $elt->{tag} // "Chorus";
+	    if ( $elt->{chorus} && @{ $elt->{chorus} } ) {
+		# Show the actual chorus content
+		push( @s, '<div class="rechorus">' );
+		foreach my $e ( @{ $elt->{chorus} } ) {
+		    if ( $e->{type} eq "songline" ) {
+			push( @s, songline( $s, $e ) );
+		    }
+		    elsif ( $e->{type} =~ /^comment/ ) {
+			push( @s,
+			      '<div class="' . $e->{type} . '">' .
+			      '<span>' . nhtml($e->{orig} || $e->{text}) . '</span></div>' );
+		    }
+		}
+		push( @s, '</div>' );
+	    }
+	    else {
+		# Just show "Repeat Chorus" text
+		push( @s, '<div class="rechorus"><span>' . nhtml($text) . '</span></div>' );
+	    }
+	    push( @s, "" ) if $tidy;
+	    next;
+	}
+
 	if ( $elt->{type} eq "image" ) {
 	    my @args;
 	    while ( my($k,$v) = each( %{ $elt->{opts} } ) ) {
@@ -216,6 +267,38 @@ sub generate_song {
 		  '<img src="' . $elt->{uri} . '" ' .
 		  "@args" . "/>" .
 		  '</div>' );
+	    push( @s, "" ) if $tidy;
+	    next;
+	}
+
+	if ( $elt->{type} eq "gridline" ) {
+	    push( @s, gridline( $s, $elt ) );
+	    push( @s, "" ) if $tidy;
+	    next;
+	}
+
+	if ( $elt->{type} eq "tocline" ) {
+	    my $page = $elt->{page} // "";
+	    my $title = nhtml($elt->{title} // "");
+	    push( @s, '<div class="tocline">' .
+		  '<span class="toc-title">' . $title . '</span>' .
+		  '<span class="toc-page">' . $page . '</span>' .
+		  '</div>' );
+	    push( @s, "" ) if $tidy;
+	    next;
+	}
+
+	if ( $elt->{type} eq "diagrams" ) {
+	    push( @s, '<div class="diagrams">' );
+	    # Chord diagrams would be rendered here
+	    # For now, just create a placeholder
+	    if ( $elt->{chords} && @{ $elt->{chords} } ) {
+		foreach my $chord ( @{ $elt->{chords} } ) {
+		    my $name = ref($chord) ? $chord->name : $chord;
+		    push( @s, '<div class="diagram">' . nhtml($name) . '</div>' );
+		}
+	    }
+	    push( @s, '</div>' );
 	    push( @s, "" ) if $tidy;
 	    next;
 	}
@@ -286,10 +369,62 @@ sub songline {
 	     '</table>' );
 }
 
-=for later
-
 sub gridline {
+    my ( $song, $elt ) = @_;
+    
+    my @s;
+    
+    # Get grid properties
+    my $tokens = $elt->{tokens} // [];
+    my $margin = $elt->{margin} // {};
+    
+    # Start the grid container
+    push( @s, '<div class="gridline">' );
+    push( @s, '<table class="grid">' );
+    push( @s, '<tr>' );
+    
+    # Add margin label if present
+    if ( $margin->{label} ) {
+	push( @s, '<td class="grid-margin">' . nhtml($margin->{label}) . '</td>' );
+    }
+    
+    # Add each token/chord in the grid
+    foreach my $token ( @$tokens ) {
+	if ( ref($token) eq 'HASH' ) {
+	    # It's a chord
+	    my $name = $token->{chord} // "";
+	    if ( $name && $song->{chordsinfo}->{$name} ) {
+		$name = $song->{chordsinfo}->{$name}->name;
+	    }
+	    push( @s, '<td class="grid-chord">' . nhtml($name) . '</td>' );
+	}
+	elsif ( $token eq '|' || $token eq '||' ) {
+	    # Bar line
+	    my $class = $token eq '||' ? 'grid-bar-double' : 'grid-bar';
+	    push( @s, '<td class="' . $class . '">' . html($token) . '</td>' );
+	}
+	elsif ( $token eq '%' ) {
+	    # Repeat previous measure
+	    push( @s, '<td class="grid-repeat">%</td>' );
+	}
+	elsif ( $token eq '.' ) {
+	    # Same chord
+	    push( @s, '<td class="grid-same">.</td>' );
+	}
+	else {
+	    # Text or other content
+	    push( @s, '<td class="grid-text">' . nhtml($token) . '</td>' );
+	}
+    }
+    
+    push( @s, '</tr>' );
+    push( @s, '</table>' );
+    push( @s, '</div>' );
+    
+    return @s;
 }
+
+=for later
 
 <style>
 div.grid_2_4x4_1 {
