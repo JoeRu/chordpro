@@ -13,13 +13,19 @@ package ChordPro::Output::HTML5;
 use v5.26;
 use Object::Pad;
 use utf8;
-use Ref::Util qw(is_ref);
+use Ref::Util qw(is_ref is_hashref);
 use Text::Layout;
 use Template;
+use MIME::Base64 qw(encode_base64);
+use Unicode::Collate;
 
 use ChordPro::Paths;
+use ChordPro::Files qw(fs_load fs_blob);
 use ChordPro::Output::ChordProBase;
 use ChordPro::Output::ChordDiagram::SVG;
+use ChordPro::Output::HTML5Helper::FormatGenerator;
+use ChordPro::Output::Common qw(prep_outlines fmt_subst);
+use ChordPro::Utils qw(expand_tilde is_true);
 
 class ChordPro::Output::HTML5
   :isa(ChordPro::Output::ChordProBase) {
@@ -33,7 +39,8 @@ class ChordPro::Output::HTML5
     BUILD {
         # Initialize SVG diagram generator with HTML escape function
         $svg_generator = ChordPro::Output::ChordDiagram::SVG->new(
-            escape_fn => sub { $self->escape_text(@_) }
+            escape_fn => sub { $self->escape_text(@_) },
+            config => $self->config,
         );
         
         # Initialize Template::Toolkit (following LaTeX.pm pattern)
@@ -66,7 +73,19 @@ class ChordPro::Output::HTML5
         
         $config->unlock;
         my $html5_cfg = $config->{html5};
-        my $template = $html5_cfg->{templates}->{$template_name};
+        
+        # Handle paged template names
+        my $template;
+        if ($template_name =~ /^paged_(.+)$/) {
+            my $base_name = $1;
+            # Try paged template first, fall back to regular
+            my $paged_cfg = eval { $html5_cfg->{paged} } // {};
+            $template = eval { $paged_cfg->{templates}->{$base_name} }
+                     // eval { $html5_cfg->{templates}->{$base_name} };
+        } else {
+            $template = eval { $html5_cfg->{templates}->{$template_name} };
+        }
+        
         $config->lock;
         
         unless (defined $template) {
@@ -83,7 +102,79 @@ class ChordPro::Output::HTML5
     # TEMPLATE-BASED ELEMENT RENDERERS (LaTeX.pm pattern)
     # =================================================================
 
+    method _chord_display_and_class($chord) {
+        my $chord_name = '';
+        my $is_annotation = 0;
+
+        if ($chord) {
+            if (ref($chord) eq 'HASH') {
+                $chord_name = $chord->{name} // '';
+            } else {
+                if (ref($chord) && $chord->can('info')) {
+                    my $info = $chord->info;
+                    $is_annotation = $info
+                      && $info->can('is_annotation')
+                      && $info->is_annotation;
+                }
+
+                if (ref($chord) && $chord->can('chord_display')) {
+                    $chord_name = $chord->chord_display // '';
+                } elsif (ref($chord) && $chord->can('name')) {
+                    $chord_name = $chord->name // '';
+                } else {
+                    $chord_name = "$chord";
+                }
+            }
+        }
+
+        my $chord_class = $is_annotation ? 'cp-annotation' : 'cp-chord';
+
+        return ($chord_name, $chord_class, $is_annotation);
+    }
+
     method _render_songline_template($element) {
+        my $config = $self->config // {};
+        my $inline_cfg = eval { $config->{settings}->{'inline-chords'} };
+        my $inline_enabled = is_true($inline_cfg);
+
+        if ($inline_enabled && !$self->is_lyrics_only()) {
+            my $inline_format = $inline_cfg;
+            if (!defined($inline_format) || $inline_format =~ /^(?:1|true|yes)\z/i) {
+                $inline_format = '[%s]';
+            }
+            $inline_format = '[%s]' if $inline_format !~ /%s/;
+
+            my $inline_annotations = eval { $config->{settings}->{'inline-annotations'} } // '%s';
+            $inline_annotations = '%s' if $inline_annotations !~ /%s/;
+
+            my $chords = $element->{chords} // [];
+            my $phrases = $element->{phrases} // [];
+            my $html = qq{<div class="cp-songline cp-inline-chords">\n};
+
+            for (my $i = 0; $i < @$phrases; $i++) {
+                my $chord = $chords->[$i];
+                my ($chord_name, undef, $is_annotation) = $self->_chord_display_and_class($chord);
+
+                if ($chord_name ne '') {
+                    my $format = $is_annotation ? $inline_annotations : $inline_format;
+                    my $formatted = $format;
+                    $formatted =~ s/%s/$chord_name/g;
+                    my $display = $self->process_text_with_markup($formatted);
+                    my $class = $is_annotation ? 'cp-inline-annotation' : 'cp-inline-chord';
+                    $html .= qq{  <span class="$class">$display</span>};
+                }
+
+                my $lyrics = $phrases->[$i] // '';
+                if ($lyrics ne '') {
+                    my $processed = $self->process_text_with_markup($lyrics);
+                    $html .= qq{  <span class="cp-lyrics">$processed</span>};
+                }
+            }
+
+            $html .= qq{\n</div>\n};
+            return $html;
+        }
+
         # Prepare chord-lyric pairs
         my @pairs;
         my $chords = $element->{chords} // [];
@@ -91,25 +182,14 @@ class ChordPro::Output::HTML5
         
         for (my $i = 0; $i < @$phrases; $i++) {
             my $chord = $chords->[$i];
-            my $chord_name = '';
-            if ($chord) {
-                if (ref($chord) eq 'HASH') {
-                    $chord_name = $chord->{name} // '';
-                } elsif (ref($chord) && $chord->can('chord_display')) {
-                    # ChordPro::Chords::Appearance object
-                    $chord_name = $chord->chord_display // '';
-                } elsif (ref($chord) && $chord->can('name')) {
-                    $chord_name = $chord->name // '';
-                } else {
-                    $chord_name = "$chord";  # Stringify
-                }
-            }
+            my ($chord_name, $chord_class) = $self->_chord_display_and_class($chord);
             
             my $lyrics = $phrases->[$i] // '';
             my $is_chord_only = ($chord_name ne '' && $lyrics eq '');
             
             push @pairs, {
                 chord => $chord_name,
+                chord_class => $chord_class,
                 lyrics => $self->process_text_with_markup($lyrics),
                 is_chord_only => $is_chord_only,
             };
@@ -127,12 +207,77 @@ class ChordPro::Output::HTML5
 
     method _render_image_template($element) {
         my $opts = $element->{opts} // {};
+        my $align = $opts->{align} // '';
+        $align = lc($align) if defined $align;
+
+        my @container_classes = ('cp-image-container');
+        if ($align =~ /^(center|left|right)$/) {
+            push @container_classes, "cp-image-align-$align";
+        }
+        push @container_classes, 'cp-image-spread' if is_true($opts->{spread});
+
+        my $img_class = $opts->{class} // 'cp-image';
+        if ($img_class !~ /\bcp-image\b/) {
+            $img_class = "cp-image $img_class";
+        }
+
+        my $width = $opts->{width};
+        my $height = $opts->{height};
+        my %style;
+
+        my ($scale_x, $scale_y);
+        if (ref($opts->{scale}) eq 'ARRAY') {
+            $scale_x = $opts->{scale}->[0];
+            $scale_y = $opts->{scale}->[1] // $scale_x;
+        } elsif (defined $opts->{scale} && $opts->{scale} ne '') {
+            $scale_x = $opts->{scale};
+            $scale_y = $opts->{scale};
+        }
+
+        my $scale_dim = sub {
+            my ($value, $scale) = @_;
+            return $value unless defined $value && defined $scale;
+            if ($value =~ /^(\d+(?:\.\d+)?)(%)?$/) {
+                my $num = $1 * $scale;
+                return defined($2) ? $num . '%' : $num;
+            }
+            return $value;
+        };
+
+        $width = $scale_dim->($width, $scale_x) if defined $width;
+        $height = $scale_dim->($height, $scale_y) if defined $height;
+
+        if (!defined $width && defined $scale_x) {
+            $style{width} = sprintf('%.0f%%', $scale_x * 100);
+        }
+        if (!defined $height && defined $scale_y && defined $scale_x && $scale_y != $scale_x) {
+            $style{height} = sprintf('%.0f%%', $scale_y * 100);
+        }
+
+        my $width_attr = $width;
+        my $height_attr = $height;
+        if (defined $width && $width =~ /%$/) {
+            $style{width} = $width;
+            $width_attr = '';
+        }
+        if (defined $height && $height =~ /%$/) {
+            $style{height} = $height;
+            $height_attr = '';
+        }
+
+        my $style_str = '';
+        if (%style) {
+            $style_str = join('; ', map { $_ . ': ' . $style{$_} } sort keys %style);
+        }
+
         return $self->_process_template('image', {
             uri => $element->{uri} // '',
             title => $element->{title} // '',
-            width => $opts->{width} // '',
-            height => $opts->{height} // '',
-            class => $opts->{class} // 'cp-image',
+            width => $width_attr // '',
+            height => $height_attr // '',
+            class => $img_class,
+            container_class => join(' ', @container_classes),
+            style => $style_str,
         });
     }
 
@@ -140,7 +285,24 @@ class ChordPro::Output::HTML5
         my $tokens = $element->{tokens} // [];
         my $margin = $element->{margin};
         my $comment = $element->{comment};
-        
+
+        my $display_chord = sub {
+            my ($chord) = @_;
+            my $text = '';
+
+            if (ref($chord) eq 'HASH') {
+                $text = $chord->{name} // '';
+            } elsif ($chord && $chord->can('chord_display')) {
+                $text = $chord->chord_display;
+            } elsif ($chord && $chord->can('name')) {
+                $text = $chord->name;
+            } else {
+                $text = "$chord";
+            }
+
+            return $text;
+        };
+
         my $html = '<div class="cp-gridline">';
         
         # Render margin if present
@@ -159,23 +321,69 @@ class ChordPro::Output::HTML5
         foreach my $token (@$tokens) {
             my $class = $token->{class} // '';
             my $text = '';
+            my @classes;
+            my $data_attrs = '';
             
             if ($class eq 'chord') {
-                my $chord = $token->{chord};
-                if (ref($chord) eq 'HASH') {
-                    $text = $chord->{name} // '';
-                } elsif ($chord && $chord->can('chord_display')) {
-                    $text = $chord->chord_display;
-                } elsif ($chord && $chord->can('name')) {
-                    $text = $chord->name;
-                } else {
-                    $text = "$chord";
+                $text = $display_chord->($token->{chord});
+                push @classes, 'cp-grid-chord';
+            } elsif ($class eq 'chords') {
+                my $chords = $token->{chords} // [];
+                my @parts;
+                for my $chord (@$chords) {
+                    if (!defined $chord) {
+                        push @parts, '';
+                    } elsif ($chord eq '/' || $chord eq '.') {
+                        push @parts, $chord;
+                    } else {
+                        push @parts, $display_chord->($chord);
+                    }
                 }
+                $text = join('~', @parts);
+                push @classes, 'cp-grid-chord';
             } else {
                 $text = $token->{symbol} // '';
+                push @classes, 'cp-grid-symbol';
+
+                if ($class eq 'bar') {
+                    push @classes, 'cp-grid-bar';
+                    my $symbol = $token->{symbol} // '';
+                    if ($symbol eq '||') {
+                        push @classes, 'cp-grid-bar-double';
+                    } elsif ($symbol eq '|.') {
+                        push @classes, 'cp-grid-bar-end';
+                    } elsif ($symbol eq '|:' || $symbol eq '{') {
+                        push @classes, 'cp-grid-bar-repeat-start';
+                    } elsif ($symbol eq ':|' || $symbol eq '}') {
+                        push @classes, 'cp-grid-bar-repeat-end';
+                    } elsif ($symbol eq ':|:' || $symbol eq '}{') {
+                        push @classes, 'cp-grid-bar-repeat-both';
+                    } else {
+                        push @classes, 'cp-grid-bar-single';
+                    }
+
+                    if (defined $token->{volta}) {
+                        push @classes, 'cp-grid-volta';
+                        $data_attrs = qq{ data-volta="$token->{volta}"};
+                    }
+                } elsif ($class eq 'repeat1') {
+                    push @classes, 'cp-grid-repeat', 'cp-grid-repeat1';
+                } elsif ($class eq 'repeat2') {
+                    push @classes, 'cp-grid-repeat', 'cp-grid-repeat2';
+                } elsif ($class eq 'slash') {
+                    push @classes, 'cp-grid-slash';
+                } elsif ($class eq 'space') {
+                    push @classes, 'cp-grid-space';
+                }
             }
-            
-            $html .= '<span class="cp-grid-' . $class . '">' . $self->escape_text($text) . '</span>';
+
+            if ($class && !grep { $_ eq "cp-grid-$class" } @classes) {
+                push @classes, "cp-grid-$class";
+            }
+
+            my $class_attr = @classes ? join(' ', @classes) : '';
+            my $class_str = $class_attr ? qq{ class="$class_attr"} : '';
+            $html .= '<span' . $class_str . $data_attrs . '>' . $self->escape_text($text) . '</span>';
         }
         $html .= '</span>';
         
@@ -194,12 +402,12 @@ class ChordPro::Output::HTML5
         return $html;
     }
 
-    method _process_song_body($body) {
+    method _process_song_body($body, $song = undef) {
         my $html = '';
-        
+
         foreach my $element (@{$body}) {
             my $type = $element->{type};
-            
+
             # Dispatch to appropriate handler
             if ($type eq 'songline') {
                 $html .= $self->_render_songline_template($element);
@@ -208,29 +416,106 @@ class ChordPro::Output::HTML5
                 $html .= $self->_render_comment_template($element);
             }
             elsif ($type eq 'image') {
-                $html .= $self->_render_image_template($element);
+                my $delegate_asset;
+                if ( ($element->{subtype} // '') eq 'delegate' ) {
+                    $delegate_asset = $element;
+                } elsif ($song && $element->{id}) {
+                    my $asset = $song->{assets}->{$element->{id}};
+                    if ($asset && ($asset->{subtype} // '') eq 'delegate') {
+                        $delegate_asset = $asset;
+                    }
+                }
+
+                if ($delegate_asset) {
+                    $html .= $self->_render_delegate_element($delegate_asset, $song);
+                } else {
+                    $html .= $self->_render_image_template($element);
+                }
             }
             elsif ($type eq 'empty') {
                 $html .= qq{<div class="cp-empty"></div>\n};
             }
             elsif ($type eq 'chorus') {
-                $html .= qq{<div class="cp-chorus">\n};
-                $html .= $self->_process_song_body($element->{body});
+                my $body = $element->{body} // [];
+                my $label = $element->{label};
+                if ((!defined $label || $label eq '') && @$body) {
+                    my $maybe_label = $body->[0];
+                    if (($maybe_label->{type} // '') eq 'set' && ($maybe_label->{name} // '') eq 'label') {
+                        $label = $maybe_label->{value};
+                        $body = [ @{$body}[1 .. $#$body] ] if $#$body >= 1;
+                        $body = [] if $#$body < 1;
+                    }
+                }
+                my $label_attr = '';
+                if (defined $label && $label ne '') {
+                    my $escaped = $self->escape_text($label);
+                    $label_attr = qq{ data-label="$escaped"};
+                }
+                $html .= qq{<div class="cp-chorus"$label_attr>\n};
+                $html .= $self->_process_song_body($body, $song);
                 $html .= qq{</div>\n};
             }
+            elsif ($type eq 'rechorus') {
+                $html .= $self->handle_rechorus($element);
+            }
             elsif ($type eq 'verse') {
-                $html .= qq{<div class="cp-verse">\n};
-                $html .= $self->_process_song_body($element->{body});
+                my $body = $element->{body} // [];
+                my $label = $element->{label};
+                if ((!defined $label || $label eq '') && @$body) {
+                    my $maybe_label = $body->[0];
+                    if (($maybe_label->{type} // '') eq 'set' && ($maybe_label->{name} // '') eq 'label') {
+                        $label = $maybe_label->{value};
+                        $body = [ @{$body}[1 .. $#$body] ] if $#$body >= 1;
+                        $body = [] if $#$body < 1;
+                    }
+                }
+                my $label_attr = '';
+                if (defined $label && $label ne '') {
+                    my $escaped = $self->escape_text($label);
+                    $label_attr = qq{ data-label="$escaped"};
+                }
+                $html .= qq{<div class="cp-verse"$label_attr>\n};
+                $html .= $self->_process_song_body($body, $song);
                 $html .= qq{</div>\n};
             }
             elsif ($type eq 'bridge') {
-                $html .= qq{<div class="cp-bridge">\n};
-                $html .= $self->_process_song_body($element->{body});
+                my $body = $element->{body} // [];
+                my $label = $element->{label};
+                if ((!defined $label || $label eq '') && @$body) {
+                    my $maybe_label = $body->[0];
+                    if (($maybe_label->{type} // '') eq 'set' && ($maybe_label->{name} // '') eq 'label') {
+                        $label = $maybe_label->{value};
+                        $body = [ @{$body}[1 .. $#$body] ] if $#$body >= 1;
+                        $body = [] if $#$body < 1;
+                    }
+                }
+                my $label_attr = '';
+                if (defined $label && $label ne '') {
+                    my $escaped = $self->escape_text($label);
+                    $label_attr = qq{ data-label="$escaped"};
+                }
+                $html .= qq{<div class="cp-bridge"$label_attr>\n};
+                $html .= $self->_process_song_body($body, $song);
                 $html .= qq{</div>\n};
             }
             elsif ($type eq 'tab') {
-                $html .= qq{<div class="cp-tab">\n};
-                $html .= $self->_process_song_body($element->{body});
+                my $body = $element->{body} // [];
+                my $label = $element->{label};
+                if ((!defined $label || $label eq '') && @$body) {
+                    my $maybe_label = $body->[0];
+                    if (($maybe_label->{type} // '') eq 'set' && ($maybe_label->{name} // '') eq 'label') {
+                        $label = $maybe_label->{value};
+                        $body = [ @{$body}[1 .. $#$body] ] if $#$body >= 1;
+                        $body = [] if $#$body < 1;
+                    }
+                }
+                my $label_attr = '';
+                if (defined $label && $label ne '') {
+                    my $escaped = $self->escape_text($label);
+                    $label_attr = qq{ data-label="$escaped"};
+                }
+                $html .= qq{<div class="cp-tab"$label_attr>\n};
+                $html .= $self->_process_song_body($body, $song);
                 $html .= qq{</div>\n};
             }
             elsif ($type eq 'tabline') {
@@ -238,12 +523,32 @@ class ChordPro::Output::HTML5
                 $html .= qq{<div class="cp-tabline">$text</div>\n};
             }
             elsif ($type eq 'grid') {
-                $html .= qq{<div class="cp-grid">\n};
-                $html .= $self->_process_song_body($element->{body});
+                my $body = $element->{body} // [];
+                my $label = $element->{label};
+                if ((!defined $label || $label eq '') && @$body) {
+                    my $maybe_label = $body->[0];
+                    if (($maybe_label->{type} // '') eq 'set' && ($maybe_label->{name} // '') eq 'label') {
+                        $label = $maybe_label->{value};
+                        $body = [ @{$body}[1 .. $#$body] ] if $#$body >= 1;
+                        $body = [] if $#$body < 1;
+                    }
+                }
+                my $label_attr = '';
+                if (defined $label && $label ne '') {
+                    my $escaped = $self->escape_text($label);
+                    $label_attr = qq{ data-label="$escaped"};
+                }
+                $html .= qq{<div class="cp-grid"$label_attr>\n};
+                $html .= $self->_process_song_body($body, $song);
                 $html .= qq{</div>\n};
             }
             elsif ($type eq 'gridline') {
                 $html .= $self->render_gridline($element);
+            }
+            elsif ($type eq 'comment_box') {
+                $html .= $self->render_section_begin('comment_box');
+                $html .= $self->render_text($element->{text} // '');
+                $html .= $self->render_section_end('comment_box');
             }
             elsif ($type eq 'new_page' || $type eq 'newpage') {
                 $html .= qq{<div class="cp-new-page"></div>\n};
@@ -254,10 +559,145 @@ class ChordPro::Output::HTML5
             elsif ($type eq 'colb' || $type eq 'column_break') {
                 $html .= qq{<div class="cp-column-break"></div>\n};
             }
+            elsif ($element->{body}) {
+                $html .= $self->_process_song_body($element->{body}, $song);
+            }
             # Ignore other types (set, control, etc.)
         }
-        
+
         return $html;
+    }
+
+    method _render_delegate_element($element, $song = undef) {
+        my $delegate = $element->{delegate} // '';
+        my $handler = $element->{handler} // '';
+        return '' unless $delegate && $handler;
+
+        my $pkg = __PACKAGE__;
+        $pkg =~ s/::Output::[:\w]+$/::Delegate::$delegate/;
+        eval "require $pkg";
+        if ($@) {
+            warn("HTML5: Failed to load delegate $delegate: $@\n");
+            return '';
+        }
+
+        my $hd = $pkg->can($handler);
+        unless ($hd) {
+            warn("HTML5: Missing delegate handler ${pkg}::$handler\n");
+            return '';
+        }
+
+        my $elt = { %$element };
+        if (!$elt->{data} && $elt->{uri}) {
+            my $loaded = fs_load($elt->{uri});
+            $elt->{data} = $loaded if $loaded;
+        }
+
+        my $res = $hd->( $song, elt => $elt, pagewidth => undef );
+        return '' unless $res;
+
+        if (ref($res) eq 'ARRAY') {
+            return join('', map { $self->_render_delegate_result($_) } @$res);
+        }
+
+        return $self->_render_delegate_result($res);
+    }
+
+    method _render_delegate_result($res) {
+        return '' unless ref($res) eq 'HASH';
+        return '' unless ($res->{type} // '') eq 'image';
+
+        my $subtype = $res->{subtype} // '';
+        if ($subtype eq 'svg') {
+            my $svg = '';
+            if ($res->{data}) {
+                if (ref($res->{data}) eq 'ARRAY') {
+                    $svg = join("\n", @{$res->{data}});
+                } else {
+                    $svg = $res->{data};
+                }
+            } elsif ($res->{uri}) {
+                my $lines = fs_load($res->{uri});
+                if ($lines && ref($lines) eq 'ARRAY') {
+                    $svg = join("\n", @$lines);
+                } elsif (defined $lines) {
+                    $svg = $lines;
+                }
+            }
+
+            return '' unless $svg ne '';
+            return qq{<div class="cp-delegate cp-delegate-svg">\n$svg\n</div>\n};
+        }
+
+        my $opts = { %{ $res->{opts} // {} }, class => 'cp-delegate' };
+        if ($res->{uri}) {
+            return $self->render_image($res->{uri}, $opts);
+        }
+
+        if (defined $res->{data}) {
+            my %mime = (
+                png  => 'image/png',
+                jpg  => 'image/jpeg',
+                jpeg => 'image/jpeg',
+                gif  => 'image/gif',
+            );
+            my $mime_type = $mime{lc($subtype)} // '';
+            if ($mime_type) {
+                my $data = $res->{data};
+                $data = encode_base64($data, '');
+                my $uri = "data:$mime_type;base64,$data";
+                return $self->render_image($uri, $opts);
+            }
+        }
+
+        return '';
+    }
+
+    method handle_rechorus($elt) {
+        my $config = $self->config // {};
+        my $recall = eval { $config->{html5}->{chorus}->{recall} }
+          // eval { $config->{pdf}->{chorus}->{recall} }
+          // eval { $config->{text}->{chorus}->{recall} }
+          // {};
+
+        my $quote = eval { $recall->{quote} } // 0;
+        my $tag = eval { $recall->{tag} };
+        $tag = 'Chorus' if !defined($tag) || $tag eq '';
+        my $type = eval { $recall->{type} } // '';
+        my $choruslike = eval { $recall->{choruslike} } // 0;
+
+        if ( $quote && $elt->{chorus} ) {
+            return $self->handle_chorus({ body => $elt->{chorus} });
+        }
+
+        my $output = '';
+        if ( $type && $tag ne '' ) {
+            if ( $type eq 'comment' || $type eq 'comment_italic' ) {
+                $output = $self->_render_comment_template({
+                    text => $tag,
+                    type => $type,
+                });
+            }
+            elsif ( $type eq 'comment_box' ) {
+                $output = $self->render_section_begin('comment_box')
+                  . $self->render_text($tag)
+                  . $self->render_section_end('comment_box');
+            }
+        }
+
+        if ( $output eq '' ) {
+            $output = $self->render_section_begin('rechorus')
+              . $self->render_text($tag)
+              . $self->render_section_end('rechorus');
+        }
+
+        if ( $choruslike ) {
+            return $self->render_section_begin('choruslike')
+              . $output
+              . $self->render_section_end('choruslike');
+        }
+
+        return $output;
     }
 
     # =================================================================
@@ -357,8 +797,9 @@ class ChordPro::Output::HTML5
     # =================================================================
 
     method render_chord($chord_obj) {
-        my $chord_name = $self->escape_text($chord_obj->name);
-        return qq{<span class="cp-chord">$chord_name</span>};
+        my ($chord_name, $chord_class) = $self->_chord_display_and_class($chord_obj);
+        my $display = $self->process_text_with_markup($chord_name);
+        return qq{<span class="$chord_class">$display</span>};
     }
 
     method render_songline($phrases, $chords) {
@@ -376,7 +817,9 @@ class ChordPro::Output::HTML5
         my $has_chords = 0;
         if ($chords) {
             foreach my $chord (@$chords) {
-                if ($chord && is_ref($chord) && $chord->key) {
+                next unless $chord && is_ref($chord);
+                my ($chord_name) = $self->_chord_display_and_class($chord);
+                if ($chord_name ne '') {
                     $has_chords = 1;
                     last;
                 }
@@ -396,17 +839,18 @@ class ChordPro::Output::HTML5
         for (my $i = 0; $i < @$phrases; $i++) {
             my $phrase = $phrases->[$i] // '';
             my $chord = $chords->[$i];
+            my ($chord_name, $chord_class) = $self->_chord_display_and_class($chord);
             
             # Check if this is a chord-only pair (chord with empty lyrics)
-            my $is_chord_only = ($chord && is_ref($chord) && $chord->key && $phrase eq '');
+            my $is_chord_only = ($chord_name ne '' && $phrase eq '');
             my $pair_class = $is_chord_only ? 'cp-chord-lyric-pair cp-chord-only' : 'cp-chord-lyric-pair';
 
             $html .= qq{  <span class="$pair_class">\n};
 
             # Chord span (empty if no chord)
-            if ($chord && is_ref($chord) && $chord->key) {
-                my $chord_name = $self->process_text_with_markup($chord->chord_display);
-                $html .= qq{    <span class="cp-chord">$chord_name</span>\n};
+            if ($chord_name ne '') {
+                my $display = $self->process_text_with_markup($chord_name);
+                $html .= qq{    <span class="$chord_class">$display</span>\n};
             } else {
                 $html .= qq{    <span class="cp-chord cp-chord-empty"></span>\n};
             }
@@ -443,7 +887,7 @@ class ChordPro::Output::HTML5
     # SONG GENERATION - Override to customize structure
     # =================================================================
 
-    method generate_song($song) {
+    method generate_song($song, $paged_mode = 0, $song_id = undef) {
         # Structurize the song to convert start_of/end_of directives into containers
         eval { $song->structurize } if $song->can('structurize');
 
@@ -461,14 +905,35 @@ class ChordPro::Output::HTML5
         # Process song body to HTML
         my $body_html = '';
         if ($song->{body}) {
-            $body_html = $self->_process_song_body($song->{body});
+            $body_html = $self->_process_song_body($song->{body}, $song);
         }
 
-        # Generate chord diagrams if present (unless lyrics-only)
+                # Generate chord diagrams if present (unless lyrics-only)
         my $chord_diagrams_html = '';
         unless ($self->is_lyrics_only()) {
             $chord_diagrams_html = $self->render_chord_diagrams($song);
         }
+
+                # Diagram placement and alignment (HTML5 overrides PDF)
+                my $diagrams_position = '';
+                my $diagrams_align = '';
+                if ($chord_diagrams_html ne '') {
+                        my $config = $self->config // {};
+                        my $html5_diagrams = eval { $config->{html5}->{diagrams} } // {};
+                        my $pdf_diagrams = eval { $config->{pdf}->{diagrams} } // {};
+
+                        $diagrams_position = lc( eval { $html5_diagrams->{show} }
+                            // eval { $pdf_diagrams->{show} }
+                            // 'bottom' );
+                        $diagrams_align = lc( eval { $html5_diagrams->{align} }
+                            // eval { $pdf_diagrams->{align} }
+                            // 'left' );
+
+                        $diagrams_position = 'bottom'
+                            unless $diagrams_position =~ /^(?:top|bottom|right|below)\z/;
+                        $diagrams_align = 'left'
+                            unless $diagrams_align =~ /^(?:left|right|center|spread)\z/;
+                }
 
         # Process title/subtitles with markup
         my $processed_title = $song->{title} ? $self->process_text_with_markup($song->{title}) : '';
@@ -477,17 +942,164 @@ class ChordPro::Output::HTML5
             @processed_subtitles = map { $self->process_text_with_markup($_) } @{$song->{subtitle}};
         }
 
+        # Prepare data attributes for paged mode (metadata without markup for CSS string-set)
+        my $data_attrs = {};
+        if ($paged_mode) {
+            my $join_meta = sub {
+                my ($field, $fallback) = @_;
+                my $val = $meta->{$field};
+                if ($val && ref($val) eq 'ARRAY' && @$val) {
+                    return join(", ", @$val);
+                }
+                if (defined $fallback) {
+                    if (ref($fallback) eq 'ARRAY') {
+                        return join(", ", @$fallback);
+                    }
+                    return $fallback;
+                }
+                return undef;
+            };
+
+            my %fields = (
+                title => $song->{title},
+                subtitle => $song->{subtitle},
+                artist => undef,
+                album => undef,
+                composer => undef,
+                lyricist => undef,
+                copyright => undef,
+                year => undef,
+                key => undef,
+                capo => undef,
+                duration => undef,
+            );
+
+            for my $field (sort keys %fields) {
+                my $value = $join_meta->($field, $fields{$field});
+                if (defined $value && $value ne '') {
+                    $data_attrs->{"data_$field"} = $value;
+                }
+            }
+        }
+
         # Prepare template variables
         my $vars = {
             title => $processed_title,
             subtitle => \@processed_subtitles,
             meta => $processed_meta,
             chord_diagrams_html => $chord_diagrams_html,
+            diagrams_position => $diagrams_position,
+            diagrams_align => $diagrams_align,
             body_html => $body_html,
+            paged_mode => $paged_mode,
+            song_id => $song_id,
+            %$data_attrs,  # Merge data attributes
         };
 
-        # Process song template
-        return $self->_process_template('song', $vars);
+        # Process song template (use paged template if in paged mode)
+        my $template_name = $paged_mode ? 'paged_song' : 'song';
+        return $self->_process_template($template_name, $vars);
+    }
+
+    method _generate_toc($songs, $paged_mode = 0) {
+        return '' unless $paged_mode;
+
+        my $options = $self->options // {};
+        return '' unless ($options->{toc} // (@$songs > 1));
+
+        my $config = $self->config // {};
+        my $contents = eval { $config->{contents} } // [];
+        return '' unless ref($contents) eq 'ARRAY' && @$contents;
+
+        my @toc_sections;
+
+        for my $ctl (@$contents) {
+            next if eval { $ctl->{omit} };
+
+            my $fields = eval { $ctl->{fields} } // [];
+            my $label = eval { $ctl->{label} } // 'Table of Contents';
+            my $line_tpl = eval { $ctl->{line} } // '%{title}';
+            my $page_tpl = eval { $ctl->{pageno} } // '%{page}';
+            my $break_tpl = eval { $ctl->{break} };
+            my $name = eval { $ctl->{name} } // 'toc';
+
+            my $book = prep_outlines($songs, {
+                fields => $fields,
+                omit => 0,
+            });
+            next unless $book && @$book;
+
+            my @entries;
+            my $prev_break = '';
+
+            for my $item (@$book) {
+                my $song = $item->[-1];
+                my $song_id = eval { $song->{meta}->{html5_id}->[0] } // '';
+                next unless $song_id;
+
+                if (defined $break_tpl) {
+                    my $break_text = fmt_subst($song, $break_tpl);
+                    my $normalized = $break_text;
+                    $normalized =~ s/^(\n|\r|\n\r|\r\n)+//g;
+                    if ($normalized ne $prev_break) {
+                        push @entries, {
+                            type => 'break',
+                            text => $normalized,
+                        } if $normalized ne '';
+                        $prev_break = $normalized;
+                    }
+                }
+
+                my $title = fmt_subst($song, $line_tpl);
+                my $page_text = fmt_subst($song, $page_tpl);
+
+                push @entries, {
+                    type => 'entry',
+                    text => $title,
+                    page_text => $page_text,
+                    page_ref => '#' . $song_id,
+                };
+            }
+
+            next unless @entries;
+
+            push @toc_sections, $self->_process_template('paged_toc', {
+                label => $label,
+                entries => \@entries,
+                toc_name => $name,
+            });
+        }
+
+        return join("\n", @toc_sections);
+    }
+
+    method _render_matter($path, $class_name) {
+        return '' unless $path;
+
+        my $resolved = expand_tilde($path);
+        unless (-f $resolved) {
+            warn("HTML5 matter file not found: $resolved\n");
+            return '';
+        }
+
+        if ($resolved =~ /\.(pdf)\z/i) {
+            warn("HTML5 matter file is PDF (unsupported): $resolved\n");
+            return '';
+        }
+
+        if ($resolved =~ /\.(html?|xhtml)\z/i) {
+            open my $fh, '<:utf8', $resolved or do {
+                warn("Cannot read HTML5 matter file: $resolved\n");
+                return '';
+            };
+            local $/;
+            my $content = <$fh> // '';
+            close $fh;
+            return qq{<div class="$class_name">$content</div>};
+        }
+
+        my $image_html = $self->render_image($resolved, { class => 'cp-matter-image' });
+        return qq{<div class="$class_name">$image_html</div>};
     }
 
     # =================================================================
@@ -600,6 +1212,7 @@ class ChordPro::Output::HTML5
             
             my $info = $song->{chordsinfo}->{$chord_name};
             next unless $info;
+            next if $info->can('is_annotation') && $info->is_annotation;
             next unless $info->can('has_diagram') && $info->has_diagram;
             
             # Skip if show=user and chord is not user-defined
@@ -628,7 +1241,17 @@ class ChordPro::Output::HTML5
         return '' unless @diagrams;
         
         # Use template to render
-        return $self->_process_template('chord_diagrams', { diagrams => \@diagrams });
+                my $html5_diagrams = eval { $cfg->{html5}->{diagrams} } // {};
+                my $pdf_diagrams = eval { $cfg->{pdf}->{diagrams} } // {};
+                my $align = lc( eval { $html5_diagrams->{align} }
+                    // eval { $pdf_diagrams->{align} }
+                    // 'left' );
+                $align = 'left' unless $align =~ /^(?:left|right|center|spread)\z/;
+
+                return $self->_process_template('chord_diagrams', {
+                        diagrams => \@diagrams,
+                        diagrams_align => $align,
+                });
     }
 
     # =================================================================
@@ -733,7 +1356,7 @@ class ChordPro::Output::HTML5
     # CSS GENERATION
     # =================================================================
 
-    method generate_default_css() {
+    method generate_default_css($paged_mode = 0) {
         my $config = $self->config // {};
         my $html5_cfg = eval { $config->{html5} } // {};
         
@@ -762,11 +1385,57 @@ class ChordPro::Output::HTML5
             colors => { %$colors_cfg },
             fonts => { %$fonts_cfg },
             sizes => { %$sizes_cfg },
+            chords_under => is_true(eval { $config->{settings}->{'chords-under'} }),
+            
+            # Paged mode flag
+            paged_mode => $paged_mode,
         };
+
+        if ($paged_mode) {
+            my $paged_cfg = eval { $html5_cfg->{paged} } // {};
+            my $pdf_cfg = eval { $config->{pdf} } // {};
+
+            $vars->{papersize} = eval { $paged_cfg->{papersize} }
+                // eval { $pdf_cfg->{papersize} }
+                // 'a4';
+            $vars->{margintop} = eval { $paged_cfg->{margintop} }
+                // eval { $pdf_cfg->{margintop} }
+                // 80;
+            $vars->{marginbottom} = eval { $paged_cfg->{marginbottom} }
+                // eval { $pdf_cfg->{marginbottom} }
+                // 40;
+            $vars->{marginleft} = eval { $paged_cfg->{marginleft} }
+                // eval { $pdf_cfg->{marginleft} }
+                // 40;
+            $vars->{marginright} = eval { $paged_cfg->{marginright} }
+                // eval { $pdf_cfg->{marginright} }
+                // 40;
+            $vars->{headspace} = eval { $paged_cfg->{headspace} }
+                // eval { $pdf_cfg->{headspace} }
+                // 60;
+            $vars->{footspace} = eval { $paged_cfg->{footspace} }
+                // eval { $pdf_cfg->{footspace} }
+                // 20;
+
+            my $format_generator = ChordPro::Output::HTML5Helper::FormatGenerator->new(
+                config => $config,
+                options => $self->options,
+            );
+            $vars->{format_rules} = $format_generator->generate_rules();
+        }
         
-        # Process CSS template
+        # Process CSS template (use paged CSS template if in paged mode)
         my $css = '';
-        my $template = eval { $html5_cfg->{templates}->{css} } // 'html5/base.tt';
+        my $template;
+        if ($paged_mode) {
+            # Try paged template first, fall back to regular
+            my $paged_cfg = eval { $html5_cfg->{paged} } // {};
+            $template = eval { $paged_cfg->{templates}->{css} } 
+                     // eval { $html5_cfg->{templates}->{css} } 
+                     // 'html5/css/base.tt';
+        } else {
+            $template = eval { $html5_cfg->{templates}->{css} } // 'html5/css/base.tt';
+        }
         
         $template_engine->process($template, $vars, \$css)
             || die "CSS Template error: " . $template_engine->error();
@@ -787,6 +1456,78 @@ class ChordPro::Output::HTML5
     }
 }
 
+sub _song_sort_value {
+    my ( $song, $field ) = @_;
+    my $meta = $song->{meta} // {};
+
+    if ( $field eq 'title' ) {
+        $meta->{sorttitle} = $meta->{title} if !defined $meta->{sorttitle};
+        $field = 'sorttitle';
+    }
+
+    my $values = $meta->{$field};
+    return undef unless $values && ref($values) eq 'ARRAY';
+    return $values->[0];
+}
+
+sub _compare_song_sort {
+    my ( $a, $b, $fields, $collator ) = @_;
+
+    foreach my $field (@$fields) {
+        my $a_val = _song_sort_value( $a, $field->{name} );
+        my $b_val = _song_sort_value( $b, $field->{name} );
+
+        my $a_missing = !defined($a_val) || $a_val eq '';
+        my $b_missing = !defined($b_val) || $b_val eq '';
+
+        if ( $a_missing || $b_missing ) {
+            next if $a_missing && $b_missing;
+            return $a_missing ? 1 : -1;
+        }
+
+        my $cmp = $collator->cmp( fc($a_val), fc($b_val) );
+        $cmp = -$cmp if $field->{desc};
+        return $cmp if $cmp;
+    }
+
+    return 0;
+}
+
+sub _sorted_songbook_songs {
+    my ( $songs, $sorting ) = @_;
+    return $songs unless $songs && ref($songs) eq 'ARRAY';
+
+    my @fields;
+    if ( ref($sorting) eq 'ARRAY' ) {
+        @fields = @$sorting;
+    }
+    elsif ( is_true($sorting) ) {
+        my $spec = "$sorting";
+        $spec = 'title' if $spec =~ /^(1|true|yes)$/i;
+        @fields = split( /\s*,\s*/, $spec );
+    }
+    else {
+        return $songs;
+    }
+
+    my @normalized;
+    for my $field (@fields) {
+        next unless defined $field;
+        $field =~ s/^\s+|\s+$//g;
+        next unless $field ne '';
+
+        my $desc = ( $field =~ s/^-// );
+        $field =~ s/^\+//;
+        push @normalized, { name => lc($field), desc => $desc };
+    }
+
+    return $songs unless @normalized;
+
+    my $collator = Unicode::Collate->new;
+    my @sorted = sort { _compare_song_sort( $a, $b, \@normalized, $collator ) } @$songs;
+    return \@sorted;
+}
+
 # =================================================================
 # COMPATIBILITY WRAPPER - ChordPro calls as class method
 # =================================================================
@@ -802,24 +1543,80 @@ sub generate_songbook {
         options => $main::options,
     );
 
+    # Check if paged mode is active
+    my $config = $main::config;
+    my $paged_mode = 0;
+    if ($config && is_hashref($config)) {
+        my $html5_cfg = eval { $config->{html5} };
+        if ($html5_cfg && is_hashref($html5_cfg)) {
+            my $mode = eval { $html5_cfg->{mode} } // '';
+            $paged_mode = 1 if $mode eq 'print' || $mode eq 'paged';
+        }
+    }
+
+    # Render songbook matter (cover/front/back) if configured
+    my $cover_html = '';
+    my $front_matter_html = '';
+    my $back_matter_html = '';
+    if ($config && is_hashref($config)) {
+        my $html5_cfg = eval { $config->{html5} } // {};
+        $cover_html = $backend->_render_matter(eval { $html5_cfg->{cover} }, 'cp-cover');
+        $front_matter_html = $backend->_render_matter(
+            eval { $html5_cfg->{'front-matter'} } // eval { $html5_cfg->{front_matter} },
+            'cp-front-matter'
+        );
+        $back_matter_html = $backend->_render_matter(
+            eval { $html5_cfg->{'back-matter'} } // eval { $html5_cfg->{back_matter} },
+            'cp-back-matter'
+        );
+    }
+
+    my $songs = $sb->{songs} // [];
+    if ($config && is_hashref($config)) {
+        my $sorting = eval { $config->{html5}->{songbook}->{'sort-songs'} };
+        $sorting = eval { $config->{pdf}->{songbook}->{'sort-songs'} } unless defined $sorting;
+        $sorting = eval { $config->{html5}->{sortby} } unless defined $sorting;
+        $sorting = eval { $config->{pdf}->{sortby} } unless defined $sorting;
+
+        my $sorted = _sorted_songbook_songs( $songs, $sorting );
+        if ($sorted && ref($sorted) eq 'ARRAY') {
+            $songs = $sorted;
+            $sb->{songs} = $songs;
+        }
+    }
+
     # Process each song (returns HTML strings)
     my @songs_html;
-    foreach my $song ( @{$sb->{songs}} ) {
-        push @songs_html, $backend->generate_song($song);
+    my $song_index = 0;
+    foreach my $song ( @{$songs} ) {
+        $song_index++;
+        $song->{meta} //= {};
+        $song->{meta}->{songindex} //= [ $song_index ];
+        my $song_id = "cp-song-$song_index";
+        $song->{meta}->{html5_id} = [ $song_id ];
+        push @songs_html, $backend->generate_song($song, $paged_mode, $song_id);
     }
 
     # Generate CSS
-    my $css = $backend->generate_default_css();
+    my $css = $backend->generate_default_css($paged_mode);
 
     # Prepare template variables
     my $vars = {
-        title => $sb->{title} // $sb->{songs}->[0]->{title} // 'Songbook',
+        title => $sb->{title} // $songs->[0]->{title} // 'Songbook',
+        cover_html => $cover_html,
+        front_matter_html => $front_matter_html,
+        back_matter_html => $back_matter_html,
+        toc_html => $backend->_generate_toc($songs, $paged_mode),
         songs => \@songs_html,
         css => $css,
+        paged_mode => $paged_mode,
     };
 
-    # Process songbook template
-    my $output = $backend->_process_template('songbook', $vars);
+    # Process songbook template (use paged template if in paged mode)
+    my $output = $backend->_process_template(
+        $paged_mode ? 'paged_songbook' : 'songbook', 
+        $vars
+    );
 
     # Return as array ref of lines (ChordPro expects this format)
     return [ $output =~ /^.*\n?/gm ];

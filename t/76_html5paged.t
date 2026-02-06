@@ -17,6 +17,8 @@ my @files = grep { /^.+\.cho$/ } readdir($dh);
 close($dh);
 my $numtests = @files;
 my $test = 0;
+my $invalid = 0;
+my $invalid_example;
 
 plan tests => 1+$numtests;
 
@@ -33,7 +35,7 @@ foreach my $file ( sort @files ) {
     # Create temporary config file for HTML5 paged mode
     my $cfg_file = "out/html5paged_test_config.json";
     open my $cfg_fh, '>:utf8', $cfg_file or die "Cannot create $cfg_file: $!";
-    print $cfg_fh '{"html5":{"mode":"print"}}';
+    print $cfg_fh '{"html5":{"mode":"print"},"pdf":{"papersize":"a4","margintop":80,"marginbottom":40,"marginleft":40,"marginright":40,"headspace":60,"footspace":20,"formats":{"default":{"footer":["%{title}","%{page}",""]}}}}';
     close $cfg_fh;
     
     # Use HTML5 backend with paged mode configuration
@@ -56,18 +58,28 @@ foreach my $file ( sort @files ) {
         my $content = do { local $/; <$fh> };
         close $fh;
         
-        # Basic validation - should have HTML5 structure and Paged.js script
-        if ($content =~ /<!DOCTYPE html>/i && 
-            $content =~ /<html/ && 
-            $content =~ /pagedjs/ &&
-            $content =~ /<\/html>/) {
+        # Basic validation - should have HTML5 structure and paged markers
+        my $has_html = ($content =~ /<!DOCTYPE html>/i
+                        && $content =~ /<html/
+                        && $content =~ /<\/html>/);
+        my $has_paged = ($content =~ /paged\.polyfill\.js/
+                         && $content =~ /chordpro-paged/);
+        my $has_page_rules = ($content =~ /\@page\b/);
+        my $has_format_rules = ($content =~ /counter\(page\)/ && $content =~ /string\(song-title\)/);
+
+        if ($has_html && $has_paged && $has_page_rules && $has_format_rules) {
             # File is valid, clean up
             unlink($out);
         } else {
-            diag("Warning: $file generated invalid HTML5Paged output");
+            $invalid++;
+            $invalid_example //= $file;
             unlink($out);
         }
     }
+}
+
+if ($invalid) {
+    diag("Warning: $invalid files generated non-paged HTML5 output (e.g., $invalid_example)");
 }
 
 ok( $test++ == $numtests, "Tested $numtests files" );

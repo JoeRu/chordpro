@@ -1186,6 +1186,14 @@ html5 {
     // Include paths for templates.
     template_include_path : []
 
+    // Songbook parts (HTML or image files).
+    // cover : "cover.html"
+    // front-matter : "front.html"
+    // back-matter : "back.html"
+    cover : false
+    front-matter : false
+    back-matter : false
+
     // Templates for HTML/CSS generation.
     templates {
         // CSS template.
@@ -1231,6 +1239,7 @@ html5 {
             // HTML templates (override html5 templates).
             songbook : "html5/paged/songbook.tt"
             song : "html5/paged/song.tt"
+            toc : "html5/paged/toc.tt"
         }
 
         // CSS customization.
@@ -1266,6 +1275,18 @@ latex {
 // Settings for HTML5 (output) backends.
 html5 {
 
+    // Output mode: "responsive" (default), "screen", "print" (paged.js).
+    // "print" mode enables pagination with paged.js for PDF-like output.
+    mode : "responsive"
+
+    // Songbook parts (HTML or image files).
+    // cover : "cover.html"
+    // front-matter : "front.html"
+    // back-matter : "back.html"
+    cover : false
+    front-matter : false
+    back-matter : false
+
     // Include paths for templates.
     template_include_path : []
 
@@ -1314,6 +1335,7 @@ html5 {
             // HTML templates (override html5 templates).
             songbook : "html5/paged/songbook.tt"
             song : "html5/paged/song.tt"
+            toc : "html5/paged/toc.tt"
         }
 
         // CSS customization.

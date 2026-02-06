@@ -109,6 +109,18 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Paged mode data attributes now include year/key/capo with safe fallbacks for title/subtitle.
+        Paged song template exposes year/key/capo metadata and uses safe array checks.
+        Paged mode test now asserts paged.js script, paged body class, and data-title attribute.
+      </list-of-results>
+      <lessons-learned>
+        Provide plain-text metadata for CSS string-set attributes with explicit fallbacks.
+        Avoid numeric array size checks in Template::Toolkit to prevent warnings.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="2">
@@ -184,6 +196,20 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Wired HTML5 paged CSS generation to FormatGenerator and exposed format rules via the paged CSS template.
+        FormatGenerator now reads pdf theme foreground-medium for margin box color with safe restricted-hash access.
+        Added optional format font-size overrides via html5.paged.format-font-size (or format_font_size) with 10pt fallback.
+        Updated paged mode test config to include pdf.formats.default footer and assert counter(page) and string(song-title) rules.
+      </list-of-results>
+      <lessons-learned>
+        Use eval-protected access for nested config keys to avoid restricted hash errors.
+        Keep paged CSS tests deterministic by injecting explicit pdf.formats data in the test config.
+        Full make test runs can be interrupted; rerun when the environment allows to confirm suite-wide coverage.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="15">
@@ -272,6 +298,21 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added paged TOC generation using existing contents config and prep_outlines, with per-song anchors for page lookup.
+        Introduced paged TOC template and styling, plus paged.js hook to fill page numbers after rendering.
+        Registered html5.paged TOC template in chordpro.json so paged mode can resolve toc.tt.
+        Added testing/78_html5_toc.t and verified TOC output and paged.js hook via prove.
+        Full PERL5LIB=lib make -f Makefile test completed successfully.
+      </list-of-results>
+      <lessons-learned>
+        Reuse contents + prep_outlines to keep TOC ordering behavior consistent with PDF.
+        Use paged.js rendered hook to resolve page numbers after layout instead of guessing during generation.
+        Always run make before tests to refresh blib after Perl module changes.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="16">
@@ -302,7 +343,7 @@
       <task id="1">
         This feature is primarily delivered by Feature 2 (FormatGenerator integration). Verify that
         when `pdf.formats.default-even` exists in config, FormatGenerator produces
-        `@page :left { ... }` rules with swapped left/right content.
+        `@page :left { ... }` rules with swapp<ed left/right content.
       </task>
       <task id="2">
         Add specific test: provide config with
@@ -334,6 +375,18 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added odd/even paged CSS test to validate @page :left/:right rules with counter(page) in margin boxes.
+        Hardened FormatGenerator to accept optional selector argument and ignore non-hash format configs safely.
+        Verified odd/even behavior with prove and full PERL5LIB=lib make -f Makefile test run.
+      </list-of-results>
+      <lessons-learned>
+        Pass explicit undef for optional Object::Pad signature parameters to avoid arity errors.
+        Guard against unexpected config types before dereferencing restricted hashes.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="17">
@@ -399,6 +452,20 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added HTML5 cover/front/back matter rendering with HTML or image support and PDF skip warnings.
+        Inserted cover/front/back blocks into paged and non-paged songbook templates with page-break styling.
+        Added html5 cover/front/back defaults to chordpro.json to avoid config warnings.
+        Added testing/80_html5_songbook_parts.t and verified order and wrappers via prove.
+        Full PERL5LIB=lib make -f Makefile test completed successfully.
+      </list-of-results>
+      <lessons-learned>
+        Treat falsey config values as disabled to avoid noisy missing-file warnings.
+        Use unique song body markers in tests to validate ordering reliably.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="18">
@@ -455,6 +522,19 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added HTML5 songbook sorting with support for songbook sort-songs and optional sortby config overrides.
+        Sorting supports multiple fields, descending prefixes, and keeps missing metadata stable at the end.
+        Added HTML5 sorting test and real .cho fixtures in testing/ for title, artist, and descending cases.
+        Verified full test suite and targeted sorting test with prove.
+      </list-of-results>
+      <lessons-learned>
+        Normalize sort specs and case-fold values before collated comparisons to avoid locale edge cases.
+        Keep test inputs in testing/ while test scripts live in t/ to match project conventions.
+      </lessons-learned>
+    </result>
   </feature>
 
   <!-- ================================================================== -->
@@ -532,6 +612,20 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added rechorus dispatch and handler in ChordProBase with quote, tag, and default behaviors.
+        Implemented HTML5 rechorus handling with template-aware comment rendering and choruslike wrapping.
+        Styled cp-rechorus and cp-choruslike blocks in HTML5 section CSS.
+        Added HTML5 rechorus test and fixture in testing/ to validate quote, tag, and default modes.
+        Verified full test suite and targeted rechorus test with prove.
+      </list-of-results>
+      <lessons-learned>
+        Default labels should treat empty strings as missing to avoid empty markup.
+        HTML5 template helpers should be used for comment variants to keep output consistent.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="4">
@@ -610,6 +704,20 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added HTML5 delegate rendering for SVG and image outputs with inline SVG support and data-URI fallback.
+        Wired delegate asset resolution so structured delegate contexts render in song output.
+        Added delegate styling for responsive SVG/image sizing.
+        Added HTML5 SVG delegate test and fixture to validate embedding.
+        Verified full test suite and targeted delegate test with prove.
+      </list-of-results>
+      <lessons-learned>
+        Delegate blocks can be structurized into context containers, so handlers must traverse nested bodies.
+        Delegate assets resolve through song assets rather than the immediate image element.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="5">
@@ -622,7 +730,7 @@
       non-chord text annotations in ChordPro. PDF renders them with distinct styling (not as
       chord diagrams, different font/color). HTML5 currently renders them identically to regular
       chords with no visual distinction. The chord info object has an `is_annotation` method
-      that can be checked.
+      that can be checked.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
     </reason>
     <depends-on>None</depends-on>
     <implementation-risks>
@@ -673,6 +781,21 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added annotation-aware chord rendering with cp-annotation class in HTML5 songline template and renderer.
+        Skipped annotation chords in HTML5 chord diagram generation.
+        Added annotation styling to HTML5 and paged CSS.
+        Added t/84_html5_annotations.t and verified with prove.
+        PERL5LIB=lib make -f Makefile test completed successfully with the annotation test in t/.
+      </list-of-results>
+      <lessons-learned>
+        Use chord info is_annotation checks before assigning chord classes or diagrams.
+        Keep annotation styling aligned with chord spacing to preserve line layout.
+        Rebuild and run the full suite to confirm template changes are picked up.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="10">
@@ -739,6 +862,20 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added image container classes and alignment handling for center/left/right and spread options.
+        Applied scale to width/height and added CSS-driven scaling when dimensions are missing.
+        Updated HTML5 image template to wrap images with container and optional inline styles.
+        Added HTML5 and paged CSS styles for image alignment and spread behavior.
+        Added t/85_html5_image_align.t and verified with prove; full PERL5LIB=lib make -f Makefile test passed.
+      </list-of-results>
+      <lessons-learned>
+        Use container classes instead of inline alignment to keep HTML clean and CSS-driven.
+        Prefer CSS width for percentage and scale-only sizing to avoid invalid HTML width attributes.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="11">
@@ -810,6 +947,20 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added diagram placement and alignment selection for HTML5 (html5/pdf diagrams show/align) with safe defaults.
+        Updated HTML5 and paged song templates to place diagrams top, bottom/below, or right with new body/diagram wrappers.
+        Added alignment and right-layout CSS for chord diagrams in both normal and paged styles.
+        Added t/86_html5_diagram_pos.t with testing/html5_diagram_pos.cho to verify bottom and right placement.
+        Verified with prove and full PERL5LIB=lib make -f Makefile test run.
+      </list-of-results>
+      <lessons-learned>
+        Match diagram placement inside the song HTML, not the global CSS, to avoid false positives.
+        Add alignment classes instead of inline styles so templates and CSS stay consistent.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="12">
@@ -870,6 +1021,19 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Passed settings.chords-under into the CSS templates as a boolean template variable.
+        Added chords-under CSS overrides for flex direction and chord padding in normal and paged styles.
+        Added t/87_html5_chords_under.t with testing/html5_chords_under.cho to assert CSS output.
+        Verified with prove and full PERL5LIB=lib make -f Makefile test run.
+      </list-of-results>
+      <lessons-learned>
+        Use a template boolean for dashed config keys to avoid Template::Toolkit item access pitfalls.
+        When reversing chord/lyric order, adjust padding so spacing remains visually consistent.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="13">
@@ -938,6 +1102,20 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added inline chord rendering path in HTML5 songline template with chord/annotation formatting.
+        Implemented inline chord and inline annotation styling in HTML5 and paged CSS.
+        Added t/88_html5_inline_chords.t with testing/html5_inline_chords.cho to validate output.
+        Fixed inline-chords detection to respect false values and avoid accidental activation.
+        Verified with prove and full PERL5LIB=lib make -f Makefile test run.
+      </list-of-results>
+      <lessons-learned>
+        Use is_true when interpreting config toggles to avoid treating "false" as enabled.
+        Keep inline output free of layout wrappers to preserve text flow.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="14">
@@ -1012,6 +1190,20 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Implemented SVG keyboard diagram rendering with white/black keys and pressed key highlights.
+        Added kbdiagrams config and theme color resolution for SVG output.
+        Added keyboard diagram CSS classes for normal and paged styles.
+        Added t/89_html5_keyboard.t with testing/html5_keyboard.cho to validate SVG output.
+        Verified with prove and full PERL5LIB=lib make -f Makefile test run.
+      </list-of-results>
+      <lessons-learned>
+        Reuse the PDF key-mapping math to keep keyboard layouts consistent across backends.
+        Draw black keys after white keys so overlays remain visible.
+      </lessons-learned>
+    </result>
   </feature>
 
   <!-- ================================================================== -->
@@ -1072,6 +1264,17 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added cp-comment_box styling to the shared HTML5 typography CSS so paged output inherits the bordered box.
+        Added testing/html5_comment_box.cho and t/90_html5_comment_box.t to validate markup and CSS output.
+        Verified with prove for the new test and full PERL5LIB=lib make -f Makefile test run.
+      </list-of-results>
+      <lessons-learned>
+        Shared typography templates are the safest place to style elements used in both paged and non-paged HTML5 output.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="7">
@@ -1143,6 +1346,18 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Added data-label emission for verse/chorus/bridge/tab/grid sections in HTML5.pm, including label extraction from leading set/label elements.
+        Added section label CSS to html5/css/sections.tt and paged html5/paged/css/layout.tt with a configurable display variable.
+        Added testing/html5_section_labels.cho and t/91_html5_section_labels.t to verify labels and CSS output.
+        Verified with prove for the new test and full PERL5LIB=lib make -f Makefile test run.
+      </list-of-results>
+      <lessons-learned>
+        Section labels may be stored as leading set/label elements after structurize, so renderers must detect and consume them.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="8">
@@ -1215,6 +1430,18 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Enhanced HTML5 grid token rendering to emit bar, repeat, slash, and space classes while keeping existing symbol styling.
+        Added grid bar and repeat styling to html5/css/tab-grid.tt and paged html5/paged/css/layout.tt.
+        Added testing/html5_grid_bars.cho and t/92_html5_grid_bars.t to validate bar class output.
+        Verified with prove for the new test and full PERL5LIB=lib make -f Makefile test run.
+      </list-of-results>
+      <lessons-learned>
+        Preserve existing symbol styling while layering new bar-specific classes to avoid regressions in grid output.
+      </lessons-learned>
+    </result>
   </feature>
 
   <feature id="9">
@@ -1282,6 +1509,18 @@
         </unit-test>
       </unit-tests>
     </verification>
+    <result>
+      <my-result>DONE</my-result>
+      <list-of-results>
+        Emitted cp-grid-volta classes with data-volta attributes for volta bars during HTML5 grid rendering.
+        Added volta bracket styling to HTML5 grid CSS for both normal and paged output.
+        Added testing/html5_volta.cho and t/93_html5_volta.t to validate volta markup and CSS rules.
+        Verified with prove for the new test and full PERL5LIB=lib make -f Makefile test run.
+      </list-of-results>
+      <lessons-learned>
+        Volta markers are encoded on bar tokens, so applying data attributes there keeps the implementation lightweight.
+      </lessons-learned>
+    </result>
   </feature>
 
   <!-- ================================================================== -->

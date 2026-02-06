@@ -48,4 +48,45 @@
 .cp-grid-volta {
     color: var(--grid-volta-color, blue);
     font-weight: bold;
+    position: relative;
+    display: inline-block;
+    padding-top: 0.4em;
+    border-top: 2px solid var(--grid-volta-color, blue);
+    border-left: 2px solid var(--grid-volta-color, blue);
+}
+
+.cp-grid-volta::before {
+    content: attr(data-volta) ".";
+    position: absolute;
+    top: -0.2em;
+    left: 0.2em;
+    font-size: 0.75em;
+}
+
+/* Grid bar types */
+.cp-grid-bar {
+    font-weight: bold;
+}
+
+.cp-grid-bar-double {
+    letter-spacing: -0.05em;
+}
+
+.cp-grid-bar-repeat-start,
+.cp-grid-bar-repeat-end,
+.cp-grid-bar-repeat-both {
+    font-weight: bold;
+}
+
+.cp-grid-bar-end {
+    font-weight: bold;
+}
+
+/* Grid repeats and markers */
+.cp-grid-repeat {
+    font-weight: bold;
+}
+
+.cp-grid-space {
+    opacity: 0.6;
 }

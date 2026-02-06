@@ -3,7 +3,7 @@
       - diagrams: Array of SVG strings
 %]
 [% IF diagrams && diagrams.size > 0 %]
-<div class="cp-chord-diagrams">
+<div class="cp-chord-diagrams[% IF diagrams_align %] cp-chord-diagrams-align-[% diagrams_align | html %][% END %]">
 [% FOREACH diagram IN diagrams %]
   <div class="cp-chord-diagram">
 [% diagram %]

@@ -1,4 +1,106 @@
 /* Songline - Flexbox chord positioning */
+.cp-toc {
+    margin: 1.5em 0 2em;
+    page-break-after: always;
+}
+
+.cp-toc-title {
+    font-family: var(--cp-font-title);
+    font-size: var(--cp-size-title);
+    margin: 0 0 0.6em;
+}
+
+.cp-toc-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3em;
+}
+
+.cp-toc-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6em;
+}
+
+.cp-toc-text {
+    font-family: var(--cp-font-text);
+    font-size: var(--cp-size-text);
+}
+
+.cp-toc-dots {
+    flex: 1;
+    border-bottom: 1px dotted var(--cp-color-text);
+    transform: translateY(-0.2em);
+}
+
+.cp-toc-page {
+    font-family: var(--cp-font-text);
+    font-size: var(--cp-size-text);
+    min-width: 2em;
+    text-align: right;
+}
+
+.cp-toc-break {
+    font-weight: bold;
+    margin-top: 0.8em;
+}
+
+.cp-toc + .cp-song {
+    page-break-before: always;
+}
+
+/* Songbook parts */
+.cp-cover,
+.cp-front-matter {
+    page-break-after: always;
+    margin: 1.5em 0;
+}
+
+.cp-back-matter {
+    page-break-before: always;
+    margin: 1.5em 0;
+}
+
+.cp-matter-image {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Inline images */
+.cp-image-container {
+    margin: 0.5em 0;
+    page-break-inside: avoid;
+}
+
+.cp-image {
+    max-width: 100%;
+    height: auto;
+}
+
+.cp-image-align-center {
+    text-align: center;
+}
+
+.cp-image-align-left {
+    float: left;
+    margin: 0 1em 0.5em 0;
+}
+
+.cp-image-align-right {
+    float: right;
+    margin: 0 0 0.5em 1em;
+}
+
+.cp-image-spread {
+    width: 100%;
+}
+
+.cp-image-spread .cp-image {
+    width: 100%;
+    height: auto;
+}
+
+.cp-songline {
 .cp-songline {
     display: flex;
     flex-wrap: wrap;
@@ -13,6 +115,18 @@
     align-items: flex-start;
     vertical-align: bottom;
 }
+
+[% IF chords_under %]
+.cp-chord-lyric-pair {
+    flex-direction: column-reverse;
+}
+
+.cp-chord,
+.cp-annotation {
+    padding-top: var(--cp-spacing-chord);
+    padding-bottom: 0;
+}
+[% END %]
 
 /* Spacing for chord-only pairs (chords with no lyrics) */
 .cp-chord-only {
@@ -30,6 +144,18 @@
     padding-bottom: var(--cp-spacing-chord);
 }
 
+.cp-annotation {
+    font-family: var(--cp-font-text);
+    font-size: var(--cp-size-text);
+    color: var(--cp-color-annotation, var(--cp-color-text));
+    font-style: italic;
+    font-weight: normal;
+    line-height: 1.2;
+    min-height: 1.2em;
+    height: 1.2em;
+    padding-bottom: var(--cp-spacing-chord);
+}
+
 .cp-chord-empty {
     visibility: hidden;
 }
@@ -39,6 +165,24 @@
     font-size: var(--cp-size-text);
     white-space: pre;
     line-height: 1.2;
+}
+
+.cp-songline.cp-inline-chords {
+    display: block;
+}
+
+.cp-inline-chord {
+    font-family: var(--cp-font-chord);
+    font-size: var(--cp-size-chord);
+    color: var(--cp-color-chord);
+    font-weight: bold;
+}
+
+.cp-inline-annotation {
+    font-family: var(--cp-font-text);
+    font-size: var(--cp-size-text);
+    color: var(--cp-color-annotation, var(--cp-color-text));
+    font-style: italic;
 }
 
 /* Comments */
@@ -103,6 +247,20 @@
     page-break-inside: avoid;
 }
 
+/* Section labels */
+.cp-verse[data-label]::before,
+.cp-chorus[data-label]::before,
+.cp-bridge[data-label]::before,
+.cp-tab[data-label]::before,
+.cp-grid[data-label]::before {
+    content: attr(data-label);
+    font-weight: bold;
+    font-size: 0.85em;
+    color: var(--cp-color-text, #000);
+    display: var(--cp-section-label-display, block);
+    margin-bottom: 0.2em;
+}
+
 .cp-gridline {
     display: flex;
     gap: 0.5em;
@@ -117,7 +275,54 @@
 }
 
 .cp-grid-symbol {
-    color: #999;
+    color: var(--grid-symbols-color, #999);
+}
+
+/* Volta brackets (Phase 4: uses pdf.grids.volta.color) */
+.cp-grid-volta {
+    color: var(--grid-volta-color, blue);
+    font-weight: bold;
+    position: relative;
+    display: inline-block;
+    padding-top: 0.4em;
+    border-top: 2px solid var(--grid-volta-color, blue);
+    border-left: 2px solid var(--grid-volta-color, blue);
+}
+
+.cp-grid-volta::before {
+    content: attr(data-volta) ".";
+    position: absolute;
+    top: -0.2em;
+    left: 0.2em;
+    font-size: 0.75em;
+}
+
+/* Grid bar types */
+.cp-grid-bar {
+    font-weight: bold;
+}
+
+.cp-grid-bar-double {
+    letter-spacing: -0.05em;
+}
+
+.cp-grid-bar-repeat-start,
+.cp-grid-bar-repeat-end,
+.cp-grid-bar-repeat-both {
+    font-weight: bold;
+}
+
+.cp-grid-bar-end {
+    font-weight: bold;
+}
+
+/* Grid repeats and markers */
+.cp-grid-repeat {
+    font-weight: bold;
+}
+
+.cp-grid-space {
+    opacity: 0.6;
 }
 
 /* Empty lines */
@@ -132,6 +337,38 @@
     gap: 1em;
     margin: 1em 0;
     page-break-inside: avoid;
+}
+
+.cp-chord-diagrams-align-left {
+    justify-content: flex-start;
+}
+
+.cp-chord-diagrams-align-center {
+    justify-content: center;
+}
+
+.cp-chord-diagrams-align-right {
+    justify-content: flex-end;
+}
+
+.cp-chord-diagrams-align-spread {
+    justify-content: space-between;
+    width: 100%;
+}
+
+.cp-song-layout-right {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1em;
+    align-items: start;
+}
+
+.cp-song-layout-right .cp-song-body {
+    min-width: 0;
+}
+
+.cp-song-layout-right .cp-song-diagrams {
+    align-self: start;
 }
 
 .cp-chord-diagram {
@@ -176,4 +413,18 @@
     stroke: #000;
     fill: none;
     stroke-width: 2;
+}
+
+.diagram-key-white {
+    fill: #fff;
+    stroke: #000;
+}
+
+.diagram-key-black {
+    fill: #000;
+    stroke: #000;
+}
+
+.diagram-key-pressed {
+    stroke: #000;
 }

@@ -16,8 +16,17 @@
     </style>
 </head>
 <body class="chordpro-songbook">
+[% IF cover_html %]
+[% cover_html %]
+[% END %]
+[% IF front_matter_html %]
+[% front_matter_html %]
+[% END %]
 [% FOREACH song IN songs %]
 [% song %]
+[% END %]
+[% IF back_matter_html %]
+[% back_matter_html %]
 [% END %]
 </body>
 </html>
