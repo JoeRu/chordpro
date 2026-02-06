@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<missing_features>
+  <feature id="1" priority="high">
+    <name>Grid Rendering (gridline/strumline)</name>
+    <description>Implement grid diagrams (chord grids, strum patterns) rendering in HTML output. Currently commented out in HTML.pm lines 289-349.</description>
+    <status>pending</status>
+    <files>
+      <file>lib/ChordPro/Output/HTML.pm</file>
+      <file>lib/ChordPro/res/styles/chordpro.css</file>
+      <file>lib/ChordPro/res/styles/chordpro_print.css</file>
+    </files>
+  </feature>
+  
+  <feature id="2" priority="high">
+    <name>Chord Diagrams Display</name>
+    <description>Implement chord diagram rendering in HTML output. The diagrams element type is not currently handled.</description>
+    <status>pending</status>
+    <files>
+      <file>lib/ChordPro/Output/HTML.pm</file>
+      <file>lib/ChordPro/res/styles/chordpro.css</file>
+    </files>
+  </feature>
+  
+  <feature id="3" priority="medium">
+    <name>Tab Notation (tabline)</name>
+    <description>Implement proper tabline element rendering in HTML output. Currently not handled as a separate element type.</description>
+    <status>pending</status>
+    <files>
+      <file>lib/ChordPro/Output/HTML.pm</file>
+      <file>lib/ChordPro/res/styles/chordpro.css</file>
+    </files>
+  </feature>
+  
+  <feature id="4" priority="medium">
+    <name>Repeat Chorus (rechorus)</name>
+    <description>Implement rechorus element to display "Repeat Chorus" references in HTML output.</description>
+    <status>pending</status>
+    <files>
+      <file>lib/ChordPro/Output/HTML.pm</file>
+      <file>lib/ChordPro/res/styles/chordpro.css</file>
+    </files>
+  </feature>
+  
+  <feature id="5" priority="low">
+    <name>Table of Contents (tocline)</name>
+    <description>Implement table of contents entry rendering in HTML output.</description>
+    <status>pending</status>
+    <files>
+      <file>lib/ChordPro/Output/HTML.pm</file>
+      <file>lib/ChordPro/res/styles/chordpro.css</file>
+    </files>
+  </feature>
+  
+  <feature id="6" priority="medium">
+    <name>Boxed Comments (comment_box)</name>
+    <description>Implement comment_box element rendering with border styling in HTML output.</description>
+    <status>pending</status>
+    <files>
+      <file>lib/ChordPro/Output/HTML.pm</file>
+      <file>lib/ChordPro/res/styles/chordpro.css</file>
+    </files>
+  </feature>
+  
+  <feature id="7" priority="high">
+    <name>Print CSS Page Breaks</name>
+    <description>Implement proper page break controls for printing - prevent breaking inside grids, diagrams, and verses.</description>
+    <status>pending</status>
+    <files>
+      <file>lib/ChordPro/res/styles/chordpro_print.css</file>
+    </files>
+  </feature>
+  
+  <feature id="8" priority="medium">
+    <name>Running Headers and Footers</name>
+    <description>Implement running headers with song titles (currently commented out in chordpro_print.css).</description>
+    <status>pending</status>
+    <files>
+      <file>lib/ChordPro/res/styles/chordpro_print.css</file>
+      <file>lib/ChordPro/Output/HTML.pm</file>
+    </files>
+  </feature>
+</missing_features>
