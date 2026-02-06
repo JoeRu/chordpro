@@ -1,6 +1,6 @@
 ---
 title: "Configuration for HTML5 output"
-description: "Configuration for HTML5 and HTML5Paged output"
+description: "Configuration for HTML5 output (responsive, screen, print)"
 ---
 
 # Configuration for HTML5 output
@@ -25,20 +25,25 @@ Topics in this document:
 
 ## Overview
 
-ChordPro provides two HTML5-based output backends:
+ChordPro provides a single modern HTML5 backend with multiple output modes:
 
-* **HTML5**: Single-page continuous HTML output suitable for web viewing or basic printing
-* **HTML5Paged**: Professional paginated output using [Paged.js](https://pagedjs.org/) for print-ready PDFs
+* **responsive** (default): Fluid layout for web viewing and mobile screens
+* **screen**: Fixed layout optimized for on-screen display
+* **print**: Paginated output using [Paged.js](https://pagedjs.org/) for print-ready PDFs
 
-Both backends share the same configuration structure with `html5.paged` providing additional settings for pagination.
+Select the mode with `html5.mode` in your configuration. The same backend is used for all modes, with `html5.paged` providing the extra settings used only for print mode. `print` and `paged` are accepted synonyms for the paged layout.
+
+If you want `.html` output to use the modern HTML5 backend by default, set:
+
+    html.module : "HTML5"
 
 ## Template System
 
-Both HTML5 backends use [Template Toolkit](http://www.template-toolkit.org/) for generating HTML output, providing maximum flexibility and customization without modifying the backend code.
+The HTML5 backend uses [Template Toolkit](http://www.template-toolkit.org/) for generating HTML output, providing maximum flexibility and customization without modifying the backend code.
 
 ### Template Configuration
 
-Templates are specified in the configuration:
+Example:
 
     html5 {
         templates {
@@ -52,14 +57,33 @@ Templates are specified in the configuration:
         }
     }
 
+Example (print mode overrides):
+
+    html5.paged {
+        templates {
+            css      : "html5/paged/css/base.tt"
+            songbook : "html5/paged/songbook.tt"
+            song     : "html5/paged/song.tt"
+            toc      : "html5/paged/toc.tt"
+        }
+    }
+
 ### Template Include Paths
 
-You can add custom template directories to the search path:
+Example:
 
     html5 {
         template_include_path : [
             "/path/to/my/templates",
             "$HOME/.config/chordpro/templates"
+        ]
+    }
+
+Example (print mode include paths):
+
+    html5.paged {
+        template_include_path : [
+            "/path/to/my/paged-templates"
         ]
     }
 
@@ -77,7 +101,7 @@ To customize the HTML output, copy the built-in templates from `lib/ChordPro/res
 * **chord-diagrams.tt**: SVG chord diagram rendering
 * **css/*.tt**: Modular CSS templates for styling
 
-Then point to your custom templates in the configuration:
+Example:
 
     html5 {
         templates {
@@ -89,7 +113,7 @@ Template variables available include `title`, `subtitle`, `meta` (artist, compos
 
 ## CSS Customization
 
-The HTML5 backends generate embedded CSS for single-file output. CSS can be customized through configuration.
+The HTML5 backend generates embedded CSS for single-file output. CSS can be customized through configuration.
 
 ### CSS Structure
 
@@ -106,7 +130,7 @@ CSS is generated from modular templates in `templates/html5/css/`:
 
 ### CSS Color Customization
 
-Define custom colors in the configuration:
+Example:
 
     html5 {
         css {
@@ -123,7 +147,7 @@ Define custom colors in the configuration:
 
 ### CSS Font Customization
 
-Specify fonts for different elements:
+Example:
 
     html5 {
         css {
@@ -138,7 +162,7 @@ Specify fonts for different elements:
 
 ### CSS Size Customization
 
-Control sizing with `em` units for scalability:
+Example:
 
     html5 {
         css {
@@ -153,7 +177,7 @@ Control sizing with `em` units for scalability:
 
 ### CSS Spacing Customization
 
-Adjust spacing between elements:
+Example:
 
     html5 {
         css {
@@ -166,9 +190,13 @@ Adjust spacing between elements:
         }
     }
 
+Example:
+
+    html5.css.custom-css-file : "/path/to/extra.css"
+
 ## Chord Positioning
 
-The HTML5 backends use CSS Flexbox for chord positioning, ensuring chords stay aligned above the correct syllable regardless of font size or family.
+The HTML5 backend uses CSS Flexbox for chord positioning, ensuring chords stay aligned above the correct syllable regardless of font size or family.
 
 The key structure is:
 
@@ -181,32 +209,112 @@ The key structure is:
 
 This works with any font combination without JavaScript. The flexbox layout keeps chords precisely positioned above their lyrics.
 
+### Chords-Under Mode
+
+Example:
+
+    settings.chords-under : true
+
+This flips the chord/lyric order inside each pair using CSS only.
+
+### Inline Chords Mode
+
+Example:
+
+    settings.inline-chords : "[%s]"
+
+Set it to `true` to use the default `[%s]` format.
+
+Example:
+
+    settings.inline-annotations : "(*%s*)"
+
+Annotations written as `[*text]` are rendered with annotation styling and excluded from chord diagram generation.
+
 ## Chord Diagrams
 
-Both HTML5 backends support inline SVG chord diagrams showing fingering positions. Diagrams are automatically generated for chords used in the song.
+The HTML5 backend supports inline SVG chord diagrams showing fingering positions, including keyboard diagrams for piano-style instruments. Diagrams are automatically generated for chords used in the song.
 
-Configuration follows the same structure as PDF output:
+Example (placement and alignment via PDF/HTML5 settings):
+
+    pdf.diagrams {
+        show  : "bottom"  // top, bottom, below, right, or false
+        align : "left"    // left, right, center, or spread
+    }
+
+Example (selection defaults):
 
     diagrams {
-        show     : "bottom"  // or "top", "false"
-        sorted   : true      // Sort alphabetically
-        suppress : []        // List of chords to hide
+        show     : all     // all, user, or none
+        sorted   : false   // Sort alphabetically
+        suppress : []      // List of chords to hide
     }
 
 Diagrams are sized at `4em` width for scalability with font size changes.
 
+HTML5-specific overrides can be set under `html5.diagrams` and fall back to `pdf.diagrams` when unset.
+
+## Songbook Parts (Cover, Front Matter, Back Matter)
+
+Example:
+
+    html5 {
+        cover        : "cover.html"
+        front-matter : "front.html"
+        back-matter  : "back.html"
+    }
+
+Supported inputs are HTML/HTM/XHTML or image files. PDF files are ignored with a warning.
+
+## Chorus Recall (Rechorus)
+
+HTML5 honors the chorus recall configuration used by other backends. Example:
+
+    pdf.chorus.recall {
+        quote : true
+        type  : "comment"
+        tag   : "Chorus"
+    }
+
+`quote` re-renders the full chorus body. When `quote` is false, the `type` and `tag` fields control how the recall label is shown.
+
+## Table of Contents (Print Mode)
+
+In print mode, a Table of Contents is generated from the global `contents` configuration and only rendered when `--toc` is enabled (or when there is more than one song). Example:
+
+    contents : [
+        {
+            name   : "toc"
+            label  : "Table of Contents"
+            fields : [ "title" ]
+            line   : "%{title}"
+            pageno : "%{page}"
+        }
+    ]
+
+The `line`, `pageno`, and optional `break` fields use the same `%{...}` substitutions as the PDF backend.
+
+## Song Sorting
+
+Sort songs before rendering with `html5.songbook.sort-songs` (or the PDF equivalents). Supported values are a list of fields or a comma-separated string, with optional `-` for descending order. Example:
+
+    html5.songbook.sort-songs : [ "title" ]
+    html5.sortby : "title,-artist"
+
+If `html5.songbook.sort-songs` is not set, HTML5 falls back to `pdf.songbook.sort-songs`, then `html5.sortby`, then `pdf.sortby`.
+
 ## PDF Config Compatibility
 
-Both HTML5 and HTML5Paged backends support PDF configuration options for smooth migration from PDF output. Configuration follows a hybrid precedence model:
+The HTML5 backend supports PDF configuration options for smooth migration from PDF output. Configuration follows a hybrid precedence model:
 
 * **HTML5 backend**: `html5.*` overrides `pdf.*` overrides defaults
-* **HTML5Paged backend**: `html5.paged.*` overrides `pdf.*` overrides defaults
+* **HTML5 print mode**: `html5.paged.*` overrides `pdf.*` overrides defaults
 
 This allows you to define settings once under `pdf` and have them work across all backends, with backend-specific overrides when needed.
 
 ### Theme Colors
 
-Define a color theme that applies to all elements:
+Example:
 
     pdf {
         theme {
@@ -217,7 +325,7 @@ Define a color theme that applies to all elements:
         }
     }
 
-HTML5Paged can override specific colors:
+Example:
 
     html5.paged {
         theme {
@@ -233,7 +341,7 @@ Theme colors are exposed as CSS variables:
 
 ### Spacing Multipliers
 
-Control line spacing for different elements with multipliers applied to base line height:
+Example:
 
     pdf {
         spacing {
@@ -248,7 +356,7 @@ Control line spacing for different elements with multipliers applied to base lin
         }
     }
 
-HTML5Paged overrides for better screen readability:
+Example:
 
     html5.paged {
         spacing {
@@ -264,7 +372,7 @@ Usage in CSS: `line-height: calc(var(--spacing-lyrics, 1.2) * 1em);`
 
 ### Chorus Bar Styling
 
-Customize the visual indicator for chorus sections:
+Example:
 
     pdf {
         chorus {
@@ -292,7 +400,7 @@ CSS variables:
 
 ### Grid Color Styling
 
-Customize colors for grid sections (chord charts):
+Example:
 
     pdf {
         grids {
@@ -311,9 +419,9 @@ CSS variables:
 
 Applied to `.cp-grid-bar`, `.cp-grid-repeat1`, `.cp-grid-repeat2`, and volta classes.
 
-### Header/Footer Spacing (HTML5Paged only)
+### Header/Footer Spacing (Print mode only)
 
-Control space reserved for headers and footers:
+Example:
 
     pdf {
         headspace : 72  // Top margin space for headers (points)
@@ -371,17 +479,19 @@ These values are added to the `@page` margin-top and margin-bottom CSS propertie
 
 This configuration:
 * Defines PDF theme and spacing once for all backends
-* HTML5Paged overrides lyrics spacing (1.6 vs 1.4) for better screen readability
-* HTML5Paged overrides foreground color (#222222 vs #000000) for reduced eye strain
-* All other PDF settings inherited by HTML5Paged
+* Print mode overrides lyrics spacing (1.6 vs 1.4) for better screen readability
+* Print mode overrides foreground color (#222222 vs #000000) for reduced eye strain
+* All other PDF settings inherited by print mode
 
-## HTML5Paged: Paginated Output
+## HTML5 Print Mode (Paged.js)
 
-The HTML5Paged backend uses [Paged.js](https://pagedjs.org/), a JavaScript library that brings CSS Paged Media features to the browser, enabling professional print layouts with page headers, footers, and page numbers.
+HTML5 print mode uses [Paged.js](https://pagedjs.org/), a JavaScript library that brings CSS Paged Media features to the browser, enabling professional print layouts with page headers, footers, and page numbers. Example:
+
+    html5.mode : "print"
 
 ### Paged.js Integration
 
-HTML5Paged output includes the Paged.js library via CDN:
+Example output:
 
 ```html
 <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
@@ -397,7 +507,7 @@ For complete Paged.js documentation, see [pagedjs.org/documentation](https://pag
 
 ### Paper Size
 
-Configure page size for pagination:
+Example:
 
     html5.paged {
         papersize : "a4"    // or "letter", "legal", [width, height]
@@ -410,7 +520,7 @@ Standard paper sizes:
 * `letter`: 612 × 792 pt (8.5 × 11 in)
 * `legal`: 612 × 1008 pt (8.5 × 14 in)
 
-You can also specify custom dimensions in points:
+Example:
 
     html5.paged {
         papersize : [600, 800]  // Width × Height in points
@@ -418,7 +528,7 @@ You can also specify custom dimensions in points:
 
 ### Page Margins
 
-Control page margins in points (1/72 inch):
+Example:
 
     html5.paged {
         margintop    : 80
@@ -431,11 +541,11 @@ If not specified, inherits from PDF margin settings (`pdf.margintop`, etc.).
 
 ### Headers and Footers
 
-HTML5Paged supports configurable headers and footers using CSS @page margin boxes. Configuration reuses the `pdf.formats` structure for consistency with PDF output.
+Print mode supports configurable headers and footers using CSS @page margin boxes. Configuration reuses the `pdf.formats` structure for consistency with PDF output.
 
 #### Format Configuration
 
-Define page formats in your configuration:
+Example:
 
     pdf {
         formats {
@@ -480,8 +590,17 @@ Use these placeholders in format strings:
 * `%{artist}` – Song artist
 * `%{album}` – Album name
 * `%{page}` – Current page number
+* `%{key}` – Song key
+* `%{capo}` – Capo value
+* `%{year}` – Year
 
-Example format string:
+Example:
+
+    html5.paged.format-font-size : "10pt"
+
+If unset, the default is 10pt and the color follows `pdf.theme.foreground-medium` (or `#666`).
+
+Example:
 
     "Page %{page} - %{title}"
 
@@ -526,7 +645,7 @@ On even pages (left-facing): Page number left, title right
 
 ### CSS @page Rules
 
-HTML5Paged uses CSS @page rules for page styling. You can add custom @page rules by creating a custom CSS template:
+Print mode uses CSS @page rules for page styling. You can add custom @page rules by creating a custom CSS template:
 
 ```css
 @page {
@@ -563,11 +682,11 @@ These are rendered as CSS with appropriate `break-before` properties.
 
 ### Print Workflow
 
-To generate print-ready PDFs from HTML5Paged output:
+To generate print-ready PDFs from HTML5 print mode output:
 
-1. Generate HTML5Paged output:
+1. Generate HTML5 output with print mode enabled:
    ```bash
-   chordpro --generate=HTML5Paged songs.cho -o songbook.html
+    chordpro --generate=HTML5 --config=print.json songs.cho -o songbook.html
    ```
 
 2. Open `songbook.html` in Chrome or Firefox
@@ -583,7 +702,7 @@ To generate print-ready PDFs from HTML5Paged output:
 
 ## Metadata Support
 
-Both HTML5 backends support comprehensive metadata display:
+The HTML5 backend supports comprehensive metadata display:
 
 * **title** – Song title (required)
 * **subtitle** – Subtitle(s) (multiple supported)
@@ -594,6 +713,9 @@ Both HTML5 backends support comprehensive metadata display:
 * **album** – Album name
 * **copyright** – Copyright notice
 * **duration** – Song duration
+* **key** – Song key
+* **capo** – Capo value
+* **year** – Year
 
 Metadata is specified in ChordPro files with directives:
 
@@ -603,13 +725,13 @@ Metadata is specified in ChordPro files with directives:
     {composer: William Walker}
     {key: G}
 
-All metadata appears in the HTML output and is available for headers/footers in HTML5Paged.
+All metadata appears in the HTML output and is available for headers/footers in print mode.
 
 ## Layout Directives
 
-HTML5 backends support layout control directives:
+HTML5 output supports layout control directives:
 
-* `{new_page}` – Start new page (HTML5Paged only)
+* `{new_page}` – Start new page
 * `{new_physical_page}` – Force physical page break
 * `{column_break}` – Break to next column
 * `{columns: N}` – Set number of columns
@@ -622,6 +744,20 @@ Example:
     {column_break}
     [Verse 2]
     ...
+
+## Images
+
+Example:
+
+    {image: cover.png align=center}
+    {image: chart.png align=right scale=0.8}
+    {image: banner.png align=spread}
+
+Supported alignment values are `left`, `center`, `right`, and `spread`.
+
+## Delegates (ABC, LilyPond, Strum Patterns)
+
+Delegate blocks are rendered inline in HTML5 output. SVG output is embedded directly; raster output is rendered as images. This enables ABC and LilyPond notation and strum patterns through the delegate pipeline.
 
 ## Advanced Customization
 
@@ -677,12 +813,22 @@ Generate single-page HTML for web viewing:
 chordpro --generate=HTML5 song.cho -o song.html
 ```
 
-### Paginated Output
+### Print Mode Output
 
 Generate print-ready paginated HTML:
 
 ```bash
-chordpro --generate=HTML5Paged songbook.cho -o songbook.html
+chordpro --generate=HTML5 --config=print.json songbook.cho -o songbook.html
+```
+
+Example print.json:
+
+```json
+{
+    "html5": {
+        "mode": "print"
+    }
+}
 ```
 
 ### Custom Configuration
@@ -690,7 +836,7 @@ chordpro --generate=HTML5Paged songbook.cho -o songbook.html
 Use custom config file:
 
 ```bash
-chordpro --config=myconfig.json --generate=HTML5Paged songs.cho -o output.html
+chordpro --config=myconfig.json --generate=HTML5 songs.cho -o output.html
 ```
 
 ### Multiple Songs
@@ -698,7 +844,7 @@ chordpro --config=myconfig.json --generate=HTML5Paged songs.cho -o output.html
 Generate songbook from multiple files:
 
 ```bash
-chordpro --generate=HTML5Paged song1.cho song2.cho song3.cho -o songbook.html
+chordpro --generate=HTML5 --config=print.json song1.cho song2.cho song3.cho -o songbook.html
 ```
 
 ## Configuration Reference
@@ -707,49 +853,54 @@ Complete HTML5 configuration structure:
 
 ```json
 {
-  "html5": {
-    "template_include_path": [],
-    "templates": {
-      "css": "html5/css/base.tt",
-      "songbook": "html5/songbook.tt",
-      "song": "html5/song.tt",
-      "songline": "html5/songline.tt",
-      "comment": "html5/comment.tt",
-      "image": "html5/image.tt",
-      "chord_diagrams": "html5/chord-diagrams.tt"
+    "html5": {
+        "mode": "responsive",
+        "cover": false,
+        "front-matter": false,
+        "back-matter": false,
+        "template_include_path": [],
+        "templates": {
+            "css": "html5/css/base.tt",
+            "songbook": "html5/songbook.tt",
+            "song": "html5/song.tt",
+            "songline": "html5/songline.tt",
+            "comment": "html5/comment.tt",
+            "image": "html5/image.tt",
+            "chord_diagrams": "html5/chord-diagrams.tt"
+        },
+        "css": {
+            "colors": {},
+            "fonts": {},
+            "sizes": {},
+            "spacing": {}
+        },
+        "paged": {
+            "papersize": "a4",
+            "margintop": 80,
+            "marginbottom": 40,
+            "marginleft": 40,
+            "marginright": 40,
+            "template_include_path": [],
+            "templates": {
+                "css": "html5/paged/css/base.tt",
+                "songbook": "html5/paged/songbook.tt",
+                "song": "html5/paged/song.tt",
+                "toc": "html5/paged/toc.tt"
+            },
+            "css": {
+                "colors": {},
+                "fonts": {},
+                "sizes": {},
+                "spacing": {}
+            }
+        }
     },
-    "css": {
-      "colors": {},
-      "fonts": {},
-      "sizes": {},
-      "spacing": {}
-    },
-    "paged": {
-      "papersize": "a4",
-      "margintop": 80,
-      "marginbottom": 40,
-      "marginleft": 40,
-      "marginright": 40,
-      "template_include_path": [],
-      "templates": {
-        "css": "html5paged/css/base.tt",
-        "songbook": "html5paged/songbook.tt",
-        "song": "html5paged/song.tt"
-      },
-      "css": {
-        "colors": {},
-        "fonts": {},
-        "sizes": {},
-        "spacing": {}
-      }
-    }
-  },
   "pdf": {
     "theme": {
-      "foreground": "#000000",
-      "foreground-medium": "#444444",
-      "foreground-light": "#888888",
-      "background": "#FFFFFF"
+            "foreground": "black",
+            "foreground-medium": "grey70",
+            "foreground-light": "grey90",
+            "background": "none"
     },
     "spacing": {
       "title": 1.2,
@@ -757,9 +908,9 @@ Complete HTML5 configuration structure:
       "chords": 1.2,
       "diagramchords": 1.2,
       "grid": 1.2,
-      "tab": 1.0,
-      "toc": 1.4,
-      "empty": 1.0
+            "tab": 1,
+    "toc": 1.4,
+    "empty": 1
     },
     "chorus": {
       "indent": 0,
@@ -773,18 +924,19 @@ Complete HTML5 configuration structure:
       "symbols": { "color": "blue" },
       "volta": { "color": "blue" }
     },
-    "headspace": 0,
-    "footspace": 0,
+    "headspace": 60,
+    "footspace": 20,
     "formats": {
       "default": {
-        "title": ["", "", ""],
-        "footer": ["", "", ""]
+                "title": ["", "", ""],
+                "subtitle": ["", "", ""],
+                "footer": ["%{title}", "", "%{page}"]
       }
     }
   },
   "diagrams": {
-    "show": "bottom",
-    "sorted": true,
+        "show": "all",
+        "sorted": false,
     "suppress": []
   }
 }
@@ -806,7 +958,7 @@ Complete HTML5 configuration structure:
 * Consider dark mode support with CSS media queries
 * Keep chord diagrams visible by setting `diagrams.show: "top"`
 
-### For Printing (HTML5Paged)
+### For Printing (HTML5 Print Mode)
 
 * Use A4 or Letter paper size matching your printer
 * Set appropriate margins (minimum 10mm for most printers)
@@ -817,7 +969,7 @@ Complete HTML5 configuration structure:
 
 ### Performance
 
-* For large songbooks (50+ songs), HTML5Paged may take 10-30 seconds to render
+* For large songbooks (50+ songs), print mode may take 10-30 seconds to render
 * Be patient while Paged.js applies pagination
 * The status indicator shows rendering progress
 * Once rendered, the PDF export is instant
@@ -834,7 +986,7 @@ Complete HTML5 configuration structure:
 
 **Chords not aligning**: Check font settings; ensure both chord and text fonts are loaded correctly.
 
-**Headers/footers not appearing (HTML5Paged)**: Verify `pdf.formats` is configured and Paged.js has finished rendering.
+**Headers/footers not appearing (print mode)**: Verify `pdf.formats` is configured and Paged.js has finished rendering.
 
 **Custom template not found**: Check `template_include_path` uses absolute paths or valid path variables like `$HOME`.
 
