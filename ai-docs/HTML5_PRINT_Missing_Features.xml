@@ -269,7 +269,7 @@
         - Support omit, template, fields, break, format options
       </task>
       <task id="6">
-        Create comprehensive tests in testing/html5paged/:
+        Create comprehensive tests in t/html5paged/:
         - Test single TOC generation
         - Test multiple TOCs (by title, by artist)
         - Test hierarchical breaks
@@ -304,7 +304,7 @@
         Added paged TOC generation using existing contents config and prep_outlines, with per-song anchors for page lookup.
         Introduced paged TOC template and styling, plus paged.js hook to fill page numbers after rendering.
         Registered html5.paged TOC template in chordpro.json so paged mode can resolve toc.tt.
-        Added testing/78_html5_toc.t and verified TOC output and paged.js hook via prove.
+        Added t/78_html5_toc.t and verified TOC output and paged.js hook via prove.
         Full PERL5LIB=lib make -f Makefile test completed successfully.
       </list-of-results>
       <lessons-learned>
@@ -458,7 +458,7 @@
         Added HTML5 cover/front/back matter rendering with HTML or image support and PDF skip warnings.
         Inserted cover/front/back blocks into paged and non-paged songbook templates with page-break styling.
         Added html5 cover/front/back defaults to chordpro.json to avoid config warnings.
-        Added testing/80_html5_songbook_parts.t and verified order and wrappers via prove.
+        Added t/80_html5_songbook_parts.t and verified order and wrappers via prove.
         Full PERL5LIB=lib make -f Makefile test completed successfully.
       </list-of-results>
       <lessons-learned>
@@ -527,12 +527,12 @@
       <list-of-results>
         Added HTML5 songbook sorting with support for songbook sort-songs and optional sortby config overrides.
         Sorting supports multiple fields, descending prefixes, and keeps missing metadata stable at the end.
-        Added HTML5 sorting test and real .cho fixtures in testing/ for title, artist, and descending cases.
+        Added HTML5 sorting test and real .cho fixtures in t/ for title, artist, and descending cases.
         Verified full test suite and targeted sorting test with prove.
       </list-of-results>
       <lessons-learned>
         Normalize sort specs and case-fold values before collated comparisons to avoid locale edge cases.
-        Keep test inputs in testing/ while test scripts live in t/ to match project conventions.
+        Keep test inputs in t/ while test scripts live in t/ to match project conventions.
       </lessons-learned>
     </result>
   </feature>
@@ -589,7 +589,7 @@
         mode, add `.cp-choruslike` class that mirrors `.cp-chorus` border/indent styling.
       </task>
       <task id="4">
-        Add test in `testing/` with a .cho file that uses `{chorus}` recall directive, verifying
+        Add test in `t/` with a .cho file that uses `{chorus}` recall directive, verifying
         the HTML5 output contains the recalled chorus content or tag.
       </task>
     </implementation-details>
@@ -618,7 +618,7 @@
         Added rechorus dispatch and handler in ChordProBase with quote, tag, and default behaviors.
         Implemented HTML5 rechorus handling with template-aware comment rendering and choruslike wrapping.
         Styled cp-rechorus and cp-choruslike blocks in HTML5 section CSS.
-        Added HTML5 rechorus test and fixture in testing/ to validate quote, tag, and default modes.
+        Added HTML5 rechorus test and fixture in t/ to validate quote, tag, and default modes.
         Verified full test suite and targeted rechorus test with prove.
       </list-of-results>
       <lessons-learned>
@@ -953,7 +953,7 @@
         Added diagram placement and alignment selection for HTML5 (html5/pdf diagrams show/align) with safe defaults.
         Updated HTML5 and paged song templates to place diagrams top, bottom/below, or right with new body/diagram wrappers.
         Added alignment and right-layout CSS for chord diagrams in both normal and paged styles.
-        Added t/86_html5_diagram_pos.t with testing/html5_diagram_pos.cho to verify bottom and right placement.
+        Added t/86_html5_diagram_pos.t with t/html5_diagram_pos.cho to verify bottom and right placement.
         Verified with prove and full PERL5LIB=lib make -f Makefile test run.
       </list-of-results>
       <lessons-learned>
@@ -1026,7 +1026,7 @@
       <list-of-results>
         Passed settings.chords-under into the CSS templates as a boolean template variable.
         Added chords-under CSS overrides for flex direction and chord padding in normal and paged styles.
-        Added t/87_html5_chords_under.t with testing/html5_chords_under.cho to assert CSS output.
+        Added t/87_html5_chords_under.t with t/html5_chords_under.cho to assert CSS output.
         Verified with prove and full PERL5LIB=lib make -f Makefile test run.
       </list-of-results>
       <lessons-learned>
@@ -1107,7 +1107,7 @@
       <list-of-results>
         Added inline chord rendering path in HTML5 songline template with chord/annotation formatting.
         Implemented inline chord and inline annotation styling in HTML5 and paged CSS.
-        Added t/88_html5_inline_chords.t with testing/html5_inline_chords.cho to validate output.
+        Added t/88_html5_inline_chords.t with t/html5_inline_chords.cho to validate output.
         Fixed inline-chords detection to respect false values and avoid accidental activation.
         Verified with prove and full PERL5LIB=lib make -f Makefile test run.
       </list-of-results>
@@ -1196,7 +1196,7 @@
         Implemented SVG keyboard diagram rendering with white/black keys and pressed key highlights.
         Added kbdiagrams config and theme color resolution for SVG output.
         Added keyboard diagram CSS classes for normal and paged styles.
-        Added t/89_html5_keyboard.t with testing/html5_keyboard.cho to validate SVG output.
+        Added t/89_html5_keyboard.t with t/html5_keyboard.cho to validate SVG output.
         Verified with prove and full PERL5LIB=lib make -f Makefile test run.
       </list-of-results>
       <lessons-learned>
@@ -1268,7 +1268,7 @@
       <my-result>DONE</my-result>
       <list-of-results>
         Added cp-comment_box styling to the shared HTML5 typography CSS so paged output inherits the bordered box.
-        Added testing/html5_comment_box.cho and t/90_html5_comment_box.t to validate markup and CSS output.
+        Added t/html5_comment_box.cho and t/90_html5_comment_box.t to validate markup and CSS output.
         Verified with prove for the new test and full PERL5LIB=lib make -f Makefile test run.
       </list-of-results>
       <lessons-learned>
@@ -1351,7 +1351,7 @@
       <list-of-results>
         Added data-label emission for verse/chorus/bridge/tab/grid sections in HTML5.pm, including label extraction from leading set/label elements.
         Added section label CSS to html5/css/sections.tt and paged html5/paged/css/layout.tt with a configurable display variable.
-        Added testing/html5_section_labels.cho and t/91_html5_section_labels.t to verify labels and CSS output.
+        Added t/html5_section_labels.cho and t/91_html5_section_labels.t to verify labels and CSS output.
         Verified with prove for the new test and full PERL5LIB=lib make -f Makefile test run.
       </list-of-results>
       <lessons-learned>
@@ -1435,7 +1435,7 @@
       <list-of-results>
         Enhanced HTML5 grid token rendering to emit bar, repeat, slash, and space classes while keeping existing symbol styling.
         Added grid bar and repeat styling to html5/css/tab-grid.tt and paged html5/paged/css/layout.tt.
-        Added testing/html5_grid_bars.cho and t/92_html5_grid_bars.t to validate bar class output.
+        Added t/html5_grid_bars.cho and t/92_html5_grid_bars.t to validate bar class output.
         Verified with prove for the new test and full PERL5LIB=lib make -f Makefile test run.
       </list-of-results>
       <lessons-learned>
@@ -1514,7 +1514,7 @@
       <list-of-results>
         Emitted cp-grid-volta classes with data-volta attributes for volta bars during HTML5 grid rendering.
         Added volta bracket styling to HTML5 grid CSS for both normal and paged output.
-        Added testing/html5_volta.cho and t/93_html5_volta.t to validate volta markup and CSS rules.
+        Added t/html5_volta.cho and t/93_html5_volta.t to validate volta markup and CSS rules.
         Verified with prove for the new test and full PERL5LIB=lib make -f Makefile test run.
       </list-of-results>
       <lessons-learned>
