@@ -11,7 +11,7 @@ plan tests => 6;
 
 make_path('out');
 
-my $input = '../testing/html5_grid_bars.cho';
+my $input = 'html5_grid_bars.cho';
 my $out = 'out/html5_grid_bars.html';
 
 @ARGV = (

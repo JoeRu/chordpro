@@ -11,7 +11,7 @@ plan tests => 4;
 
 make_path('out');
 
-my $input = '../testing/html5_keyboard.cho';
+my $input = 'html5_keyboard.cho';
 my $out = 'out/html5_keyboard.html';
 my $cfg = 'out/html5_keyboard.json';
 

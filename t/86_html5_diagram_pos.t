@@ -11,7 +11,7 @@ plan tests => 6;
 
 make_path('out');
 
-my $input = '../testing/html5_diagram_pos.cho';
+my $input = 'html5_diagram_pos.cho';
 
 sub run_position_test {
     my ($label, $config_json, $assert_cb) = @_;

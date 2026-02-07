@@ -11,7 +11,7 @@ plan tests => 4;
 
 make_path('out');
 
-my $input = '../testing/html5_inline_chords.cho';
+my $input = 'html5_inline_chords.cho';
 my $out = 'out/html5_inline_chords.html';
 my $cfg = 'out/html5_inline_chords.json';
 
