@@ -55,7 +55,7 @@
 }
 
 .cp-chord-empty {
-    display: none;
+    visibility: hidden;
 }
 
 .cp-lyrics {

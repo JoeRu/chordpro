@@ -1,11 +1,10 @@
 #!/usr/bin/perl
 
-# Bug 2: First word appears in upper position when songline has no leading chord
-# Fixed in commit 22527232
+# Bug 1: First word appears in upper position when songline has no leading chord
 #
 # Symptom: When a song line doesn't start with a chord, first word renders too high
-# Root Cause: .cp-chord-empty { visibility: hidden; } reserved space in flexbox
-# Solution: Changed to display: none; in html5/css/songlines.tt
+# Root Cause: .cp-chord-empty { display: none; } collapsed the chord spacer in flexbox
+# Solution: Changed to visibility: hidden; to preserve vertical spacing alignment
 
 use strict;
 use warnings;
@@ -28,7 +27,7 @@ ok($html5, "HTML5 object created");
 # Test song with line that has NO leading chord (triggers the bug)
 my $song_data = <<'EOD';
 {title: Chord Empty Test}
-{subtitle: Bug 2 Regression Test}
+{subtitle: Bug 1 Regression Test}
 
 {start_of_verse}
 First line with no chord at start
@@ -43,32 +42,29 @@ ok(scalar(@{$s->{songs}}) == 1, "Song parsed");
 
 my $song = $s->{songs}[0];
 
-# Generate HTML5 output
+# Generate CSS (this is where .cp-chord-empty rule lives)
+my $css = $html5->generate_default_css();
+ok($css, "CSS generated");
+
+# Test 4: Verify .cp-chord-empty uses visibility: hidden (preserves space for alignment)
+like($css, qr/\.cp-chord-empty[^}]*visibility:\s*hidden/,
+     "CSS contains .cp-chord-empty { visibility: hidden; }");
+
+# Test 5: Verify it does NOT use display: none (that caused the misalignment bug)
+unlike($css, qr/\.cp-chord-empty[^}]*display:\s*none/i,
+       "CSS does NOT contain .cp-chord-empty { display: none; } (bug fixed)");
+
+# Generate song HTML
 my $output = $html5->generate_song($song);
 ok($output, "HTML5 output generated");
 
-# Test 3: Verify output contains the CSS fix (display: none not visibility: hidden)
-# Extract the CSS section
-my ($css_section) = $output =~ m{<style>(.*?)</style>}s;
-ok($css_section, "CSS section found in output");
-
-# Test 4: Verify .cp-chord-empty uses display: none
-like($css_section, qr/\.cp-chord-empty[^}]*display:\s*none/, 
-     "CSS contains .cp-chord-empty { display: none; }");
-
-# Test 5: Verify it does NOT use visibility: hidden (the bug)
-unlike($css_section, qr/\.cp-chord-empty[^}]*visibility:\s*hidden/i,
-       "CSS does NOT contain .cp-chord-empty { visibility: hidden; } (bug fixed)");
-
-# Test 6: Verify song structure contains chord positions
+# Test 7: Verify song structure contains songlines
 like($output, qr/<div class="cp-songline"/, "Output contains songlines");
 
-# Test 7: Verify lyrics are present
+# Test 8: Verify lyrics are present
 like($output, qr/First line with no chord/, "First line lyrics present");
 
-# Test 8: Verify the output structure handles lines without leading chords correctly
-# Lines without leading chords should have proper markup structure
-like($output, qr/First line with no chord/, 
-     "Line without leading chord renders correctly");
+# Test 9: Verify chord-empty class used for empty chord slots
+like($output, qr/cp-chord-empty/, "Output uses cp-chord-empty class for empty chord positions");
 
-diag("Bug 2 regression test: Chord-empty styling (display:none) - PASSED");
+diag("Bug 1 regression test: Chord-empty styling (visibility:hidden) - PASSED");
