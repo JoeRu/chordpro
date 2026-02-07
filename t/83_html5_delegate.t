@@ -8,7 +8,7 @@ use ChordPro::Testing;
 
 plan tests => 3;
 
-my $input = "../testing/html5_delegate_svg.cho";
+my $input = "html5_delegate_svg.cho";
 my $out = "out/html5_delegate_svg.html";
 
 @ARGV = (

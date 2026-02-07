@@ -5,5 +5,8 @@
         "enable": true,
         "logLevel": 0,
         "perlInc": ["/workspace/lib/"]
+    },
+    "chat.tools.terminal.autoApprove": {
+        "mv": true
     }
 }

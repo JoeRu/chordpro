@@ -11,7 +11,7 @@ plan tests => 4;
 
 make_path('out');
 
-my $input = '../testing/html5_volta.cho';
+my $input = 'html5_volta.cho';
 my $out = 'out/html5_volta.html';
 
 @ARGV = (

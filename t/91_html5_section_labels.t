@@ -11,7 +11,7 @@ plan tests => 4;
 
 make_path('out');
 
-my $input = '../testing/html5_section_labels.cho';
+my $input = 'html5_section_labels.cho';
 my $out = 'out/html5_section_labels.html';
 
 @ARGV = (

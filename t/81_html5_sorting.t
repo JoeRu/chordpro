@@ -9,9 +9,9 @@ use ChordPro::Testing;
 plan tests => 6;
 
 my @songs = (
-    "../testing/html5_sorting_1.cho",
-    "../testing/html5_sorting_2.cho",
-    "../testing/html5_sorting_3.cho",
+    "html5_sorting_1.cho",
+    "html5_sorting_2.cho",
+    "html5_sorting_3.cho",
 );
 
 sub run_sort_test {

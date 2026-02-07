@@ -8,7 +8,7 @@ use ChordPro::Testing;
 
 plan tests => 6;
 
-my $input = "../testing/html5_rechorus.cho";
+my $input = "html5_rechorus.cho";
 
 sub run_rechorus_test {
     my ( $label, $config_json, $assert_cb ) = @_;

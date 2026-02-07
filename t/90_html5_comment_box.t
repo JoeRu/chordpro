@@ -11,7 +11,7 @@ plan tests => 3;
 
 make_path('out');
 
-my $input = '../testing/html5_comment_box.cho';
+my $input = 'html5_comment_box.cho';
 my $out = 'out/html5_comment_box.html';
 
 @ARGV = (
