@@ -1,0 +1,192 @@
+<bugs>
+
+<bug id="1" status="fixed">
+<priority>critical</priority>
+<description>
+If in the beginning of a newline no chord is present - the words are not in line with the rest of the text. They show "upper" layer.
+</description>
+<reason>
+No upper chord present in the beginning of the line.
+</reason>
+<type-of-bug attribute="reoccuring">
+ A initial fix was tried - but didn't work. The initial solution used CSS to solve the problem.
+</type-of-bug>
+<Analyze>
+Root Cause: In songlines with mixed chord/no-chord pairs, the CSS rule
+`.cp-chord-empty { display: none; }` collapsed the chord spacer element entirely.
+In a flexbox column layout (cp-chord-lyric-pair), removing the chord element
+causes the lyrics to jump to the top of the flex item, while pairs WITH chords
+keep lyrics below the chord row. This creates vertical misalignment.
+
+The fix requires preserving the vertical space of the chord row even when
+no chord is present, so all lyrics align at the same vertical position.
+</Analyze>
+<implement>
+<tasks>
+<task>Changed `.cp-chord-empty { display: none; }` to `.cp-chord-empty { visibility: hidden; }`
+in `lib/ChordPro/res/templates/html5/css/songlines.tt`.
+`visibility: hidden` preserves the element's space in the layout while making it invisible,
+so lyrics in all pairs align at the same vertical position regardless of chord presence.</task>
+<task>Updated existing test `t/html5paged/09_bug2_chord_empty_styling.t` to verify
+the corrected CSS rule (visibility:hidden instead of display:none).</task>
+<task>Updated `t/html5paged/10_bugfixes_integration.t` to match new CSS expectation.</task>
+</tasks>
+</implement>
+<verify>
+All 26 tests pass in t/190_html5_bugfixes.t including Bug 1 specific tests.
+CSS now uses visibility:hidden which preserves chord row spacing.
+Existing t/75_html5.t (11 tests) and core test suite pass without regressions.
+</verify>
+<test>t/190_html5_bugfixes.t - Tests 3-8 (Bug 1 chord alignment)</test>
+</bug>
+
+<bug id="2" status="fixed">
+<description>
+Images are not showing in the HTML.
+</description>
+<reason>
+Images aren't copied to target location or are "embedded" in the HTML as base64 coded objects.
+</reason>
+<type-of-bug attribute="initial" />
+<Analyze>
+Root Cause: In Song.pm, image elements added to the song body only contain
+`{type => "image", id => $aid, opts => \%opts}` - the actual URI is stored
+separately in `$song->{assets}->{$aid}`. The HTML5 backend's `_process_song_body`
+passed `$element` directly to `_render_image_template`, which reads
+`$element->{uri}` - always empty since the URI lives in the asset, not the element.
+
+Additionally, file-based image URIs are not portable when the HTML is moved
+to a different location. Images need to be embedded as base64 data URIs.
+</Analyze>
+<implement>
+<tasks>
+<task>Modified `_process_song_body` in `lib/ChordPro/Output/HTML5.pm` to resolve
+image URIs from `$song->{assets}` before passing to `_render_image_template`.
+When `$element->{uri}` is not set but `$element->{id}` points to an asset,
+the asset's URI is merged into the element.</task>
+<task>Added `_resolve_image_to_data_uri` method that reads image files and
+converts them to base64 data URIs (data:image/type;base64,...) for portability.
+Supports PNG, JPEG, GIF, SVG, WebP, and BMP formats.</task>
+</tasks>
+</implement>
+<verify>
+All 26 tests pass in t/190_html5_bugfixes.t including Bug 2 specific tests.
+Image elements now correctly resolve URIs from assets and embed as base64.
+</verify>
+<test>t/190_html5_bugfixes.t - Tests 9-11 (Bug 2+3 image URI resolution)</test>
+</bug>
+
+<bug id="3" status="fixed">
+<priority>High</priority>
+<description>
+The SRC-tag of some images appear to be empty.
+</description>
+<reason>
+Image element in song body has only {type, id, opts} - the URI is stored in
+$song->{assets}->{$id}, not in the element itself. The backend was reading
+$element->{uri} which was always undefined/empty.
+</reason>
+<type-of-bug attribute="initial" />
+<Analyze>
+Same root cause as Bug 2. The Song.pm parser stores image URIs in the assets hash,
+not in the body element. The image template received `uri => $element->{uri} // ''`
+which evaluated to empty string, producing `src=""` in the output HTML.
+</Analyze>
+<implement>
+<tasks>
+<task>Fixed as part of Bug 2 fix. The asset URI resolution in `_process_song_body`
+ensures `$element->{uri}` is populated from the asset before template rendering.
+The `_resolve_image_to_data_uri` method then converts to base64 data URIs.</task>
+</tasks>
+</implement>
+<verify>
+Test verifies that src="" does NOT appear in output (unlike test).
+Images now have proper data: URIs in their src attributes.
+</verify>
+<test>t/190_html5_bugfixes.t - Test 11 (Bug 3 empty SRC check)</test>
+</bug>
+
+<bug id="4" status="fixed">
+<priority>high</priority>
+<description>
+The delegated objects like SVG or ABC are not shown.
+</description>
+<reason>
+Delegate result images with file URIs were passed directly to render_image without
+base64 embedding. The delegate lookup itself was correct but result handling
+needed URI resolution for portability.
+</reason>
+<type-of-bug attribute="initial" />
+<Analyze>
+The delegate asset lookup in `_process_song_body` correctly finds delegate assets
+from `$song->{assets}`. SVG delegates return inline SVG data which is rendered
+correctly. However, when delegate results produce image files (non-SVG), the
+`_render_delegate_result` method passed the file URI directly to `render_image`
+without converting to a portable data URI.
+
+The fix ensures delegate result images are also embedded as base64 data URIs
+using the same `_resolve_image_to_data_uri` method.
+</Analyze>
+<implement>
+<tasks>
+<task>Modified `_render_delegate_result` in `lib/ChordPro/Output/HTML5.pm` to
+pass delegate result URIs through `_resolve_image_to_data_uri` before rendering.
+This converts file-based delegate output to base64 data URIs.</task>
+<task>Verified SVG delegate handling (inline embedding) works correctly for
+both string and array data formats.</task>
+<task>Verified PNG delegate handling (base64 encoding) works correctly.</task>
+</tasks>
+</implement>
+<verify>
+Tests verify: SVG delegates render with proper container classes,
+SVG content is preserved (both string and array formats),
+PNG delegates produce base64 data URIs.
+</verify>
+<test>t/190_html5_bugfixes.t - Tests 12-19 (Bug 4 delegate handling)</test>
+</bug>
+
+<bug id="5" status="fixed">
+<priority>middle</priority>
+<description>
+Some special chars occur as for example &#39; and not the char itself.
+</description>
+<reason>
+Double-escaping: `process_text_with_markup()` already escapes HTML entities
+(e.g., ' → &#39;, &amp; → &amp;amp;), then Template::Toolkit's `| html` filter
+re-escapes them (&#39; → &amp;#39;), causing entities to display literally.
+</reason>
+<type-of-bug attribute="initial" />
+<Analyze>
+Root Cause: In `generate_song()`, metadata (title, subtitle, artist, etc.)
+is pre-processed through `process_text_with_markup()` which calls `escape_text()`
+converting special characters to HTML entities. The song templates (song.tt and
+paged/song.tt) then applied Template::Toolkit's `| html` filter to these
+already-escaped values, causing double-escaping:
+
+  ' → &#39; (escape_text) → &amp;#39; (| html filter) → displayed as "&#39;"
+  &amp; → &amp;amp; (escape_text) → &amp;amp;amp; (| html filter) → displayed as "&amp;amp;"
+
+The fix: Remove `| html` filter from template fields that contain pre-processed
+(already-escaped) content. Keep `| html` on raw data attribute values.
+</Analyze>
+<implement>
+<tasks>
+<task>Updated `lib/ChordPro/res/templates/html5/song.tt`: Removed `| html` filter
+from all pre-processed content fields (title, subtitle, artist, composer, album,
+arranger, lyricist, copyright, duration). Kept `| html` on raw `data_*` attribute
+values which need proper escaping.</task>
+<task>Updated `lib/ChordPro/res/templates/html5/paged/song.tt`: Same changes
+applied to the paged mode template (title, subtitle, artist, composer, album,
+arranger, lyricist, copyright, year, key, capo, duration).</task>
+</tasks>
+</implement>
+<verify>
+Tests verify: No double-escaped entities (&amp;#39; or &amp;amp;amp;) in output.
+Title apostrophes (It's) properly escaped once as &#39;.
+Ampersands (Tom &amp; Jerry) properly escaped once as &amp;amp;.
+</verify>
+<test>t/190_html5_bugfixes.t - Tests 20-26 (Bug 5 double-escaping)</test>
+</bug>
+
+</bugs>
+

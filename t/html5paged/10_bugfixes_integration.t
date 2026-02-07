@@ -63,10 +63,10 @@ ok($output, "HTML5 output generated");
 like($output, qr/<style>.*\.cp-chord.*\.cp-lyrics/s, 
      "CSS templates loaded successfully (Bug 1)");
 
-# Verify Bug 2 fix: Chord-empty uses display:none
+# Verify Bug 2 fix: Chord-empty uses visibility:hidden for alignment
 my ($css) = $output =~ m{<style>(.*?)</style>}s;
-like($css, qr/\.cp-chord-empty[^}]*display:\s*none/,
-     "Chord-empty styling correct (Bug 2)");
+like($css, qr/\.cp-chord-empty[^}]*visibility:\s*hidden/,
+     "Chord-empty styling correct (Bug 1 - visibility:hidden for alignment)");
 
 # Verify song structure is correct
 like($output, qr/<div class="cp-verse"/, "Verse structure present");

@@ -429,7 +429,19 @@ class ChordPro::Output::HTML5
                 if ($delegate_asset) {
                     $html .= $self->_render_delegate_element($delegate_asset, $song);
                 } else {
-                    $html .= $self->_render_image_template($element);
+                    # Resolve image URI from asset if not in element (Bug 2/3 fix)
+                    my $img_element = $element;
+                    if (!$element->{uri} && $song && $element->{id}) {
+                        my $asset = $song->{assets}->{$element->{id}};
+                        if ($asset && $asset->{uri}) {
+                            $img_element = { %$element, uri => $asset->{uri} };
+                        }
+                    }
+                    # Convert file URIs to base64 data URIs for portability
+                    if ($img_element->{uri} && $img_element->{uri} !~ /^data:/) {
+                        $img_element = $self->_resolve_image_to_data_uri($img_element);
+                    }
+                    $html .= $self->_render_image_template($img_element);
                 }
             }
             elsif ($type eq 'empty') {
@@ -568,6 +580,46 @@ class ChordPro::Output::HTML5
         return $html;
     }
 
+    method _resolve_image_to_data_uri($element) {
+        my $uri = $element->{uri} // '';
+        return $element unless $uri && $uri !~ /^(?:data:|https?:)/;
+
+        # Try to read the file and convert to base64 data URI
+        my $path = $uri;
+        if (-f $path) {
+            my %mime_types = (
+                png  => 'image/png',
+                jpg  => 'image/jpeg',
+                jpeg => 'image/jpeg',
+                gif  => 'image/gif',
+                svg  => 'image/svg+xml',
+                webp => 'image/webp',
+                bmp  => 'image/bmp',
+            );
+
+            my $ext = '';
+            $ext = lc($1) if $path =~ /\.(\w+)$/;
+            my $mime = $mime_types{$ext};
+
+            if ($mime) {
+                open my $fh, '<:raw', $path;
+                if ($fh) {
+                    local $/;
+                    my $data = <$fh>;
+                    close $fh;
+                    if (defined $data && length($data) > 0) {
+                        my $b64 = encode_base64($data, '');
+                        my $data_uri = "data:$mime;base64,$b64";
+                        return { %$element, uri => $data_uri };
+                    }
+                }
+            }
+        }
+
+        # Fall back to original URI if embedding fails
+        return $element;
+    }
+
     method _render_delegate_element($element, $song = undef) {
         my $delegate = $element->{delegate} // '';
         my $handler = $element->{handler} // '';
@@ -631,7 +683,9 @@ class ChordPro::Output::HTML5
 
         my $opts = { %{ $res->{opts} // {} }, class => 'cp-delegate' };
         if ($res->{uri}) {
-            return $self->render_image($res->{uri}, $opts);
+            # Convert file URI to data URI for portability (Bug 4 fix)
+            my $resolved = $self->_resolve_image_to_data_uri({ uri => $res->{uri} });
+            return $self->render_image($resolved->{uri}, $opts);
         }
 
         if (defined $res->{data}) {
