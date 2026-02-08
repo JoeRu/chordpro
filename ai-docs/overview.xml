@@ -11,18 +11,18 @@
   <architecture>
     <description>
       ChordPro follows a Parse -> Transform -> Render pipeline. Song.pm parses .cho files into
-      element arrays, Chords/*.pm handles transposition/notation conversion during parse, and
-      Output/*.pm backends render the songbook. CLI entry is script/chordpro.pl; GUI entry is
+      element arrays, Chords/*.pm handles transposition and notation conversion, and Output/*.pm
+      backends render the songbook. CLI entry is script/chordpro.pl; GUI entry is
       script/wxchordpro.pl (wxWidgets).
 
       Two backend styles coexist: modern Object::Pad classes (HTML5, Markdown, Meta) and legacy
       procedural backends (PDF, HTML, Text, LaTeX, MMA, ChordPro, JSON, Debug).
 
-      Configuration is JSON-based with hierarchical merging: builtin -> sysconfig -> userconfig -> CLI --define.
-      Config/Data.pm is generated from lib/ChordPro/res/config/chordpro.json via script/cfgboot.pl.
-      Resources (fonts, templates, configs) resolve via ChordPro::Paths (CP->findres()).
+      Configuration is JSON-based with hierarchical merging: builtin -> sysconfig -> userconfig
+      -> CLI --define. Config/Data.pm is generated from lib/ChordPro/res/config/chordpro.json via
+      script/cfgboot.pl. Resources (fonts, templates, configs) resolve via ChordPro::Paths.
       Template::Toolkit drives HTML5 and LaTeX output. Delegates handle external notation
-      (ABC via bundled abc2svg, LilyPond via external binary, Grille, Strum, SVG passthrough).
+      (ABC via embedded QuickJS/abc2svg, LilyPond via external binary, Grille/Strum/SVG).
     </description>
     <patterns>
       <pattern>Parse-Transform-Render pipeline</pattern>
@@ -35,6 +35,7 @@
     </patterns>
     <system-requirements>
       <requirement>Perl 5.26+</requirement>
+      <requirement>ExtUtils::MakeMaker 7.24+</requirement>
     </system-requirements>
     <external-dependencies>
       <dependency>Object::Pad 0.818+</dependency>
@@ -60,19 +61,19 @@
       <interface type="inbound">CLI: script/chordpro.pl parses .cho files and writes output</interface>
       <interface type="inbound">GUI: script/wxchordpro.pl (wxWidgets frontend)</interface>
       <interface type="inbound">Config: JSON config files and CLI --define overrides</interface>
-      <interface type="outbound">PDF output via PDF::API2</interface>
+      <interface type="outbound">PDF output via PDF::API2 (or PDF::Builder)</interface>
       <interface type="outbound">HTML5 output via Template::Toolkit (responsive/screen/print)</interface>
       <interface type="outbound">Markdown, LaTeX, Text, HTML, JSON, MMA, ChordPro outputs</interface>
       <interface type="outbound">SVG chord diagrams via Output/ChordDiagram/SVG.pm</interface>
-      <interface type="outbound">Delegates: abc2svg, LilyPond, Grille, Strum</interface>
+      <interface type="outbound">Delegates: abc2svg, LilyPond, Grille, Strum, SVG</interface>
     </interfaces>
     <design-decisions>
-      <decision date="2026-02-08">Object::Pad chosen for modern backends instead of Moose/Moo to keep dependencies light.</decision>
+      <decision date="2026-02-08">Object::Pad chosen for modern backends to keep dependencies light.</decision>
       <decision date="2026-02-08">Template::Toolkit used for HTML5/LaTeX to separate markup from logic.</decision>
       <decision date="2026-02-08">Restricted hashes from JSON::Relaxed used to catch config typos at runtime.</decision>
-      <decision date="2026-02-08">Backend-owned structurization: backends call structurize() as needed, not central dispatch.</decision>
+      <decision date="2026-02-08">Backend-owned structurization: backends call structurize() as needed.</decision>
       <decision date="2026-02-08">Bundled abc2svg via QuickJS to avoid external runtime dependency for ABC.</decision>
-      <decision date="2026-02-08">SVG chord diagrams rendered at 4em to scale with font size.</decision>
+      <decision date="2026-02-08">SVG chord diagrams render at em-based sizing to match fonts.</decision>
       <decision date="2026-02-08">HTML5 output embeds images as base64 data URIs for portability.</decision>
     </design-decisions>
   </architecture>
@@ -100,34 +101,175 @@
   </security>
 
   <completed-features>
-    <feature id="CF-1" completed="2026-02-08" source-item="13">
-      <title>HTML5 Print Mode Parity</title>
-      <description>HTML5 paged mode reached feature parity with PDF, including pagination, headers/footers, grids, diagrams, and print-specific layout.</description>
+    <feature id="CF-1" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="1">
+      <title>CLI pipeline and backend selection</title>
+      <description>Reads .cho inputs, resolves output backend, and coordinates parsing and rendering.</description>
+      <files>
+        <file>lib/ChordPro.pm</file>
+        <file>script/chordpro.pl</file>
+        <file>lib/ChordPro/Songbook.pm</file>
+      </files>
+      <test-files>
+        <file>t/00_basic.pl</file>
+        <file>t/10_files.t</file>
+        <file>t/100_basic.t</file>
+      </test-files>
+      <gaps>
+        <gap>CLI option edge cases and filelist parsing not fully mapped.</gap>
+      </gaps>
+    </feature>
+
+    <feature id="CF-2" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="2">
+      <title>Song parser and directives</title>
+      <description>Parses ChordPro directives, builds song element arrays, and tracks metadata.</description>
+      <files>
+        <file>lib/ChordPro/Song.pm</file>
+        <file>lib/ChordPro/Songbook.pm</file>
+      </files>
+      <test-files>
+        <file>t/101_directives.t</file>
+        <file>t/114_songline.t</file>
+        <file>t/116_chorus.t</file>
+      </test-files>
+      <gaps>
+        <gap>Edge directives and metadata normalization are not fully documented.</gap>
+      </gaps>
+    </feature>
+
+    <feature id="CF-3" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="3">
+      <title>Chord parsing, notation, and transposition</title>
+      <description>Parses chord tokens, handles notation systems, and applies transposition.</description>
+      <files>
+        <file>lib/ChordPro/Chords.pm</file>
+        <file>lib/ChordPro/Chords/</file>
+      </files>
+      <test-files>
+        <file>t/105_chords.t</file>
+        <file>t/170_transpose.t</file>
+        <file>t/110_chords_roman.t</file>
+      </test-files>
+      <gaps>
+        <gap>Notation edge cases and alternate naming systems need deeper mapping.</gap>
+      </gaps>
+    </feature>
+
+    <feature id="CF-4" completed="2026-02-08" completeness="FULL" test-coverage="TESTED">
+      <title>HTML5 output backend</title>
+      <description>Renders HTML5 output with screen and print modes using templates and paged.js.</description>
       <files>
         <file>lib/ChordPro/Output/HTML5.pm</file>
-        <file>lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm</file>
+        <file>lib/ChordPro/Output/HTML5Helper/</file>
         <file>lib/ChordPro/res/templates/html5/</file>
+      </files>
+      <test-files>
         <file>t/html5/</file>
         <file>t/html5paged/</file>
-      </files>
-    </feature>
-    <feature id="CF-2" completed="2026-02-08" source-item="14">
-      <title>HTML5 Bug Fixes 1-6</title>
-      <description>Fixed HTML5 chord alignment, image embedding, delegate rendering, entity escaping, and lyrics-only spacing with regression tests.</description>
-      <files>
-        <file>lib/ChordPro/Output/HTML5.pm</file>
-        <file>lib/ChordPro/res/templates/html5/</file>
         <file>t/190_html5_bugfixes.t</file>
-      </files>
+      </test-files>
     </feature>
-    <feature id="CF-3" completed="2026-02-08" source-item="1">
-      <title>HTML5 Image Scaling</title>
-      <description>Implemented scale-as-percentage for HTML5 images so scale factors behave like PDF page-width scaling.</description>
+
+    <feature id="CF-5" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="4">
+      <title>Legacy and auxiliary output backends</title>
+      <description>PDF, HTML, Text, LaTeX, JSON, MMA, ChordPro, Debug, and Meta output formats.</description>
       <files>
-        <file>lib/ChordPro/Output/HTML5.pm</file>
-        <file>lib/ChordPro/res/templates/html5/image.tt</file>
-        <file>t/191_html5_image_scale.t</file>
+        <file>lib/ChordPro/Output/PDF.pm</file>
+        <file>lib/ChordPro/Output/HTML.pm</file>
+        <file>lib/ChordPro/Output/Text.pm</file>
+        <file>lib/ChordPro/Output/LaTeX.pm</file>
+        <file>lib/ChordPro/Output/JSON.pm</file>
+        <file>lib/ChordPro/Output/MMA.pm</file>
+        <file>lib/ChordPro/Output/ChordPro.pm</file>
+        <file>lib/ChordPro/Output/Debug.pm</file>
+        <file>lib/ChordPro/Output/Meta.pm</file>
       </files>
+      <gaps>
+        <gap>Feature parity and edge-case handling across legacy backends not fully documented.</gap>
+      </gaps>
+    </feature>
+
+    <feature id="CF-6" completed="2026-02-08" completeness="PARTIAL" test-coverage="UNKNOWN" ref-item="5">
+      <title>Markdown output backend</title>
+      <description>Renders song output to Markdown via Object::Pad backend.</description>
+      <files>
+        <file>lib/ChordPro/Output/Markdown.pm</file>
+      </files>
+      <gaps>
+        <gap>Handler coverage for diagrams, delegates, and grids not fully mapped.</gap>
+      </gaps>
+    </feature>
+
+    <feature id="CF-7" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="6">
+      <title>Chord diagrams and grids</title>
+      <description>Chord diagram rendering and grid/measure layout across backends.</description>
+      <files>
+        <file>lib/ChordPro/Output/ChordDiagram/</file>
+        <file>lib/ChordPro/res/fonts/ChordProSymbols.ttf</file>
+      </files>
+      <test-files>
+        <file>t/160_diagrams.t</file>
+        <file>t/180_grids.t</file>
+      </test-files>
+      <gaps>
+        <gap>Diagram rendering variants and keyboard diagrams need full mapping.</gap>
+      </gaps>
+    </feature>
+
+    <feature id="CF-8" completed="2026-02-08" completeness="PARTIAL" test-coverage="NONE" ref-item="7">
+      <title>External delegate integration</title>
+      <description>Delegates render ABC, LilyPond, SVG, Grille, Strum, and text blocks.</description>
+      <files>
+        <file>lib/ChordPro/Delegate/ABC.pm</file>
+        <file>lib/ChordPro/Delegate/Lilypond.pm</file>
+        <file>lib/ChordPro/Delegate/Grille.pm</file>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>lib/ChordPro/Delegate/SVG.pm</file>
+        <file>lib/ChordPro/Delegate/TextBlock.pm</file>
+        <file>lib/ChordPro/Delegate/Program.pm</file>
+      </files>
+      <gaps>
+        <gap>Delegate IO contracts and error handling are not fully documented or tested.</gap>
+      </gaps>
+    </feature>
+
+    <feature id="CF-9" completed="2026-02-08" completeness="PARTIAL" test-coverage="UNKNOWN" ref-item="8">
+      <title>Wx GUI application</title>
+      <description>WxWidgets-based GUI for editing, previewing, and printing.</description>
+      <files>
+        <file>script/wxchordpro.pl</file>
+        <file>lib/ChordPro/Wx/</file>
+      </files>
+      <gaps>
+        <gap>GUI workflows, state handling, and test coverage not fully mapped.</gap>
+      </gaps>
+    </feature>
+
+    <feature id="CF-10" completed="2026-02-08" completeness="PARTIAL" test-coverage="UNKNOWN" ref-item="9">
+      <title>Configuration system and resource resolution</title>
+      <description>JSON config hierarchy, generated config data, and resource path lookup.</description>
+      <files>
+        <file>lib/ChordPro/Config.pm</file>
+        <file>lib/ChordPro/Config/Data.pm</file>
+        <file>lib/ChordPro/res/config/chordpro.json</file>
+        <file>script/cfgboot.pl</file>
+        <file>lib/ChordPro/Paths.pm</file>
+      </files>
+      <gaps>
+        <gap>Config precedence edge cases and validation behavior need documentation.</gap>
+      </gaps>
+    </feature>
+
+    <feature id="CF-11" completed="2026-02-08" completeness="PARTIAL" test-coverage="NONE" ref-item="10">
+      <title>Documentation site (Hugo)</title>
+      <description>Static documentation site built with Hugo and pagefind search.</description>
+      <files>
+        <file>docs/Makefile</file>
+        <file>docs/config/</file>
+        <file>docs/content/</file>
+        <file>docs/layouts/</file>
+      </files>
+      <gaps>
+        <gap>Doc coverage for advanced configuration and backend-specific behavior is partial.</gap>
+      </gaps>
     </feature>
   </completed-features>
 </project-overview>
