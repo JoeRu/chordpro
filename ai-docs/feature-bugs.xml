@@ -1,1152 +1,379 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <implementation-plan>
   <metadata>
-    <title>ChordPro System-Wide Feature and Bug Analysis</title>
-    <version>1.0</version>
+    <title>ChordPro Feature and Bug Plan (Migrated)</title>
+    <version>2.0</version>
     <date>2026-02-08</date>
-    <status>Initial comprehensive analysis</status>
+    <status>Full code analysis (2026-02-08)</status>
     <summary>
-      Complete analysis of the ChordPro codebase (v6.090_040, html5 branch).
-      93 Perl modules (~40,500 LoC), 149 test files, 14 output backends.
-      Covers: architecture issues, cross-backend feature gaps, open bugs,
-      technical debt, and recommended improvements.
-      
-      Key findings:
-      - HTML5 backend (1,882 lines) has reached feature parity with PDF for print mode (18/18 features done)
-      - 7 bugs tracked in HTML5 (7 fixed, including image scaling)
-      - Legacy backends (HTML, Text, LaTeX, MMA) have significant feature gaps vs PDF/HTML5
-      - Architecture migration from procedural to Object::Pad is ~40% complete (3 of 8 backends migrated)
-      - Parser (Song.pm) is monolithic at 2,827 lines — refactoring opportunity
-      - 20+ TODO/FIXME markers in production code
+      Full code analysis completed. Codebase is Perl 5.26+ with Object::Pad backends, a
+      parse -> transform -> render pipeline, JSON config hierarchy, and Template::Toolkit
+      templates for HTML5 and LaTeX. Docs are built with Hugo in docs/.
     </summary>
   </metadata>
 
-  <architecture>
-    <description>
-      ChordPro follows a Parse → Transform → Render pipeline:
-      
-      1. PARSE: Song.pm reads .cho files, builds element-array song structures
-         containing directives (songline, chorus, verse, tab, grid, comment, image, etc.)
-      2. TRANSFORM: Chords/*.pm handles transposition and notation system conversion
-         during parse phase (standard, latin, nashville, roman, solfege, german, etc.)
-      3. RENDER: Output/*.pm backends convert song structure to target format
-         via generate_songbook() and generate_song() entry points.
-      
-      Two backend architectures coexist:
-      - Modern: Object::Pad classes inheriting from ChordProBase (HTML5, Markdown, Meta)
-      - Legacy: Procedural modules with monolithic functions (PDF, HTML, Text, LaTeX, MMA, ChordPro, JSON, Debug)
-      
-      Configuration is JSON-based with hierarchical merging:
-      builtin (chordpro.json) → sysconfig → userconfig → CLI --define
-      
-      Resources (fonts, templates, configs) resolved via ChordPro::Paths (CP->findres()).
-      Templates use Template::Toolkit (HTML5, LaTeX backends).
-      
-      GUI provided via wxWidgets (17 modules in ChordPro::Wx::*), shares core with CLI.
-      
-      Delegate system handles external notation: ABC (bundled abc2svg via QuickJS),
-      LilyPond (external binary), Grille, Strum patterns, TextBlock, SVG passthrough.
-    </description>
-    <architecture-patterns>
-      <pattern>Parse-Transform-Render Pipeline</pattern>
-      <pattern>Object::Pad OOP (modern backends) — field/method/BUILD</pattern>
-      <pattern>Handler Registry Pattern (ChordProBase element dispatch)</pattern>
-      <pattern>Template::Toolkit for output generation (HTML5, LaTeX)</pattern>
-      <pattern>JSON Configuration with hierarchical merge</pattern>
-      <pattern>Delegate Pattern for external notation systems</pattern>
-      <pattern>Resource Resolution via Paths.pm (CP->findres)</pattern>
-    </architecture-patterns>
-    <dependencies>
-      <dependency>Perl 5.26+ with signatures and Object::Pad 0.818+</dependency>
-      <dependency>PDF::API2 2.045+ for PDF generation</dependency>
-      <dependency>JavaScript::QuickJS 0.18+ for embedded abc2svg engine</dependency>
-      <dependency>Template::Toolkit for HTML5 and LaTeX template processing</dependency>
-      <dependency>HarfBuzz::Shaper 0.026+ for text shaping</dependency>
-      <dependency>Text::Layout 0.045+ for text layout engine</dependency>
-      <dependency>JSON::XS 4.03+ (fast JSON) and JSON::Relaxed (relaxed parsing)</dependency>
-      <dependency>Image::Info 1.41+ for image metadata</dependency>
-      <dependency>LWP::Protocol::https 6.14+ for HTTPS resource fetching</dependency>
-      <dependency>External: LilyPond binary (optional, for LilyPond delegate)</dependency>
-      <dependency>External: paged.js JavaScript library (bundled, for HTML5 print mode)</dependency>
-    </dependencies>
-    <interfaces>
-      <interface type="Inbound">CLI: script/chordpro.pl — parses .cho files, selects backend, writes output</interface>
-      <interface type="Inbound">GUI: script/wxchordpro.pl — wxWidgets frontend for interactive editing/preview</interface>
-      <interface type="Inbound">Config: JSON config files (chordpro.json + user/system overrides)</interface>
-      <interface type="Outbound">PDF output via PDF::API2</interface>
-      <interface type="Outbound">HTML5 output (responsive/screen/print modes) via Template::Toolkit</interface>
-      <interface type="Outbound">Markdown, LaTeX, Text, HTML, JSON, MMA, ChordPro output formats</interface>
-      <interface type="Outbound">SVG chord diagrams (ChordDiagram::SVG module)</interface>
-      <interface type="Outbound">Delegate SVG: abc2svg (JavaScript), LilyPond (external), Grille, Strum</interface>
-    </interfaces>
-    <design-decisions>
-      <decision>Object::Pad chosen over Moose/Moo for modern OOP — lighter weight, core-compatible path</decision>
-      <decision>Template::Toolkit for HTML5/LaTeX — separates markup from logic, user-customizable</decision>
-      <decision>Restricted hashes from JSON::Relaxed — catches typos in config keys at runtime</decision>
-      <decision>Element-array song structure (not AST/DOM) — simple, flat, easy to iterate in backends</decision>
-      <decision>Metadata as arrayrefs — supports multi-value fields (multiple artists, subtitles)</decision>
-      <decision>Backend-owned structurization — each backend calls structurize() if needed, not central dispatch</decision>
-      <decision>Bundled abc2svg via QuickJS — no external dependency for ABC notation</decision>
-      <decision>SVG chord diagrams at 4em width — scales with font size across all display contexts</decision>
-      <decision>Base64 image embedding in HTML5 — portable, self-contained output files</decision>
-    </design-decisions>
-    <security>
-      <security-issue>
-        <thread>External delegate execution</thread>
-        <potential-vulnerability>Delegate/Program.pm executes external programs — command injection possible if filenames/options unsanitized</potential-vulnerability>
-      </security-issue>
-      <security-issue>
-        <thread>LWP resource fetching</thread>
-        <potential-vulnerability>Config and resource files can be fetched via HTTPS — SSRF risk if user-controlled URLs not validated</potential-vulnerability>
-      </security-issue>
-    </security>
-  </architecture>
+  <items>
+    <item id="7" type="feature" status="PENDING" priority="MEDIUM" complexity="M">
+      <title>Markdown Backend Feature Completeness</title>
+      <justification><![CDATA[
+Source: ai-docs/feature-bugs.xml item 7 (branch: Backends).
+Markdown.pm is a modern backend but may lack chord diagrams, keyboard diagrams, image embedding,
+delegate rendering, and volta bracket representation. A complete Markdown backend improves
+documentation and publishing use cases.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="7.1"><![CDATA[Audit Markdown.pm for missing element handlers vs ChordProBase.]]></task>
+        <task id="7.2"><![CDATA[Add chord diagram rendering (ASCII or reference link pattern).]]></task>
+        <task id="7.3"><![CDATA[Add delegate result embedding (as images or SVG blocks).]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/73_md.t</file>
+            <description>Extend markdown tests to cover all element types.</description>
+            <assertions>Correct markdown syntax for all elements and delegates.</assertions>
+          </test>
+          <test type="human">
+            <file></file>
+            <description>Generate markdown from a full-featured .cho file and validate in a renderer.</description>
+            <assertions>Readable output with diagrams and delegates represented.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- OPEN BUG: Image scaling relative to page width (HTML5)              -->
-  <!-- ================================================================== -->
+    <item id="17" type="feature" status="PENDING" priority="LOW" complexity="M">
+      <title>API and Configuration Documentation</title>
+      <justification><![CDATA[
+Source: ai-docs/feature-bugs.xml item 17 (branch: Documentation).
+HTML5 configuration (html5.mode, html5.templates, html5.paged.*) and backend selection via
+{format}.module lack user-facing documentation. Docs exist in docs/ but HTML5 sections are sparse.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="17.1"><![CDATA[Document HTML5 backend configuration in docs/content/.]]></task>
+        <task id="17.2"><![CDATA[Document backend selection via {format}.module for end users.]]></task>
+        <task id="17.3"><![CDATA[Add examples for print mode, chord diagrams, section labels, and grids.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="human">
+            <file></file>
+            <description>Build docs site and verify HTML5 sections render correctly.</description>
+            <assertions>Docs include HTML5 config, examples, and backend selection notes.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
 
-  <feature-or-bug id="1">
-    <title>Image Scale Relative to Page Width (HTML5)</title>
-    <branch>HTML5</branch>
-    <priority>HIGH</priority>
-    <implementation-decision>implement</implementation-decision>
-    <reason>
-      Bug 7 from ai-docs/bugs.xml. When an image has a scale parameter (e.g., scale=0.5),
-      the HTML5 backend should size it relative to the page/container width, matching PDF behavior.
-      Currently the scale parameter is not applied or is applied incorrectly in HTML5 output.
-      This is the only remaining open bug from the HTML5 feature parity work.
-      But only for images that are scaled — unscaled images should still render at natural size. The fix should ensure that the scale parameter is applied as a percentage width in CSS (e.g., style="width: 50%") to achieve the desired scaling effect in HTML5 output. This will ensure that images scale appropriately in both responsive and paged modes, matching the behavior of the PDF backend.
-      Scaling of the ChordsDiagram delegate output (which is SVG) should also be verified to ensure it scales correctly with the page width when the scale parameter is used.
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>CSS percentage width may not match PDF's exact scaling behavior.
-      Mitigation: Use CSS width percentage (scale * 100%) on img elements, which
-      approximates PDF's page-width-relative scaling for most use cases.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">In lib/ChordPro/Output/HTML5.pm, locate image rendering (render_image or 
-      _render_image_template method). Add handling for $element->{opts}->{scale} parameter — 
-      convert to CSS width percentage and pass to the image template.</task>
-      <task id="2">Update lib/ChordPro/res/templates/html5/image.tt to apply width style 
-      when scale is provided: style="width: [% scale_pct %]%".</task>
-      <task id="3">Test with various scale values (0.25, 0.5, 0.75, 1.0) in both 
-      responsive and paged modes.</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Create .cho file with {image: src=test.png scale=0.5}</step>
-        <step order="2">Generate HTML5 output in both responsive and paged modes</step>
-        <step order="3">Verify image width is ~50% of container width</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="Can test CSS output contains correct width percentage">
+    <item id="48" type="bug" status="PENDING" priority="MEDIUM" complexity="S">
+      <title>Lyrics-Only Verse Spacing in HTML5</title>
+      <justification><![CDATA[
+Source: ai-docs/bugs.xml bug 6.
+If a verse has no chords, HTML5 still renders chord placeholders that reserve vertical space.
+Lyrics-only lines should not allocate chord spacing.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="48.1"><![CDATA[Track whether a songline has any chords and render a lyrics-only span when none exist.]]></task>
+        <task id="48.2"><![CDATA[Update HTML5 songline template to skip chord placeholders for lyrics-only lines.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/190_html5_bug6_lyrics_only.t</file>
+            <description>Verify lyrics-only lines do not include chord placeholders.</description>
+            <assertions>Lyrics-only lines render without reserved chord row space.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="49" type="bug" status="PENDING" priority="HIGH" complexity="S">
+      <title>Image Scale Uses Page Width in HTML5</title>
+      <justification><![CDATA[
+Source: ai-docs/bugs.xml bug 7.
+When image scale is provided, HTML5 should scale relative to page/container width,
+matching PDF behavior.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="49.1"><![CDATA[Apply scale factor as CSS width percentage when scale is provided.]]></task>
+        <task id="49.2"><![CDATA[Ensure delegate SVG outputs scale correctly when scale is used.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/191_html5_image_scale.t</file>
+            <description>Verify scale=0.5 yields width: 50% in HTML5 output.</description>
+            <assertions>Image has CSS width percentage matching scale value.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+  </items>
+
+  <archive>
+    <item id="1" type="bug" status="DONE" priority="HIGH" complexity="S" archived="2026-02-08">
+      <title>Image Scale Relative to Page Width (HTML5)</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 1.]]></justification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[Implemented scale-as-percentage for HTML5 images and added regression coverage.]]></observations>
+        <lessons-learned><![CDATA[Apply scaling in both template-based images and direct render_image paths.]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/image.tt</file>
           <file>t/191_html5_image_scale.t</file>
-          <description>Test image scale parameter produces correct CSS width</description>
-          <assertions>Image element has style="width: 50%" when scale=0.5</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>DONE</my-result>
-      <list-of-results>Implemented scale-as-percentage for HTML5 images (including delegate image rendering) and added regression coverage in t/191_html5_image_scale.t.</list-of-results>
-      <lessons-learned>HTML5 image scaling needs to be applied in both template-based images and direct render_image paths.</lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Output/HTML5.pm</file>
-        <file>lib/ChordPro/res/templates/html5/image.tt</file>
-        <file>ai-docs/bugs.xml (Bug 7)</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
+        </files>
+      </r>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- ARCHITECTURE: Legacy backend migration to Object::Pad               -->
-  <!-- ================================================================== -->
+    <item id="2" type="refactoring" status="DENIED" priority="MEDIUM" complexity="L" archived="2026-02-08">
+      <title>Legacy Backend Migration to Object::Pad</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 2. Deferred; PDF backend too large and other backends are lower priority.]]></justification>
+    </item>
 
-  <feature-or-bug id="2">
-    <title>Legacy Backend Migration to Object::Pad</title>
-    <branch>Architecture</branch>
-    <priority>MEDIUM</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      5 of 8 backends still use legacy procedural pattern (PDF, HTML, Text, LaTeX, MMA+ChordPro output).
-      The modern Object::Pad + ChordProBase pattern (HTML5, Markdown, Meta) provides:
-      - Handler registry for element dispatch (vs 500+ line if/elsif chains)
-      - Inheritance for shared behavior (Base → ChordProBase → Backend)
-      - Field encapsulation (vs global variables)
-      - Testability (method-level testing vs monolithic function testing)
-      
-      Migration should be incremental — one backend at a time, starting with simplest.
-      Priority order: Text.pm (305 lines) → HTML.pm (434 lines) → LaTeX.pm (343 lines) → ChordPro.pm (574 lines).
-      PDF.pm (1,082 + 5,245 sub-modules) is too large for near-term migration.
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>Breaking backward compatibility during migration. 
-      Mitigation: Maintain identical output for all existing test cases. 
-      Run full test suite after each backend migration.</risk>
-      <risk>PDF backend too complex for migration.
-      Mitigation: Leave PDF as-is; focus on simpler backends first. 
-      PDF has 6 sub-modules totaling 5,245 lines — would need phased approach.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Migrate Text.pm (305 lines, simplest backend) to Object::Pad + ChordProBase pattern</task>
-      <task id="2">Migrate HTML.pm (434 lines) — can share template patterns with HTML5</task>
-      <task id="3">Migrate LaTeX.pm (343 lines) — already uses Template::Toolkit</task>
-      <task id="4">Migrate ChordPro.pm output (574 lines) — note: requires unstructured songs, 
-      may need ChordProBase method override for structurization bypass</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Run full test suite after each backend migration</step>
-        <step order="2">Compare output of migrated backend against reference files</step>
-        <step order="3">Verify all directive types handled identically</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="Existing tests validate output correctness">
-          <file>t/70_a2crd.t through t/74_latex.t</file>
-          <description>Backend-specific tests must continue passing</description>
-          <assertions>Identical output to reference files</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not started. 3 of 8 backends migrated (HTML5, Markdown, Meta). 5 remain.</list-of-results>
-      <lessons-learned>
-        HTML5 migration proved the pattern works well. Markdown migration demonstrated
-        that ChordProBase provides sufficient abstraction for most backends.
-        Key lesson: backends that need unstructured songs (ChordPro output) require
-        careful handling of the structurize() call.
-      </lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Output/Base.pm</file>
-        <file>lib/ChordPro/Output/ChordProBase.pm</file>
-        <file>lib/ChordPro/Output/Text.pm</file>
-        <file>lib/ChordPro/Output/HTML.pm</file>
-        <file>lib/ChordPro/Output/LaTeX.pm</file>
-        <file>lib/ChordPro/Output/ChordPro.pm</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
+    <item id="3" type="tech-debt" status="DENIED" priority="LOW" complexity="L" archived="2026-02-08">
+      <title>Song.pm Parser Decomposition</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 3. Deferred due to high regression risk.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- TECHNICAL DEBT: Song.pm parser monolith                            -->
-  <!-- ================================================================== -->
+    <item id="4" type="feature" status="DENIED" priority="LOW" complexity="S" archived="2026-02-08">
+      <title>Legacy HTML Backend Feature Gap</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 4. HTML5 supersedes legacy HTML backend.]]></justification>
+    </item>
 
-  <feature-or-bug id="3">
-    <title>Song.pm Parser Decomposition</title>
-    <branch>Architecture</branch>
-    <priority>LOW</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      Song.pm is the largest module at 2,827 lines. It handles:
-      - Directive parsing (~800 lines of if/elsif chains)
-      - Grid decomposition (decompose_grid, lines 1037-1180)
-      - Structurization (structurize(), ~200 lines)
-      - Chord transposition during parse
-      - Context tracking (verse/chorus/tab/grid)
-      - Metadata extraction
-      
-      The monolithic structure makes it hard to:
-      - Test individual parsing features in isolation
-      - Add new directive types without risk of regressions
-      - Understand the full parsing pipeline
-      
-      Decomposition candidates:
-      - Extract DirectiveParser module for directive handling
-      - Extract GridParser for decompose_grid()
-      - Extract Structurizer for structurize()
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>High risk of regressions — Song.pm is the most critical module.
-      Mitigation: Extensive test coverage (40+ tests directly exercise parser).
-      Extract one component at a time with full test verification.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Identify clean extraction boundaries in Song.pm</task>
-      <task id="2">Extract decompose_grid() into ChordPro::Song::GridParser</task>
-      <task id="3">Extract structurize() into ChordPro::Song::Structurizer</task>
-      <task id="4">Extract directive parsing into ChordPro::Song::DirectiveParser</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">All 149 tests must pass after each extraction</step>
-        <step order="2">No change in output for any backend</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="Existing tests cover parser behavior extensively">
-          <file>t/100_basic.t through t/181_grids.t</file>
-          <description>Core parser tests validate all directive types</description>
-          <assertions>Identical song structures produced</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not started. Low priority — code works but is hard to maintain.</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Song.pm</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
+    <item id="5" type="feature" status="DENIED" priority="LOW" complexity="M" archived="2026-02-08">
+      <title>Text Backend Feature Gaps</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 5. Deferred until backend migration.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- FEATURE GAP: Legacy HTML backend vs HTML5                           -->
-  <!-- ================================================================== -->
+    <item id="6" type="tech-debt" status="DENIED" priority="LOW" complexity="M" archived="2026-02-08">
+      <title>TODO/FIXME Cleanup in Production Code</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 6. Deferred; investigate markers individually when touched.]]></justification>
+    </item>
 
-  <feature-or-bug id="4">
-    <title>Legacy HTML Backend Feature Gap</title>
-    <branch>Backends</branch>
-    <priority>LOW</priority>
-    <implementation-decision>denied</implementation-decision>
-    <reason>
-      The legacy HTML.pm (434 lines) lacks many features present in HTML5.pm (1,882 lines):
-      - No chord diagrams
-      - No paged mode / print support
-      - No Template::Toolkit (hardcoded HTML)
-      - No delegate rendering (ABC, LilyPond)
-      - No annotation support
-      - No grid bar lines or volta brackets
-      - No image embedding (base64)
-      - No keyboard diagrams
-      
-      DENIED because: HTML5 backend supersedes HTML.pm entirely. Users should use
-      config `{"html":{"module":"HTML5"}}` to get modern HTML output.
-      Investing in the legacy HTML backend would be wasted effort.
-      The long-term plan should be to deprecate HTML.pm in favor of HTML5.pm.
-    </reason>
-  </feature-or-bug>
+    <item id="8" type="tech-debt" status="DENIED" priority="MEDIUM" complexity="M" archived="2026-02-08">
+      <title>Test Coverage for Underserved Backends</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 8. Deferred due to scope and limited immediate need.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- FEATURE GAP: Text backend missing features                          -->
-  <!-- ================================================================== -->
+    <item id="9" type="bug" status="DENIED" priority="MEDIUM" complexity="M" archived="2026-02-08">
+      <title>Roman Numeral Chord Notation - Parser Gaps</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 9. Deferred; existing tests pass, potential edge cases noted.]]></justification>
+    </item>
 
-  <feature-or-bug id="5">
-    <title>Text Backend Feature Gaps</title>
-    <branch>Backends</branch>
-    <priority>LOW</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      Text.pm (305 lines) is the simplest backend but lacks:
-      - Chord diagram rendering (ASCII art diagrams)
-      - Grid line rendering (bar symbols as text)
-      - Memorize/recall support
-      - Annotation rendering
-      - Section labels
-      
-      Text output is useful for accessibility, terminal display, and as input
-      to other text processing tools. Basic completeness would improve utility.
-    </reason>
-    <depends-on>2 (migration to Object::Pad first would make this easier)</depends-on>
-    <implementation-risks>
-      <risk>ASCII art chord diagrams may not render well in all terminals.
-      Mitigation: Use simple box-drawing characters, make diagrams optional.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Add grid line rendering with ASCII bar symbols (|, ||, :|, |:, etc.)</task>
-      <task id="2">Add optional ASCII chord diagrams (similar to guitar tab sites)</task>
-      <task id="3">Add memorize/recall section duplication</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Generate text output with grids, chords, and sections</step>
-        <step order="2">Verify all content types render as readable text</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="Text output can be string-compared">
-          <file>testing/text_features.t</file>
-          <description>Test grid and diagram rendering in text output</description>
-          <assertions>Correct ASCII representation of musical notations</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not started.</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Output/Text.pm</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
+    <item id="10" type="bug" status="DENIED" priority="HIGH" complexity="S" archived="2026-02-08">
+      <title>Debug Warnings in Production Delegate Code</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 10. Deferred; requires GUI and delegate adjustments.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- TECHNICAL DEBT: TODO/FIXME markers in production code               -->
-  <!-- ================================================================== -->
+    <item id="11" type="tech-debt" status="DENIED" priority="MEDIUM" complexity="L" archived="2026-02-08">
+      <title>PDF Backend Incomplete Code Paths</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 11. Deferred due to PDF backend complexity.]]></justification>
+    </item>
 
-  <feature-or-bug id="6">
-    <title>TODO/FIXME Cleanup in Production Code</title>
-    <branch>Quality</branch>
-    <priority>LOW</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      20+ TODO/FIXME/HACK/XXX markers exist in production code:
-      
-      Critical:
-      - lib/ChordPro/Output/PDF.pm:826: "#### HACK ATTACK" — unclear workaround
-      - lib/ChordPro/Output/PDF.pm:856: "##### TODO: If still empty, need filler"
-      - lib/ChordPro/Output/PDF/Song.pm:811: "TODO????" — uncertain code
-      - lib/ChordPro/Output/PDF/Writer.pm:801: "####TODO: Why?" — unexplained logic
-      
-      Minor:
-      - lib/ChordPro/Song.pm:324: "TODO? ALREADY DONE?" — uncertain initialization
-      - lib/ChordPro/Song.pm:2688: "TODO roman?" — incomplete notation support
-      - lib/ChordPro/Chords/Parser.pm:897: "TODO: not for roman" — incomplete parser case
-      - lib/ChordPro.pm:1453: "####TODO: weed out for --reference"
-      - lib/ChordPro/Wx/Editor.pm:141: "TODO length" — margin width calculation
-      
-      Debug artifacts:
-      - lib/ChordPro/Delegate/Grille.pm:883: warn("XXX ...") — debug output left in
-      - lib/ChordPro/Wx/Editor.pm:249: die("XXX\n") — crash on font error
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>Some TODOs may indicate real bugs or edge cases.
-      Mitigation: Investigate each TODO before resolving — some may need actual fixes.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Review each TODO/FIXME/HACK/XXX marker for actual issues vs stale comments</task>
-      <task id="2">Remove debug warn("XXX") and die("XXX") calls</task>
-      <task id="3">Either implement the TODO or document why it's deferred</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Run full test suite after cleanup</step>
-        <step order="2">grep -r for remaining markers to confirm cleanup</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="NO" reason="Cleanup is code hygiene, not behavioral change">
-          <file></file>
-          <description></description>
-          <assertions></assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not started.</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Output/PDF.pm</file>
-        <file>lib/ChordPro/Output/PDF/Song.pm</file>
-        <file>lib/ChordPro/Output/PDF/Writer.pm</file>
-        <file>lib/ChordPro/Song.pm</file>
-        <file>lib/ChordPro/Delegate/Grille.pm</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
+    <item id="12" type="feature" status="DENIED" priority="LOW" complexity="M" archived="2026-02-08">
+      <title>Config Validation and Error Reporting</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 12. Deferred; restricted hash errors remain a known pitfall.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- FEATURE: Markdown backend completeness                              -->
-  <!-- ================================================================== -->
+    <item id="13" type="feature" status="DONE" priority="CRITICAL" complexity="L" archived="2026-02-08">
+      <title>HTML5 Print Mode - Feature Parity with PDF (Completed)</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 13.]]></justification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[HTML5 print parity achieved with comprehensive template and backend updates and extensive tests.]]></observations>
+        <lessons-learned><![CDATA[Restricted hash handling and dashed TT keys are common pitfalls.]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/</file>
+          <file>t/html5/</file>
+          <file>t/html5paged/</file>
+        </files>
+      </r>
+    </item>
 
-  <feature-or-bug id="7">
-    <title>Markdown Backend Feature Completeness</title>
-    <branch>Backends</branch>
-    <priority>MEDIUM</priority>
-    <implementation-decision>implement</implementation-decision>
-    <reason>
-      Markdown.pm (507 lines) is a modern Object::Pad backend but may lack:
-      - Chord diagram rendering (could use ASCII or reference links)
-      - Keyboard diagram support
-      - Image embedding (currently passes through file references)
-      - Complete delegate rendering 
-      - Volta bracket representation
-      
-      Markdown is increasingly used for documentation and web publishing.
-      A feature-complete Markdown backend would serve songbook documentation use cases.
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>Markdown has no standard for chord diagrams or musical notation.
-      Mitigation: Use fenced code blocks for diagrams, image references for delegates.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Audit Markdown.pm for missing element type handlers vs ChordProBase</task>
-      <task id="2">Add chord diagram rendering (ASCII or reference-link pattern)</task>
-      <task id="3">Add delegate result embedding (as images or SVG blocks)</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Generate markdown from test .cho files with all element types</step>
-        <step order="2">Verify readable output in standard markdown renderers</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="Markdown text output is easily testable">
-          <file>t/73_md.t</file>
-          <description>Existing markdown tests plus new feature coverage</description>
-          <assertions>Correct markdown syntax for all element types</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not audited yet. Markdown.pm was recently refactored (+831/-368 lines on html5 branch).</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Output/Markdown.pm</file>
-        <file>t/73_md.t</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
-
-  <!-- ================================================================== -->
-  <!-- FEATURE: Test coverage for LaTeX and MMA backends                    -->
-  <!-- ================================================================== -->
-
-  <feature-or-bug id="8">
-    <title>Test Coverage for Underserved Backends</title>
-    <branch>Quality</branch>
-    <priority>MEDIUM</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      Test coverage is uneven across backends:
-      - PDF: Well tested (implicit via many reference tests)
-      - HTML5: Excellent (20+ dedicated tests in t/80-93, t/html5/, t/html5paged/)
-      - Markdown: 1 test file (t/73_md.t)
-      - LaTeX: 1 test file (t/74_latex.t)
-      - MMA: 1 test file (t/72_mma.t)
-      - Text: 0 dedicated test files (some coverage via basic tests)
-      - HTML: 1 test file (t/40_basic01_html.t)
-      - JSON/Debug: 0 test files
-      
-      Backends with single tests may have broken features that go undetected.
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>Writing tests may reveal existing bugs.
-      Mitigation: Track discovered bugs as new entries in this plan.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Create comprehensive LaTeX backend tests (directive coverage, template rendering)</task>
-      <task id="2">Create MMA backend tests (chord output, timing, measure structure)</task>
-      <task id="3">Create Text backend tests (songline alignment, chorus indentation)</task>
-      <task id="4">Create JSON backend test (structure completeness, round-trip validation)</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">All new tests pass</step>
-        <step order="2">Coverage of all element types in each tested backend</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="All backends produce text-based output that can be validated">
-          <file>testing/latex_comprehensive.t</file>
-          <description>Comprehensive LaTeX backend validation</description>
-          <assertions>All directive types produce valid LaTeX</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not started.</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>t/74_latex.t</file>
-        <file>t/72_mma.t</file>
-        <file>t/40_basic01_html.t</file>
-        <file>lib/ChordPro/Output/LaTeX.pm</file>
-        <file>lib/ChordPro/Output/MMA.pm</file>
-        <file>lib/ChordPro/Output/Text.pm</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
-
-  <!-- ================================================================== -->
-  <!-- FEATURE: Roman numeral chord notation completeness                   -->
-  <!-- ================================================================== -->
-
-  <feature-or-bug id="9">
-    <title>Roman Numeral Chord Notation — Parser Gaps</title>
-    <branch>Core</branch>
-    <priority>MEDIUM</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      Two TODO markers in chord handling suggest incomplete Roman numeral support:
-      - Chords/Parser.pm:897: "TODO: not for roman" — a code path that should differ for Roman
-      - Song.pm:2688: "TODO roman?" — uncertain handling of Roman in a specific context
-      
-      Roman numeral notation (I, ii, bIII, IV, V, vi, vii°) is used in music theory analysis.
-      Nashville numbers are closely related. Both should work consistently through the
-      parse → transpose → render pipeline.
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>Changes to chord parsing affect all backends.
-      Mitigation: Extensive chord tests exist (t/109_chords_nashville.t, t/110_chords_roman.t).
-      Run all chord tests after any change.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Investigate the two TODO markers and determine what's actually missing</task>
-      <task id="2">Fix or document the Roman-specific parser cases</task>
-      <task id="3">Verify transposition works correctly for Roman numerals across all keys</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Run t/110_chords_roman.t</step>
-        <step order="2">Test Roman chord transposition through all 12 keys</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="Chord tests already exist for Roman notation">
-          <file>t/110_chords_roman.t</file>
-          <description>Existing Roman chord tests</description>
-          <assertions>Correct parsing and transposition of Roman numeral chords</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not investigated. TODO markers suggest edge cases not handled.</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Chords/Parser.pm (line 897)</file>
-        <file>lib/ChordPro/Song.pm (line 2688)</file>
-        <file>t/110_chords_roman.t</file>
-        <file>lib/ChordPro/res/config/notes/roman.json</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
-
-  <!-- ================================================================== -->
-  <!-- BUG: Debug warnings left in production code                         -->
-  <!-- ================================================================== -->
-
-  <feature-or-bug id="10">
-    <title>Debug Warnings in Production Delegate Code</title>
-    <branch>Quality</branch>
-    <priority>HIGH</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      Active debug output left in production code:
-      - lib/ChordPro/Delegate/Grille.pm:883: warn("XXX \"$t\"\n") — outputs debug to STDERR
-        during grille processing, visible to users
-      - lib/ChordPro/Wx/Editor.pm:249: die("XXX\n") — crashes application on font loading error
-        instead of graceful handling
-      - lib/ChordPro/Output/PDF/StringDiagram.pm:367: warn("XXX ...") guarded by DIAG_DEBUG constant
-        (acceptable — debug-only)
-      - lib/ChordPro/Output/PDF/Song.pm:453: warn("XXX ...") commented out (acceptable)
-      
-      The Grille.pm warn is actively executed during normal operation and will confuse users.
-      The Editor.pm die will crash the GUI unexpectedly.
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>Removing die() in Editor.pm needs replacement error handling.
-      Mitigation: Replace with warn() + fallback font, or display error dialog.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Remove or guard Grille.pm:883 warn("XXX") — either remove or put behind debug flag</task>
-      <task id="2">Replace Editor.pm:249 die("XXX") with proper error handling (warn + fallback)</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Process a .cho file with grille notation — no XXX output to STDERR</step>
-        <step order="2">GUI handles missing fonts gracefully without crashing</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="NO" reason="Grille delegate requires complex setup; GUI requires wxWidgets">
-          <file></file>
-          <description></description>
-          <assertions></assertions>
-        </unit-test>
-      </unit-tests>
-      <human-tests>
-        <human-test id="1">
-          Open wxchordpro with a song file. Deliberately misconfigure a font in settings.
-          Expect: error dialog or warning message, NOT application crash.
-        </human-test>
-        <human-test id="2">
-          Process a .cho file with {start_of_grille}...{end_of_grille} content.
-          Expect: no "XXX" debug output on terminal/console.
-        </human-test>
-      </human-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not fixed. Debug output actively visible to users.</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Delegate/Grille.pm (line 883)</file>
-        <file>lib/ChordPro/Wx/Editor.pm (line 249)</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
-
-  <!-- ================================================================== -->
-  <!-- FEATURE: PDF backend TODO markers                                    -->
-  <!-- ================================================================== -->
-
-  <feature-or-bug id="11">
-    <title>PDF Backend Incomplete Code Paths</title>
-    <branch>PDF</branch>
-    <priority>MEDIUM</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      Several TODO markers in the PDF backend suggest incomplete implementation:
-      
-      1. PDF.pm:826: "HACK ATTACK" — workaround code that should be properly fixed
-      2. PDF.pm:856: "TODO: If still empty, need filler" — empty content handling gap
-      3. PDF/Song.pm:811: "TODO????" — uncertain vertical spacing calculation (cy = y + vsp(ps,-2))
-      4. PDF/Song.pm:2478: "for handlers TODO" — incomplete handler migration
-      5. PDF/Writer.pm:748: "TODO?" — outline collapse behavior uncertain
-      6. PDF/Writer.pm:801: "TODO: Why?" — code exists without understanding of purpose
-      
-      The PDF backend is the most feature-rich and most used. These TODO markers
-      indicate possible edge-case bugs or fragile code paths.
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>PDF rendering is complex with many interdependent calculations.
-      Mitigation: Investigate each TODO individually; make changes incrementally with
-      full test suite verification between changes.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Investigate "HACK ATTACK" (line 826) — understand why the hack exists and fix properly</task>
-      <task id="2">Handle empty content case (line 856) — add proper filler or skip logic</task>
-      <task id="3">Clarify vertical spacing calculation (Song.pm:811) — test with various font sizes</task>
-      <task id="4">Document or fix Writer.pm uncertainties (lines 748, 801)</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Run all PDF-generating tests</step>
-        <step order="2">Generate PDF from complex .cho files with edge cases</step>
-        <step order="3">Visual inspection of PDF output for spacing/layout issues</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="PDF output tests exist but are limited">
-          <file>t/ (tests generating PDF output)</file>
-          <description>Existing PDF tests validate basic output</description>
-          <assertions>No visual regressions in PDF output</assertions>
-        </unit-test>
-      </unit-tests>
-      <human-tests>
-        <human-test id="1">
-          Generate PDF from a song with many sections (verse, chorus, bridge, tab, grid).
-          Visually verify spacing, alignment, and page breaks are correct.
-        </human-test>
-      </human-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not investigated. PDF backend has highest code complexity.</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Output/PDF.pm</file>
-        <file>lib/ChordPro/Output/PDF/Song.pm</file>
-        <file>lib/ChordPro/Output/PDF/Writer.pm</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
-
-  <!-- ================================================================== -->
-  <!-- FEATURE: Config schema validation improvements                      -->
-  <!-- ================================================================== -->
-
-  <feature-or-bug id="12">
-    <title>Config Validation and Error Reporting</title>
-    <branch>Core</branch>
-    <priority>LOW</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      The config system uses restricted hashes (JSON::Relaxed) which catch typos at runtime,
-      but the error messages ("Attempt to access disallowed key 'X' in restricted hash") are
-      cryptic for users. Additionally:
-      - Config schema (config.schema) exists but validation is limited
-      - No clear error when a config file has valid JSON but invalid ChordPro options
-      - The `--define` CLI option can set arbitrary keys without validation
-      
-      Better config validation would prevent common user errors and reduce support burden.
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-risks>
-      <risk>Strict validation might reject previously working configs.
-      Mitigation: Warn on unknown keys rather than error; provide migration guidance.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Improve error messages for restricted hash access violations</task>
-      <task id="2">Add friendly warnings for common config mistakes</task>
-      <task id="3">Validate --define values against schema when possible</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Deliberately misconfigure a value and check error message clarity</step>
-        <step order="2">Use --define with invalid key and verify warning</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="Config loading produces testable errors/warnings">
-          <file>testing/config_validation.t</file>
-          <description>Test config error messages for common mistakes</description>
-          <assertions>Clear, actionable error messages for invalid config</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not started.</list-of-results>
-      <lessons-learned>
-        Restricted hash errors are the most common pitfall reported in development.
-        Phase 4 of HTML5 work discovered multiple restricted hash issues during
-        template variable passing. The eval{} + clone pattern is effective but tedious.
-      </lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Config.pm</file>
-        <file>lib/ChordPro/res/config/config.schema</file>
-        <file>lib/ChordPro/res/config/chordpro.json</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
-
-  <!-- ================================================================== -->
-  <!-- COMPLETED: HTML5 Print Mode Feature Parity (reference)              -->
-  <!-- ================================================================== -->
-
-  <feature-or-bug id="13">
-    <title>HTML5 Print Mode — Feature Parity with PDF (COMPLETED)</title>
-    <branch>HTML5</branch>
-    <priority>CRITICAL</priority>
-    <implementation-decision>implement</implementation-decision>
-    <reason>
-      18 features analyzed for HTML5 print mode parity with PDF backend.
-      12 implemented, 6 denied. All work tracked in ai-docs/HTML5_PRINT_Missing_Features.xml.
-      
-      Implemented features:
-      1. Paged Mode Activation (CRITICAL) — DONE
-      2. FormatGenerator Integration / Headers-Footers (CRITICAL) — DONE
-      3. Chorus Recall / Rechorus (HIGH) — DONE
-      4. Delegate Support / ABC+LilyPond (HIGH) — DONE
-      5. Annotation Support (MEDIUM) — DONE
-      6. Comment Box Styling (HIGH) — DONE
-      7. Section Label Display (HIGH) — DONE
-      8. Grid Bar Lines and Repeat Symbols (MEDIUM) — DONE
-      9. Volta Brackets (MEDIUM) — DONE
-      10. Image Alignment and Sizing (MEDIUM) — DONE
-      11. Chord Diagram Positioning (MEDIUM) — DONE
-      12. Chords-Under Mode (MEDIUM) — DONE
-      13. Inline Chords Mode (MEDIUM) — DONE
-      14. Keyboard Diagram Rendering (MEDIUM) — DONE
-      15. Table of Contents (HIGH) — DONE
-      16. Odd/Even Page Differentiation (MEDIUM) — DONE
-      17. Songbook Parts / Cover+Matter (LOW) — DONE
-      18. Song Sorting (LOW) — DONE
-      
-      Denied features (with justification):
-      D1. Chords Column (Side Column) — Complex PDF-specific layout, CSS Grid alternative
-      D2. Strum Patterns — Requires SVG generation matching PDF's rendering
-      D3. PDF Bookmarks/Outlines — paged.js limitation, no browser equivalent
-      D4. CSV Export (MobileSheets) — Unrelated to HTML5 rendering
-      D5. Font Embedding — Browser handles fonts natively
-      D6. Background PDF Page Underlays — PDF-specific feature, no HTML equivalent
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-details>
-      <task id="1">See ai-docs/HTML5_PRINT_Missing_Features.xml for full implementation details</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">All 149 tests pass</step>
-        <step order="2">HTML5 paged mode produces paginated output with headers/footers</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="Full test suite exists">
-          <file>t/75_html5.t, t/76_html5paged.t, t/html5/, t/html5paged/, t/80-93, t/190</file>
-          <description>Comprehensive HTML5 test coverage (40+ test files)</description>
-          <assertions>All features render correctly in both responsive and paged modes</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>DONE</my-result>
-      <list-of-results>
-        All 12 implemented features completed and verified.
-        6 features denied with documented justification.
-        5,647 lines added, 368 removed across 32 files vs upstream/dev.
-        7 bugs found and addressed (6 fixed, 1 open — image scaling).
-        40+ test files provide comprehensive coverage.
-      </list-of-results>
-      <lessons-learned>
-        Template::Toolkit with Object::Pad is an effective combination for modern backends.
-        Restricted hash handling is the #1 integration challenge.
-        Template syntax for dashed keys (.item()) is non-obvious.
-        Paged.js provides good CSS @page support but has limitations (no bookmarks).
-        SVG chord diagrams at 4em scale well across all display sizes.
-        Grid rendering is too complex for templates — direct HTML generation is pragmatic.
-      </lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Output/HTML5.pm</file>
-        <file>lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm</file>
-        <file>lib/ChordPro/Output/ChordDiagram/SVG.pm</file>
-        <file>lib/ChordPro/Output/Base.pm</file>
-        <file>lib/ChordPro/Output/ChordProBase.pm</file>
-        <file>lib/ChordPro/res/templates/html5/ (30 template files)</file>
-        <file>ai-docs/HTML5_PRINT_Missing_Features.xml</file>
-        <file>ai-docs/bugs.xml</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
-
-  <!-- ================================================================== -->
-  <!-- COMPLETED: HTML5 Bugs 1-6 (reference)                              -->
-  <!-- ================================================================== -->
-
-  <feature-or-bug id="14">
-    <title>HTML5 Backend Bug Fixes 1-6 (COMPLETED)</title>
-    <branch>HTML5</branch>
-    <priority>HIGH</priority>
-    <implementation-decision>implement</implementation-decision>
-    <reason>
-      6 bugs fixed during HTML5 development:
-      1. Chord alignment (visibility:hidden vs display:none) — FIXED
-      2. Images not showing (asset URI resolution) — FIXED
-      3. Empty SRC tag (same root cause as #2) — FIXED
-      4. Delegate SVG/ABC not showing (data URI embedding) — FIXED
-      5. Double-escaped HTML entities (| html filter removed) — FIXED
-      6. Lyrics-only line spacing (conditional chord row) — FIXED
-      
-      All fixes verified with dedicated tests in t/190_html5_bugfixes.t (26 tests).
-    </reason>
-    <depends-on>13</depends-on>
-    <implementation-details>
-      <task id="1">See ai-docs/bugs.xml for full bug details and fixes</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">prove -bv t/190_html5_bugfixes.t — all 26 tests pass</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="All bugs have regression tests">
+    <item id="14" type="bug" status="DONE" priority="HIGH" complexity="M" archived="2026-02-08">
+      <title>HTML5 Backend Bug Fixes 1-6 (Completed)</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 14.]]></justification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[Fixed chord alignment, image handling, delegate rendering, entity escaping, and lyrics-only spacing with tests.]]></observations>
+        <lessons-learned><![CDATA[Visibility hidden preserves chord spacing; avoid double-escaping in TT templates.]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/</file>
           <file>t/190_html5_bugfixes.t</file>
-          <description>26 regression tests for bugs 1-6</description>
-          <assertions>No regressions in chord alignment, images, delegates, entity escaping, lyrics spacing</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>DONE</my-result>
-      <list-of-results>All 6 bugs fixed with regression tests.</list-of-results>
-      <lessons-learned>
-        Image handling requires both asset lookup (Song.pm stores separately) and 
-        base64 embedding for portability. Template::Toolkit's | html filter causes
-        double-escaping when content is already escaped. CSS visibility:hidden 
-        preserves layout space while display:none collapses it.
-      </lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Output/HTML5.pm</file>
-        <file>lib/ChordPro/res/templates/html5/css/songlines.tt</file>
-        <file>lib/ChordPro/res/templates/html5/song.tt</file>
-        <file>lib/ChordPro/res/templates/html5/paged/song.tt</file>
-        <file>t/190_html5_bugfixes.t</file>
-        <file>ai-docs/bugs.xml</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
+        </files>
+      </r>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- FEATURE: Strum pattern delegate for HTML5                           -->
-  <!-- ================================================================== -->
+    <item id="15" type="feature" status="DENIED" priority="LOW" complexity="M" archived="2026-02-08">
+      <title>Strum Pattern Rendering in HTML5</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 15. PDF-specific SVG coordinate system; limited demand.]]></justification>
+    </item>
 
-  <feature-or-bug id="15">
-    <title>Strum Pattern Rendering in HTML5</title>
-    <branch>HTML5</branch>
-    <priority>LOW</priority>
-    <implementation-decision>denied</implementation-decision>
-    <reason>
-      Strum patterns (Delegate/Strum.pm, 422 lines) generate complex SVG arrow graphics
-      that are tightly coupled to PDF's coordinate system. The HTML5 backend lists this
-      as denied feature D2 in the feature parity plan.
-      
-      Reasons for denial:
-      - Strum SVG generation uses PDF-specific coordinate math
-      - Would require rewriting the SVG generator for HTML5 viewBox coordinates
-      - Limited user demand (strum patterns are a niche feature)
-      - Can be manually added as external SVG images
-    </reason>
-  </feature-or-bug>
+    <item id="16" type="feature" status="DENIED" priority="LOW" complexity="M" archived="2026-02-08">
+      <title>ChordPro Output Backend - Structurization Handling</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 16. Requires unstructured songs; design challenge for ChordProBase.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- FEATURE: ChordPro output backend modernization                      -->
-  <!-- ================================================================== -->
+    <item id="18" type="feature" status="DENIED" priority="LOW" complexity="S" archived="2026-02-08">
+      <title>MMA Backend Single-Song Limitation</title>
+      <justification><![CDATA[Source: ai-docs/feature-bugs.xml item 18. Limitation inherent to target format.]]></justification>
+    </item>
 
-  <feature-or-bug id="16">
-    <title>ChordPro Output Backend — Structurization Handling</title>
-    <branch>Backends</branch>
-    <priority>LOW</priority>
-    <implementation-decision>DENIED for now.</implementation-decision>
-    <reason>
-      The ChordPro output backend (Output/ChordPro.pm, 574 lines) re-emits .cho format.
-      It requires UNSTRUCTURED songs — it needs the original start_of_*/end_of_* directive
-      elements, which structurize() removes. This is documented as a critical pitfall (#8).
-      
-      If/when this backend is migrated to Object::Pad, the ChordProBase dispatch pattern
-      would need to handle unstructured songs differently. This is a design challenge
-      that should be solved before attempting migration of this backend.
-    </reason>
-    <depends-on>2</depends-on>
-    <implementation-risks>
-      <risk>Breaking round-trip fidelity (parse .cho → output .cho should produce identical content).
-      Mitigation: t/380_roundtrip.t validates this — use extensively.</risk>
-    </implementation-risks>
-    <implementation-details>
-      <task id="1">Design ChordProBase extension point for unstructured song handling</task>
-      <task id="2">Migrate Output/ChordPro.pm to Object::Pad with structurize bypass</task>
-      <task id="3">Verify round-trip fidelity with t/380_roundtrip.t</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">prove -bv t/380_roundtrip.t</step>
-        <step order="2">prove -bv t/71_cho.t</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="YES" reason="Round-trip test exists">
-          <file>t/380_roundtrip.t</file>
-          <description>Validates .cho → parse → emit produces identical output</description>
-          <assertions>Input .cho file identical to output .cho file</assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Not started. Design challenge for unstructured song handling.</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>lib/ChordPro/Output/ChordPro.pm</file>
-        <file>t/380_roundtrip.t</file>
-        <file>t/71_cho.t</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
+    <item id="19" type="feature" status="DONE" priority="CRITICAL" complexity="M" archived="2026-02-08">
+      <title>Paged Mode Activation</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 1.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- FEATURE: Documentation generation and coverage                      -->
-  <!-- ================================================================== -->
+    <item id="20" type="feature" status="DONE" priority="CRITICAL" complexity="M" archived="2026-02-08">
+      <title>FormatGenerator Integration (Headers/Footers/Page Numbers)</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 2.]]></justification>
+    </item>
 
-  <feature-or-bug id="17">
-    <title>API and Configuration Documentation</title>
-    <branch>Documentation</branch>
-    <priority>LOW</priority>
-    <implementation-decision>implement</implementation-decision>
-    <reason>
-      Configuration documentation is auto-generated (Config/Data.pm from chordpro.json,
-      Config.pod with 97+ lines of additions on html5 branch). However:
-      - HTML5 backend configuration (html5.mode, html5.templates, html5.paged.*) needs
-        user-facing documentation on chordpro.org
-      - Backend selection via {format}.module is undocumented for end users
-      - New features (keyboard diagrams, volta brackets, section labels) lack examples
-      - The docs/ directory contains Hugo-based documentation but html5 sections are sparse
-    </reason>
-    <depends-on>None</depends-on>
-    <implementation-details>
-      <task id="1">Add HTML5 backend configuration docs to docs/content/</task>
-      <task id="2">Document backend selection via {format}.module in user docs</task>
-      <task id="3">Add examples for new HTML5 features (print mode, chord diagrams, etc.)</task>
-    </implementation-details>
-    <verification>
-      <steps-to-verify>
-        <step order="1">Build docs with Hugo and verify HTML5 sections render</step>
-        <step order="2">Follow documentation steps to produce HTML5 paged output</step>
-      </steps-to-verify>
-      <unit-tests>
-        <unit-test possible="NO" reason="Documentation is prose, not executable">
-          <file></file>
-          <description></description>
-          <assertions></assertions>
-        </unit-test>
-      </unit-tests>
-    </verification>
-    <result>
-      <my-result>PROBLEM</my-result>
-      <list-of-results>Partial. Config.pod updated. User-facing docs incomplete.</list-of-results>
-      <lessons-learned></lessons-learned>
-      <relevant-files>
-        <file>docs/content/</file>
-        <file>lib/ChordPro/res/pod/Config.pod</file>
-        <file>docs/content/ChordPro-Configuration-HTML5.md</file>
-      </relevant-files>
-    </result>
-  </feature-or-bug>
+    <item id="21" type="feature" status="DONE" priority="HIGH" complexity="M" archived="2026-02-08">
+      <title>Table of Contents</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 15.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- FEATURE: MMA backend limitations                                    -->
-  <!-- ================================================================== -->
+    <item id="22" type="feature" status="DONE" priority="MEDIUM" complexity="S" archived="2026-02-08">
+      <title>Odd/Even Page Differentiation</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 16.]]></justification>
+    </item>
 
-  <feature-or-bug id="18">
-    <title>MMA Backend Single-Song Limitation</title>
-    <branch>Backends</branch>
-    <priority>LOW</priority>
-    <implementation-decision>denied</implementation-decision>
-    <reason>
-      MMA.pm (550 lines) only supports single-song output — cannot generate songbooks.
-      The Musical MIDI Accompaniment format is inherently single-song focused (generates
-      MIDI accompaniment for one song at a time). Multi-song support would require
-      either concatenation (meaningless for MIDI) or separate files per song.
-      
-      DENIED: The limitation is inherent to the target format, not a code deficiency.
-    </reason>
-  </feature-or-bug>
+    <item id="23" type="feature" status="DONE" priority="LOW" complexity="M" archived="2026-02-08">
+      <title>Songbook Parts (Cover, Front Matter, Back Matter)</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 17.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- DENIED FEATURES                                                     -->
-  <!-- ================================================================== -->
+    <item id="24" type="feature" status="DONE" priority="LOW" complexity="S" archived="2026-02-08">
+      <title>Song Sorting</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 18.]]></justification>
+    </item>
 
-  <denied-features>
-    <feature id="D1">
-      <title>Legacy HTML Backend Enhancement</title>
-      <reason>HTML5 backend supersedes HTML.pm. Use {"html":{"module":"HTML5"}} config. Investing in legacy HTML would be wasted effort.</reason>
-    </feature>
-    <feature id="D2">
-      <title>Strum Patterns in HTML5</title>
-      <reason>PDF-specific SVG coordinate system. Limited demand. Users can add strum SVGs as external images.</reason>
-    </feature>
-    <feature id="D3">
-      <title>MMA Multi-Song Support</title>
-      <reason>MIDI accompaniment is inherently single-song. Multi-song would require separate output files, not a songbook format.</reason>
-    </feature>
-    <feature id="D4">
-      <title>PDF Backend Object::Pad Migration</title>
-      <reason>~8,300 lines across 7 files. Too large and complex for near-term migration. Works correctly as-is. Risk/benefit ratio too high.</reason>
-    </feature>
-  </denied-features>
+    <item id="25" type="feature" status="DONE" priority="HIGH" complexity="M" archived="2026-02-08">
+      <title>Chorus Recall (Rechorus)</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 3.]]></justification>
+    </item>
 
-  <!-- ================================================================== -->
-  <!-- SUMMARY STATISTICS                                                  -->
-  <!-- ================================================================== -->
+    <item id="26" type="feature" status="DONE" priority="HIGH" complexity="M" archived="2026-02-08">
+      <title>Delegate Support (ABC, LilyPond)</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 4.]]></justification>
+    </item>
 
-  <summary-statistics>
-    <total-features>18</total-features>
-    <implement>12</implement>
-    <denied>4</denied>
-    <completed>3</completed>
-    <by-priority>
-      <critical>1</critical>
-      <high>3</high>
-      <medium>5</medium>
-      <low>7</low>
-    </by-priority>
-    <by-status>
-      <done>3 (features 1, 13, 14 — HTML5 image scaling, print parity + bug fixes)</done>
-      <open>9 (features 2-3, 5-12 — architecture, quality, backends)</open>
-      <denied>4 (features 4, 15, 18, D1-D4)</denied>
-    </by-status>
-    <by-category>
-      <architecture>2 (backend migration, parser decomposition)</architecture>
-      <html5-bugs>1 (image scaling - done)</html5-bugs>
-      <backend-features>3 (text features, markdown completeness, ChordPro output)</backend-features>
-      <quality>3 (TODO cleanup, debug warnings, test coverage)</quality>
-      <core>1 (Roman numeral parsing)</core>
-      <documentation>1 (API/config docs)</documentation>
-      <completed>3 (HTML5 print parity, HTML5 bugs 1-6, image scaling)</completed>
-    </by-category>
-    <codebase-metrics>
-      <total-modules>93 Perl modules</total-modules>
-      <total-lines>~40,500 lines of Perl</total-lines>
-      <total-tests>149 test files</total-tests>
-      <backends>14 (8 output + 7 delegates + base classes)</backends>
-      <templates>30 Template::Toolkit files</templates>
-      <config-files>28 JSON configs + 8 note systems + schema</config-files>
-      <html5-branch-delta>32 files changed, +5,647 / -368 lines vs upstream/dev</html5-branch-delta>
-    </codebase-metrics>
-  </summary-statistics>
+    <item id="27" type="feature" status="DONE" priority="MEDIUM" complexity="S" archived="2026-02-08">
+      <title>Annotation Support</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 5.]]></justification>
+    </item>
 
+    <item id="28" type="feature" status="DONE" priority="MEDIUM" complexity="M" archived="2026-02-08">
+      <title>Image Alignment and Sizing</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 10.]]></justification>
+    </item>
+
+    <item id="29" type="feature" status="DONE" priority="MEDIUM" complexity="M" archived="2026-02-08">
+      <title>Chord Diagram Positioning</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 11.]]></justification>
+    </item>
+
+    <item id="30" type="feature" status="DONE" priority="MEDIUM" complexity="S" archived="2026-02-08">
+      <title>Chords-Under Mode</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 12.]]></justification>
+    </item>
+
+    <item id="31" type="feature" status="DONE" priority="MEDIUM" complexity="M" archived="2026-02-08">
+      <title>Inline Chords Mode</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 13.]]></justification>
+    </item>
+
+    <item id="32" type="feature" status="DONE" priority="MEDIUM" complexity="M" archived="2026-02-08">
+      <title>Keyboard Diagram Rendering</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 14.]]></justification>
+    </item>
+
+    <item id="33" type="feature" status="DONE" priority="HIGH" complexity="S" archived="2026-02-08">
+      <title>Comment Box Styling</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 6.]]></justification>
+    </item>
+
+    <item id="34" type="feature" status="DONE" priority="HIGH" complexity="S" archived="2026-02-08">
+      <title>Section Label Display</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 7.]]></justification>
+    </item>
+
+    <item id="35" type="feature" status="DONE" priority="MEDIUM" complexity="M" archived="2026-02-08">
+      <title>Grid Bar Lines and Repeat Symbols</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 8.]]></justification>
+    </item>
+
+    <item id="36" type="feature" status="DONE" priority="MEDIUM" complexity="M" archived="2026-02-08">
+      <title>Volta Brackets</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml feature 9.]]></justification>
+    </item>
+
+    <item id="37" type="feature" status="DENIED" priority="LOW" complexity="M" archived="2026-02-08">
+      <title>Chords Column (Side Column)</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml denied feature D1.]]></justification>
+    </item>
+
+    <item id="38" type="feature" status="DENIED" priority="LOW" complexity="M" archived="2026-02-08">
+      <title>Strum Patterns</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml denied feature D2.]]></justification>
+    </item>
+
+    <item id="39" type="feature" status="DENIED" priority="LOW" complexity="S" archived="2026-02-08">
+      <title>PDF Bookmarks/Outlines</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml denied feature D3.]]></justification>
+    </item>
+
+    <item id="40" type="feature" status="DENIED" priority="LOW" complexity="S" archived="2026-02-08">
+      <title>CSV Export (MobileSheets)</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml denied feature D4.]]></justification>
+    </item>
+
+    <item id="41" type="feature" status="DENIED" priority="LOW" complexity="S" archived="2026-02-08">
+      <title>Font Embedding (TrueType/OpenType)</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml denied feature D5.]]></justification>
+    </item>
+
+    <item id="42" type="feature" status="DENIED" priority="LOW" complexity="S" archived="2026-02-08">
+      <title>Background PDF Page Underlays</title>
+      <justification><![CDATA[Source: ai-docs/HTML5_PRINT_Missing_Features.xml denied feature D6.]]></justification>
+    </item>
+
+    <item id="43" type="bug" status="DONE" priority="CRITICAL" complexity="S" archived="2026-02-08">
+      <title>Chord Alignment When No Leading Chord</title>
+      <justification><![CDATA[Source: ai-docs/bugs.xml bug 1.]]></justification>
+    </item>
+
+    <item id="44" type="bug" status="DONE" priority="HIGH" complexity="S" archived="2026-02-08">
+      <title>Images Not Showing in HTML</title>
+      <justification><![CDATA[Source: ai-docs/bugs.xml bug 2.]]></justification>
+    </item>
+
+    <item id="45" type="bug" status="DONE" priority="HIGH" complexity="S" archived="2026-02-08">
+      <title>Empty SRC Tags in Image Output</title>
+      <justification><![CDATA[Source: ai-docs/bugs.xml bug 3.]]></justification>
+    </item>
+
+    <item id="46" type="bug" status="DONE" priority="HIGH" complexity="S" archived="2026-02-08">
+      <title>Delegate Output Not Rendering (SVG/ABC)</title>
+      <justification><![CDATA[Source: ai-docs/bugs.xml bug 4.]]></justification>
+    </item>
+
+    <item id="47" type="bug" status="DONE" priority="MEDIUM" complexity="S" archived="2026-02-08">
+      <title>Double-Escaped HTML Entities</title>
+      <justification><![CDATA[Source: ai-docs/bugs.xml bug 5.]]></justification>
+    </item>
+  </archive>
+
+  <changelog>
+    <entry date="2026-02-08">Full code analysis refresh; updated overview.xml dependencies and environments.</entry>
+    <entry date="2026-02-08">Migrated legacy XML plan files into new schema; archived DONE/DENIED items; created overview.xml.</entry>
+  </changelog>
 </implementation-plan>
