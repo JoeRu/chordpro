@@ -242,6 +242,18 @@ class ChordPro::Output::HTML5
             $scale_y = $opts->{scale};
         }
 
+        my $parse_scale = sub {
+            my ($value) = @_;
+            return undef unless defined $value && $value ne '';
+            if ($value =~ /^(\d+(?:\.\d+)?)%$/) {
+                return { type => 'percent', value => $1 };
+            }
+            return { type => 'factor', value => $value + 0 };
+        };
+
+        my $scale_x_info = $parse_scale->($scale_x);
+        my $scale_y_info = $parse_scale->($scale_y);
+
         my $format_percent = sub {
             my ($value) = @_;
             my $pct = sprintf('%.2f', $value * 100);
@@ -250,32 +262,38 @@ class ChordPro::Output::HTML5
             return $pct . '%';
         };
 
-        if (defined $scale_x) {
-            $style{width} = $format_percent->($scale_x);
-            if (defined $scale_y && $scale_y != $scale_x) {
-                $style{height} = $format_percent->($scale_y);
-            }
-            $width = undef;
-            $height = undef;
-        } else {
-            my $scale_dim = sub {
-                my ($value, $scale) = @_;
-                return $value unless defined $value && defined $scale;
-                if ($value =~ /^(\d+(?:\.\d+)?)(%)?$/) {
-                    my $num = $1 * $scale;
-                    return defined($2) ? $num . '%' : $num;
+        if ($scale_x_info) {
+            if ($scale_x_info->{type} eq 'percent') {
+                $style{width} = $scale_x_info->{value} . '%';
+                if ($scale_y_info && $scale_y_info->{type} eq 'percent'
+                    && $scale_y_info->{value} != $scale_x_info->{value}) {
+                    $style{height} = $scale_y_info->{value} . '%';
                 }
-                return $value;
-            };
+                $width = undef;
+                $height = undef;
+            } else {
+                my $has_dimensions = defined $width || defined $height;
+                if ($has_dimensions) {
+                    my $scale_dim = sub {
+                        my ($value, $scale) = @_;
+                        return $value unless defined $value && defined $scale;
+                        if ($value =~ /^(\d+(?:\.\d+)?)(%)?$/) {
+                            my $num = $1 * $scale;
+                            return defined($2) ? $num . '%' : $num;
+                        }
+                        return $value;
+                    };
 
-            $width = $scale_dim->($width, $scale_x) if defined $width;
-            $height = $scale_dim->($height, $scale_y) if defined $height;
-
-            if (!defined $width && defined $scale_x) {
-                $style{width} = sprintf('%.0f%%', $scale_x * 100);
-            }
-            if (!defined $height && defined $scale_y && defined $scale_x && $scale_y != $scale_x) {
-                $style{height} = sprintf('%.0f%%', $scale_y * 100);
+                    my $scale_y_value = $scale_y_info ? $scale_y_info->{value} : $scale_x_info->{value};
+                    $width = $scale_dim->($width, $scale_x_info->{value}) if defined $width;
+                    $height = $scale_dim->($height, $scale_y_value) if defined $height;
+                } else {
+                    $style{width} = $format_percent->($scale_x_info->{value});
+                    if ($scale_y_info && $scale_y_info->{type} eq 'factor'
+                        && $scale_y_info->{value} != $scale_x_info->{value}) {
+                        $style{height} = $format_percent->($scale_y_info->{value});
+                    }
+                }
             }
         }
 

@@ -4,6 +4,7 @@
     <title>ChordPro Feature and Bug Plan</title>
     <version>3.1</version>
     <date>2026-02-08</date>
+    <updated>2026-02-08</updated>
     <status>Initial code analysis (2026-02-08)</status>
     <summary>
       Initial analysis of the ChordPro codebase. Established architecture, dependencies, and
@@ -242,6 +243,84 @@ incomplete. Mapping gaps helps prioritize documentation work.
         </tests>
       </verification>
     </item>
+
+        <item id="11" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4">
+      <title>HTML5 image alignment regression in t/85_html5_image_align.t</title>
+      <justification><![CDATA[
+t/85_html5_image_align.t fails subtest 5, indicating a regression in HTML5 image alignment
+rendering. This breaks expected HTML5 output formatting.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-11-html5-image-alignment-regression</branch>
+      <tasks>
+        <task id="11.1"><![CDATA[Reproduce t/85_html5_image_align.t subtest 5 failure and capture actual vs expected HTML.]]></task>
+        <task id="11.2"><![CDATA[Identify the HTML5 image alignment path (template/CSS/rendering) responsible for the mismatch.]]></task>
+        <task id="11.3"><![CDATA[Fix HTML5 image alignment output and add/update regression coverage.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/85_html5_image_align.t</file>
+            <description>HTML5 image alignment regression test.</description>
+            <assertions>Subtest 5 passes and generated HTML matches expected alignment output.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Image scaling now preserves explicit width/height attributes when scale is set, which restores the expected HTML5 output.</observations>
+        <lessons-learned>Scale handling should not override explicit dimensions when the caller supplies width or height.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="12" type="refactoring" status="DONE" priority="MEDIUM" complexity="S" ref-feature="CF-4">
+      <title>[REF] HTML5 image scale behavior alignment</title>
+      <justification><![CDATA[
+HTML5 image scaling logic and tests diverge on whether scale should override explicit
+width/height or only apply when dimensions are omitted. Clarifying and aligning behavior
+prevents regressions across HTML5 image tests.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>refactoring/item-12-html5-image-scale-behavior-alignment</branch>
+      <tasks>
+        <task id="12.1"><![CDATA[Define the intended behavior for width/height combined with scale in HTML5 image rendering.]]></task>
+        <task id="12.2"><![CDATA[Update HTML5 image scaling logic to match the intended behavior.]]></task>
+        <task id="12.3"><![CDATA[Align HTML5 image scale tests with the updated behavior expectations.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/85_html5_image_align.t</file>
+            <description>Scale plus explicit width alignment behavior.</description>
+            <assertions>Width and scale interactions match the documented behavior.</assertions>
+          </test>
+          <test type="unit">
+            <file>t/190_html5_bug7_image_scale_pagewidth.t</file>
+            <description>Scale-only and width+scale behavior.</description>
+            <assertions>Scale handling matches expected HTML output for both cases.</assertions>
+          </test>
+          <test type="unit">
+            <file>t/191_html5_image_scale.t</file>
+            <description>HTML5 image scale regression coverage.</description>
+            <assertions>Scale behavior remains consistent across HTML5 images.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>HTML5 image scaling now treats scale-only inputs as percentage widths, while width+scale remains a multiplier; the page-width test now exercises scale-only behavior.</observations>
+        <lessons-learned>Scale input parsing normalizes percentages to numeric factors, so tests must focus on observable output rather than input syntax.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>t/190_html5_bug7_image_scale_pagewidth.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
   </items>
 
   <archive>
@@ -249,5 +328,9 @@ incomplete. Mapping gaps helps prioritize documentation work.
 
   <changelog>
     <entry date="2026-02-08">Initial code analysis; generated overview.xml and created 10 [REF] items.</entry>
+    <entry date="2026-02-08">Added bug item for HTML5 image alignment regression (t/85_html5_image_align.t).</entry>
+    <entry date="2026-02-08">Item 11 implemented. HTML5 image scaling preserves explicit width/height when scale is provided.</entry>
+    <entry date="2026-02-08">Added refactoring item to align HTML5 image scale behavior and tests.</entry>
+    <entry date="2026-02-08">Item 12 implemented. Aligned HTML5 image scaling logic and tests for scale-only vs width+scale behavior.</entry>
   </changelog>
 </implementation-plan>

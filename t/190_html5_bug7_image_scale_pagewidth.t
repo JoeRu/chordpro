@@ -20,7 +20,7 @@ ok($html5, "HTML5 backend created");
 
 my $song_data = <<'EOD';
 {title: Image Scale Page Width}
-{image src="chordpro.png" width="200" scale="50%"}
+{image src="chordpro.png" scale="50%"}
 EOD
 
 my $s = ChordPro::Songbook->new;
