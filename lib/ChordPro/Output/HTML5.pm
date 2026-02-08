@@ -179,6 +179,7 @@ class ChordPro::Output::HTML5
         my @pairs;
         my $chords = $element->{chords} // [];
         my $phrases = $element->{phrases} // [];
+        my $has_chords = 0;
         
         for (my $i = 0; $i < @$phrases; $i++) {
             my $chord = $chords->[$i];
@@ -186,6 +187,7 @@ class ChordPro::Output::HTML5
             
             my $lyrics = $phrases->[$i] // '';
             my $is_chord_only = ($chord_name ne '' && $lyrics eq '');
+            $has_chords = 1 if $chord_name ne '';
             
             push @pairs, {
                 chord => $chord_name,
@@ -194,8 +196,14 @@ class ChordPro::Output::HTML5
                 is_chord_only => $is_chord_only,
             };
         }
+
+        my $lyrics_text = join('', map { $_->{lyrics} } @pairs);
         
-        return $self->_process_template('songline', { pairs => \@pairs });
+        return $self->_process_template('songline', {
+            pairs => \@pairs,
+            has_chords => $has_chords,
+            lyrics_text => $lyrics_text,
+        });
     }
 
     method _render_comment_template($element) {
@@ -234,24 +242,41 @@ class ChordPro::Output::HTML5
             $scale_y = $opts->{scale};
         }
 
-        my $scale_dim = sub {
-            my ($value, $scale) = @_;
-            return $value unless defined $value && defined $scale;
-            if ($value =~ /^(\d+(?:\.\d+)?)(%)?$/) {
-                my $num = $1 * $scale;
-                return defined($2) ? $num . '%' : $num;
-            }
-            return $value;
+        my $format_percent = sub {
+            my ($value) = @_;
+            my $pct = sprintf('%.2f', $value * 100);
+            $pct =~ s/\.0+$//;
+            $pct =~ s/\.$//;
+            return $pct . '%';
         };
 
-        $width = $scale_dim->($width, $scale_x) if defined $width;
-        $height = $scale_dim->($height, $scale_y) if defined $height;
+        if (defined $scale_x) {
+            $style{width} = $format_percent->($scale_x);
+            if (defined $scale_y && $scale_y != $scale_x) {
+                $style{height} = $format_percent->($scale_y);
+            }
+            $width = undef;
+            $height = undef;
+        } else {
+            my $scale_dim = sub {
+                my ($value, $scale) = @_;
+                return $value unless defined $value && defined $scale;
+                if ($value =~ /^(\d+(?:\.\d+)?)(%)?$/) {
+                    my $num = $1 * $scale;
+                    return defined($2) ? $num . '%' : $num;
+                }
+                return $value;
+            };
 
-        if (!defined $width && defined $scale_x) {
-            $style{width} = sprintf('%.0f%%', $scale_x * 100);
-        }
-        if (!defined $height && defined $scale_y && defined $scale_x && $scale_y != $scale_x) {
-            $style{height} = sprintf('%.0f%%', $scale_y * 100);
+            $width = $scale_dim->($width, $scale_x) if defined $width;
+            $height = $scale_dim->($height, $scale_y) if defined $height;
+
+            if (!defined $width && defined $scale_x) {
+                $style{width} = sprintf('%.0f%%', $scale_x * 100);
+            }
+            if (!defined $height && defined $scale_y && defined $scale_x && $scale_y != $scale_x) {
+                $style{height} = sprintf('%.0f%%', $scale_y * 100);
+            }
         }
 
         my $width_attr = $width;
@@ -828,12 +853,39 @@ class ChordPro::Output::HTML5
         my $escaped_uri = $self->escape_text($uri);
         my $alt = $self->escape_text($opts->{alt} // '');
 
+        my ($scale_x, $scale_y);
+        if (ref($opts->{scale}) eq 'ARRAY') {
+            $scale_x = $opts->{scale}->[0];
+            $scale_y = $opts->{scale}->[1] // $scale_x;
+        } elsif (defined $opts->{scale} && $opts->{scale} ne '') {
+            $scale_x = $opts->{scale};
+            $scale_y = $opts->{scale};
+        }
+
+        my %style;
+        if (defined $scale_x) {
+            my $pct = sprintf('%.2f', $scale_x * 100);
+            $pct =~ s/\.0+$//;
+            $pct =~ s/\.$//;
+            $style{width} = $pct . '%';
+            if (defined $scale_y && $scale_y != $scale_x) {
+                my $pct_y = sprintf('%.2f', $scale_y * 100);
+                $pct_y =~ s/\.0+$//;
+                $pct_y =~ s/\.$//;
+                $style{height} = $pct_y . '%';
+            }
+        }
+
         my @attrs;
         push @attrs, qq{src="$escaped_uri"};
         push @attrs, qq{alt="$alt"};
-        push @attrs, qq{width="$opts->{width}"} if $opts->{width};
-        push @attrs, qq{height="$opts->{height}"} if $opts->{height};
+        push @attrs, qq{width="$opts->{width}"} if $opts->{width} && !defined $scale_x;
+        push @attrs, qq{height="$opts->{height}"} if $opts->{height} && !defined $scale_x;
         push @attrs, qq{class="$opts->{class}"} if $opts->{class};
+        if (%style) {
+            my $style_str = join('; ', map { $_ . ': ' . $style{$_} } sort keys %style);
+            push @attrs, qq{style="$style_str"};
+        }
 
         my $attrs_str = join(' ', @attrs);
         return qq{<img $attrs_str>\n};
