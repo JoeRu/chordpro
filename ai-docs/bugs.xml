@@ -188,5 +188,60 @@ Ampersands (Tom &amp; Jerry) properly escaped once as &amp;amp;.
 <test>t/190_html5_bugfixes.t - Tests 20-26 (Bug 5 double-escaping)</test>
 </bug>
 
+<bug id=6>
+<priority>middle</priority>
+<description>
+If a verse has no chords, there is no need for extra space for chords.
+</description>
+<reason>
+songline allways generates a lyric pair with a chord pair - even if the chord pair is empty. This results in extra space for the chords, even if there are no chords.
+</reason>
+<type-of-bug attribute="initial" />
+<div class="cp-songline">
+  <span class="cp-chord-lyric-pair">
+    <span class="cp-chord cp-chord-empty"></span>
+    <span class="cp-lyrics">Und trank am Wein sich satt.</span>
+</span>
+</reason>
+
+<Analyze>
+Root Cause: The HTML5 songline template always renders chord/lyric pairs, even
+when every chord is empty. This forces the hidden chord span to reserve vertical
+space, so lyrics-only lines still reserve a chord row.
+</Analyze>
+<implement>
+<tasks>
+<task>Updated `_render_songline_template` in `lib/ChordPro/Output/HTML5.pm` to
+track whether a line has any real chords and to pass a `lyrics_text` value for
+lyrics-only rendering.</task>
+<task>Updated `lib/ChordPro/res/templates/html5/songline.tt` to render a single
+lyrics span when `has_chords` is false, avoiding chord placeholders.</task>
+</tasks>
+</implement>
+<verify>
+Test passed: `prove -bv testing/190_html5_bug6_lyrics_only.t`.
+</verify>
+<test>t/190_html5_bug6_lyrics_only.t</test>
+</bug>
+
+<bug id=7>
+<priority>high</priority>
+<description>
+The image size should be set in regards to the Page-width if a scale parameter is provided.
+</description>
+<reason>
+ The Perl-template system for html5 needs to adapt to size images of the song.
+</reason>
+<type-of-bug attribute="initial">
+</type-of-bug>
+<Analyze>
+</Analyze>
+<implement>
+</implement>
+<verify>
+</verify>
+<test></test>
+</bug>
+
 </bugs>
 

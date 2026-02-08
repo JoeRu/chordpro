@@ -9,6 +9,162 @@ ChordPro is a Perl-based lyrics and chords formatting program that generates pro
 - **Architecture**: Parser (`Song.pm`) → Song Structure → Backend Renderer (`Output/*.pm`)
 - **Version**: See `lib/ChordPro/Version.pm`
 
+## AI Agent Output Conventions
+
+Allways Analyze the problem and plan the solution before writing code. 
+update for all phases a document in ai-docs/feature-bugs.xml like the following template with the results of the implementation and verification of each feature or bug in the plan, such as performance metrics, compatibility issues, user feedback, and lessons learned during the implementation process. This document will serve as a comprehensive record of the development process and can be used for future reference and learning.
+
+```xml:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation-plan>
+  <metadata>
+    <title>my-title</title>
+    <version>2.0</version>
+    <date>2026-02-06</date>
+    <status></status>
+    <summary>
+    </summary>
+  </metadata>
+
+  <architecture>
+    <description>
+    Overall architecture description
+    </description>
+    <architecture-patterns>
+      <pattern>Pattern Name</pattern>
+    </architecture-patterns>
+    <dependencies>
+    <!-- optional: Ask the user to test the following: If the system dependencies are met and add possible missing ones as feature to implement; Check if the system is able to implement at all. -->
+      <dependency>Software or Tool or Interface Dependency description</dependency>
+    </dependencies>
+    <interfaces>    
+      <interface type="Inbound|Outbound">Interface Description</interface>
+    </interfaces>
+    <design-decisions>
+      <decision>Design decision description</decision>
+    </design-decisions>
+     <existing-features>
+    <!-- move features that are marked by DONE here -->
+      <feature>
+        <title></title>
+        <description>
+        </description>
+        <relevant-files>
+        List of relevant files for that feature.
+        </relevant-files>
+        <tests>
+        <test id=N type="Unit|human|semi-automatic|integration">
+          description and tasks of the test-case.
+        </test>
+        </test>
+        </tests>
+      </feature>
+    </existing-features> 
+    <security>
+      <security-issue>
+        <thread></thread>
+        <potential-vulnerability></potential-vulnerability>
+      </security-issue>
+    </security>
+  </architecture>
+
+<!-- Repeat this <feature-or-bug> block for each feature or bug in the plan - sort it by criticality and dependency -->
+<feature-or-bug id="N">
+  <title>Feature Name</title>
+  <branch>Branch for possible parallel implementation</branch>
+  <priority>CRITICAL|HIGH|MEDIUM|LOW</priority>
+  <implementation-decision>implement|denied</implementation-decision>
+  <reason>Justification</reason>
+  <depends-on>Feature IDs this depends on</depends-on>
+  <implementation-risks>
+    <risk>Risk description and mitigation</risk>
+  </implementation-risks>
+  <implementation-details>
+    <task id="1">Task description</task>
+  </implementation-details>  
+  <!--  verification has to be done imidiatly after implementation - try to fix problems in the process and further verifications when needed during implementation and add them to the plan -->
+  <verification>
+    <steps-to-verify>
+      <step order="1">Manual verification step</step>
+    </steps-to-verify>
+    <unit-tests>
+      <unit-test possible="YES|NO" reason="Short Reason for the possibility or impossibility of the test">
+        <file></file>
+        <description>Test description</description>
+        <assertions>Expected behavior</assertions>
+      </unit-test>
+    </unit-tests>
+    <!-- optional : add only for documentation of bugs found during implementation and verification, not for all bugs found in the system. -->
+    <bugs>
+        <bug id="1" status="OPEN|FIXED|WONTFIX">
+            <description>Bug description</description>
+            <steps-to-reproduce>
+            <step order="1">Step to reproduce the bug</step>
+            </steps-to-reproduce>
+            <expected-result>Expected result if the bug is fixed</expected-result>
+        </bug>
+    </bugs>
+    <!-- optional test only a human can do. -->
+    <human-tests> 
+        <human-test id="1">
+        Describe what to do and what to expect as result. 
+        </human-test>
+    </human-tests>
+  </verification>
+  <!-- fill in the results and lessons learned after implementation and verification -->
+  <result>
+      <my-result>DONE|PROBLEM</my-result>
+      <list-of-results>
+        Fill with the results of the implementation, such as performance metrics, compatibility issues, or user feedback.
+      </list-of-results>
+      <lessons-learned>
+        Fill with insights gained during the implementation, such as what worked well, what challenges were faced, and how they were overcome.
+      </lessons-learned>
+      <relevant-files>
+        <file>List of relevant files that were changed or created during implementation or are highly relevant to the feature.</file>
+      </relevant-files>
+    </result>
+</feature-or-bug>
+
+  <denied-features>
+    <feature id="D1">
+      <title></title>
+      <reason>
+
+      </reason>
+    </feature>
+
+  <!-- ================================================================== -->
+  <!-- SUMMARY STATISTICS                                                  -->
+  <!-- ================================================================== -->
+
+  <summary-statistics>
+    <total-features>18</total-features>
+    <implement>12</implement>
+    <denied>6</denied>
+    <by-priority>
+      <critical>2</critical>
+      <high>4</high>
+      <medium>8</medium>
+      <low>4</low>
+    </by-priority>
+    <by-branch>
+      <branch-a name="Core Infrastructure + Songbook">6</branch-a>
+      <branch-b name="Content Rendering + Layout">8</branch-b>
+      <branch-c name="CSS/Styling">4</branch-c>
+    </by-branch>
+  </summary-statistics>    
+</implementation-plan>
+```
+
+**Generated test files**: Place in `testing/` directory (not `t/` - that's for production tests / unit tests)
+**Generated documentation**: Place in `ai-docs/` directory
+
+These directories keep AI-generated content separate from the main codebase until reviewed and promoted.
+
+Update this instructions when critical lessons are learned.
+
 ## Build & Test
 
 ```bash
