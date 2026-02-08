@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-overview>
+  <metadata>
+    <title>ChordPro</title>
+    <version>6.090_040</version>
+    <analyzed>2026-02-08</analyzed>
+    <updated>2026-02-08</updated>
+    <repository>https://github.com/ChordPro/chordpro</repository>
+  </metadata>
+
+  <architecture>
+    <description>
+      ChordPro follows a Parse -> Transform -> Render pipeline. Song.pm parses .cho files into
+      element arrays, Chords/*.pm handles transposition/notation conversion during parse, and
+      Output/*.pm backends render the songbook. CLI entry is script/chordpro.pl; GUI entry is
+      script/wxchordpro.pl (wxWidgets).
+
+      Two backend styles coexist: modern Object::Pad classes (HTML5, Markdown, Meta) and legacy
+      procedural backends (PDF, HTML, Text, LaTeX, MMA, ChordPro, JSON, Debug).
+
+      Configuration is JSON-based with hierarchical merging: builtin -> sysconfig -> userconfig -> CLI --define.
+      Config/Data.pm is generated from lib/ChordPro/res/config/chordpro.json via script/cfgboot.pl.
+      Resources (fonts, templates, configs) resolve via ChordPro::Paths (CP->findres()).
+      Template::Toolkit drives HTML5 and LaTeX output. Delegates handle external notation
+      (ABC via bundled abc2svg, LilyPond via external binary, Grille, Strum, SVG passthrough).
+    </description>
+    <patterns>
+      <pattern>Parse-Transform-Render pipeline</pattern>
+      <pattern>Object::Pad OOP for modern backends</pattern>
+      <pattern>Handler registry dispatch in ChordProBase</pattern>
+      <pattern>Template::Toolkit for HTML5/LaTeX templates</pattern>
+      <pattern>JSON config with hierarchical merge and restricted hashes</pattern>
+      <pattern>Delegate pattern for external notation systems</pattern>
+      <pattern>Resource resolution via Paths.pm</pattern>
+    </patterns>
+    <system-requirements>
+      <requirement>Perl 5.26+</requirement>
+    </system-requirements>
+    <external-dependencies>
+      <dependency>Object::Pad 0.818+</dependency>
+      <dependency>PDF::API2 2.045+ (or PDF::Builder via CHORDPRO_PDF_API)</dependency>
+      <dependency>JavaScript::QuickJS 0.18+ (embedded abc2svg)</dependency>
+      <dependency>HarfBuzz::Shaper 0.026+ and Text::Layout 0.045+</dependency>
+      <dependency>JSON::XS 4.03+ and JSON::Relaxed</dependency>
+      <dependency>Image::Info 1.41+</dependency>
+      <dependency>File::LoadLines 1.047</dependency>
+      <dependency>String::Interpolate::Named 1.060</dependency>
+      <dependency>Data::Printer 1.001001</dependency>
+      <dependency>File::HomeDir 1.004</dependency>
+      <dependency>IPC::Run3 0.049</dependency>
+      <dependency>LWP::Protocol::https 6.14 and Mozilla::CA 20230801</dependency>
+      <dependency>Ref::Util 0.204</dependency>
+      <dependency>Unicode::Collate 1.31 and Unicode::Normalize 1.26</dependency>
+      <dependency>Optional: Template 3.010 and LaTeX::Encode 0.092.0 (LaTeX backend)</dependency>
+      <dependency>Optional: LilyPond binary (delegate)</dependency>
+      <dependency>Bundled: paged.js for HTML5 print mode</dependency>
+      <dependency>Docs: Hugo (uses Go 1.18 module for search indexing)</dependency>
+    </external-dependencies>
+    <interfaces>
+      <interface type="inbound">CLI: script/chordpro.pl parses .cho files and writes output</interface>
+      <interface type="inbound">GUI: script/wxchordpro.pl (wxWidgets frontend)</interface>
+      <interface type="inbound">Config: JSON config files and CLI --define overrides</interface>
+      <interface type="outbound">PDF output via PDF::API2</interface>
+      <interface type="outbound">HTML5 output via Template::Toolkit (responsive/screen/print)</interface>
+      <interface type="outbound">Markdown, LaTeX, Text, HTML, JSON, MMA, ChordPro outputs</interface>
+      <interface type="outbound">SVG chord diagrams via Output/ChordDiagram/SVG.pm</interface>
+      <interface type="outbound">Delegates: abc2svg, LilyPond, Grille, Strum</interface>
+    </interfaces>
+    <design-decisions>
+      <decision date="2026-02-08">Object::Pad chosen for modern backends instead of Moose/Moo to keep dependencies light.</decision>
+      <decision date="2026-02-08">Template::Toolkit used for HTML5/LaTeX to separate markup from logic.</decision>
+      <decision date="2026-02-08">Restricted hashes from JSON::Relaxed used to catch config typos at runtime.</decision>
+      <decision date="2026-02-08">Backend-owned structurization: backends call structurize() as needed, not central dispatch.</decision>
+      <decision date="2026-02-08">Bundled abc2svg via QuickJS to avoid external runtime dependency for ABC.</decision>
+      <decision date="2026-02-08">SVG chord diagrams rendered at 4em to scale with font size.</decision>
+      <decision date="2026-02-08">HTML5 output embeds images as base64 data URIs for portability.</decision>
+    </design-decisions>
+  </architecture>
+
+  <environments>
+    <environment name="dev">Dev container via .devcontainer/devcontainer.json (Dockerfile, VARIANT=5), PERL5LIB=/workspace/lib, workspace mounted at /workspace and /data.</environment>
+    <environment name="docs">Docs site built with Hugo in docs/ (see docs/Makefile).</environment>
+    <environment name="staging">Not documented in repo.</environment>
+    <environment name="prod">Not documented in repo.</environment>
+  </environments>
+
+  <security>
+    <concern>
+      <threat>External delegate execution may run external programs with user-supplied inputs.</threat>
+      <risk>MEDIUM</risk>
+      <vulnerability>Delegate/Program.pm executes external programs; unsafe args could lead to command injection.</vulnerability>
+      <mitigation>Validate and sanitize delegate inputs and file paths before execution.</mitigation>
+    </concern>
+    <concern>
+      <threat>Fetching resources over HTTPS can be abused for SSRF if URLs are user-controlled.</threat>
+      <risk>MEDIUM</risk>
+      <vulnerability>Config/resource fetching via LWP::Protocol::https may allow outbound requests to internal hosts.</vulnerability>
+      <mitigation>Restrict allowed URL schemes/hosts or require local-only resources by default.</mitigation>
+    </concern>
+  </security>
+
+  <completed-features>
+    <feature id="CF-1" completed="2026-02-08" source-item="13">
+      <title>HTML5 Print Mode Parity</title>
+      <description>HTML5 paged mode reached feature parity with PDF, including pagination, headers/footers, grids, diagrams, and print-specific layout.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm</file>
+        <file>lib/ChordPro/res/templates/html5/</file>
+        <file>t/html5/</file>
+        <file>t/html5paged/</file>
+      </files>
+    </feature>
+    <feature id="CF-2" completed="2026-02-08" source-item="14">
+      <title>HTML5 Bug Fixes 1-6</title>
+      <description>Fixed HTML5 chord alignment, image embedding, delegate rendering, entity escaping, and lyrics-only spacing with regression tests.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-3" completed="2026-02-08" source-item="1">
+      <title>HTML5 Image Scaling</title>
+      <description>Implemented scale-as-percentage for HTML5 images so scale factors behave like PDF page-width scaling.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/image.tt</file>
+        <file>t/191_html5_image_scale.t</file>
+      </files>
+    </feature>
+  </completed-features>
+</project-overview>

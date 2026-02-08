@@ -9,5 +9,6 @@
     "chat.tools.terminal.autoApprove": {
         "mv": true,
         "prove": true
-    }
+    },
+    "github.copilot.chat.codeGeneration.useInstructionFiles": true
 }
