@@ -179,27 +179,158 @@ A separate `overview.xml` captures the project's architectural baseline – stru
 | File | Purpose | When updated |
 |---|---|---|
 | `ai-docs/overview.xml` | Project architecture, dependencies, environments, security, completed features | Initial analysis + every archival |
-| `ai-docs/feature-bugs.xml` | Active and pending items (features, bugs, refactoring, tech-debt) | Every interaction that changes scope or code |
+| `ai-docs/overview-features-bugs.xml` | Active and pending items (features, bugs, refactoring, tech-debt) | Every interaction that changes scope or code |
+| `ai-docs/implementation-plan-template-v3.1.xml` | Schema reference (do not edit) | Never |
 | `ai-docs/` | All other markdown and planning documents | As needed |
 
-> **Note**: `ai-docs/overview.xml` and `ai-docs/feature-bugs.xml` are the current sources of truth.
-> Always read both before starting work.
+## Code Analysis
 
-## Initial Code Analysis
+Code analysis runs in two modes: **initial** (first encounter) and **update** (verification of existing XMLs). Both modes execute the same analysis steps but differ in how results are processed.
 
-When first encountering a project or after major structural changes, perform a full code analysis before any other work:
+| Trigger | Mode | Precondition |
+|---|---|---|
+| No `overview.xml` exists | **Initial** | Automatic on first encounter |
+| `/init` | **Initial** | Force re-creation (backs up existing files first) |
+| `/update` | **Update** | Both XML files must already exist |
 
-### Steps
+### Steps (executed in both modes)
 
 1. **Scan the codebase**: directory structure, languages, frameworks, config files, package manifests
 2. **Identify architecture**: patterns, layers, entry points, data flow
 3. **Catalog dependencies**: system requirements (runtime, OS) and external dependencies (APIs, databases, services)
 4. **Map existing features**: what the code already does – derive from routes, modules, tests, README
-5. **Note interfaces**: inbound (APIs, UIs, webhooks) and outbound (external calls, queues, file outputs)
-6. **Check for security concerns**: auth mechanisms, exposed secrets, input validation, known vulnerability patterns
-7. **Detect environments**: dev/staging/prod configurations, environment variables, deploy scripts
+5. **Assess feature completeness**: for each discovered feature, evaluate:
+   - `completeness`: FULL (fully understood) | PARTIAL (gaps identified) | UNKNOWN (exists but not analyzed)
+   - `test-coverage`: TESTED (automated tests cover core behavior) | PARTIAL (some tests, gaps identified) | NONE (no tests found) | UNKNOWN (not assessed)
+   - `dependencies`: what other features or external systems does it rely on
+   - `gaps`: specific areas that are unclear or unmapped
+6. **Note interfaces**: inbound (APIs, UIs, webhooks) and outbound (external calls, queues, file outputs)
+7. **Check for security concerns**: auth mechanisms, exposed secrets, input validation, known vulnerability patterns
+8. **Detect environments**: dev/staging/prod configurations, environment variables, deploy scripts
 
-### Output
+### Feature Completeness & Reference Items
+
+Every existing feature discovered during analysis is recorded in `overview.xml` under `<completed-features>` with a `completeness` and `test-coverage` rating.
+
+**If a feature is not FULL + TESTED**, create a **reference item** in `overview-features-bugs.xml`:
+
+```xml
+<item id="42" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF2">
+  <title>[REF] Payment processing – complete feature mapping and add tests</title>
+  <justification>Feature CF2 has completeness=PARTIAL, test-coverage=NONE. 
+    Changes to related code risk breaking payment flow without detection.</justification>
+  <tasks>
+    <task id="42.1">Map webhook retry logic and document behavior</task>
+    <task id="42.2">Map refund flow end-to-end</task>
+    <task id="42.3">Write integration tests for checkout flow</task>
+    <task id="42.4">Write integration tests for webhook handling</task>
+  </tasks>
+  <verification>
+    <tests>
+      <test type="integration">
+        <file>tests/payments/test_checkout.py</file>
+        <description>Checkout flow end-to-end</description>
+        <assertions>Payment created, confirmed, receipt sent</assertions>
+      </test>
+    </tests>
+  </verification>
+  <r>
+    <outcome></outcome>
+    <files><file></file></files>
+  </r>
+</item>
+```
+
+**Reference item rules:**
+- `type="refactoring"` – the goal is understanding and safeguarding, not changing behavior
+- Title prefixed with `[REF]` for easy identification
+- `ref-feature="CF-ID"` attribute links back to the feature in `overview.xml`
+- The corresponding feature in `overview.xml` gets a `ref-item="ID"` attribute pointing to this item
+- Tasks focus on: mapping unknowns, documenting behavior, writing tests
+- Priority based on risk: features touched by active items get `HIGH`, others `MEDIUM` or `LOW`
+- When the reference item is DONE: update the feature in `overview.xml` to `completeness="FULL"` and `test-coverage="TESTED"`
+
+**Priority escalation**: if any active item (feature, bug, refactoring) touches files belonging to a feature with `completeness != FULL` or `test-coverage == NONE`:
+1. **Warn the user** that changes affect an incompletely mapped feature
+2. **Recommend** approving the corresponding reference item first
+3. If no reference item exists yet, **create one** as PENDING
+
+### Mode: Initial (no XMLs exist or `/init`)
+
+When no `overview.xml` exists, or the user explicitly runs `/init`:
+
+1. Execute all analysis steps above
+2. **Generate** `ai-docs/overview.xml` with the full project baseline
+3. **Generate** `ai-docs/overview-features-bugs.xml` with discovered issues, TODOs, and `[REF]` items as PENDING
+4. If files already exist (`/init` on existing project): **back up** existing files as `overview.xml.bak` and `overview-features-bugs.xml.bak` before overwriting
+
+### Mode: Update (`/update`)
+
+When both XML files already exist and the user runs `/update`, perform a **verification pass** that compares the current codebase against the existing XMLs:
+
+**Step 1 – Drift detection on overview.xml:**
+
+| Check | Compare | Action on mismatch |
+|---|---|---|
+| Architecture | Codebase patterns vs. `<architecture>` | Update description, patterns, design-decisions |
+| System requirements | package.json / requirements.txt / Dockerfile vs. `<system-requirements>` | Add missing, flag removed |
+| External dependencies | Code imports + config vs. `<external-dependencies>` | Add missing, flag removed |
+| Interfaces | Routes, endpoints, webhooks vs. `<interfaces>` | Add missing, flag removed |
+| Environments | Config files, env vars vs. `<environments>` | Update details |
+| Security | Current code vs. `<security>` concerns | Add new concerns, verify mitigations still apply |
+
+**Step 2 – Feature verification:**
+
+For each feature in `<completed-features>`:
+1. **Verify files still exist** – if files were deleted or renamed, flag as `STALE`
+2. **Check for new files** that belong to the feature but aren't listed
+3. **Re-assess completeness** – has code changed since last analysis? Upgrade or downgrade rating
+4. **Re-assess test-coverage** – have tests been added or removed?
+5. **Check gaps** – are previously identified gaps still open?
+
+For features discovered in codebase but **not yet in overview.xml**:
+1. **Add** as new `<completed-features>` entry
+2. **Assess** completeness and test-coverage
+3. **Create** `[REF]` item if not FULL + TESTED
+
+**Step 3 – Item verification on overview-features-bugs.xml:**
+
+For each active item:
+1. **Verify referenced files** still exist and are relevant
+2. **Check depends-on** references – are dependencies still valid?
+3. **Check parent** references – does the parent still exist and make sense?
+4. **Flag stale items** – items that have been PENDING or APPROVED for a long time without progress
+
+**Step 4 – Report:**
+
+Present a verification summary to the user:
+
+```
+/update
+→ Scanning codebase and verifying XMLs...
+
+overview.xml:
+  ✓ Architecture – no changes
+  ⚠ Dependencies – added: redis (found in requirements.txt, not in XML)
+  ⚠ Security – new concern: API key in config/settings.py not in .gitignore
+  
+Features:
+  ✓ CF1 "User Auth" – files OK, tests OK, completeness FULL
+  ⚠ CF2 "Payment processing" – completeness PARTIAL → PARTIAL (gaps unchanged)
+  ✗ CF3 "Email notifications" – STALE: src/email/sender.py deleted
+  + CF4 "Rate limiting" – NEW: discovered in src/middleware/rate_limit.py (PARTIAL, NONE)
+    → Created [REF] item 45 (PENDING)
+
+Items:
+  ✓ 12 active items verified
+  ⚠ Item 8 "Add CSV export" – PENDING since 2026-01-15 (24 days), consider /deny or /approve
+  ⚠ Item 14 – depends-on item 7 which is DENIED → needs reassignment
+
+→ Updated overview.xml (2 changes)
+→ Created 1 new [REF] item, flagged 1 stale feature, 2 item warnings
+```
+
+### Output (Initial mode)
 
 Generate `ai-docs/overview.xml` with the full project baseline:
 
@@ -249,21 +380,58 @@ Generate `ai-docs/overview.xml` with the full project baseline:
   </security>
 
   <!-- Completed features – populated from initial analysis and archival -->
+  <!-- 
+    completeness: FULL | PARTIAL | UNKNOWN
+      FULL    = feature fully understood, all files mapped, behavior documented
+      PARTIAL = core functionality identified but edge cases, config, or integrations unclear
+      UNKNOWN = feature exists but not yet analyzed in detail
+    
+    test-coverage: TESTED | PARTIAL | NONE | UNKNOWN
+      TESTED  = automated tests exist and cover core behavior
+      PARTIAL = some tests exist but gaps identified
+      NONE    = no automated tests found
+      UNKNOWN = not yet assessed
+  -->
   <completed-features>
-    <feature id="CF1" completed="2026-02-08">
+    <feature id="CF1" completed="2026-02-08" completeness="FULL" test-coverage="TESTED">
       <title>Feature title</title>
       <description>What it does</description>
       <files>
         <file>path/to/relevant/file</file>
       </files>
+      <test-files>
+        <file>path/to/test/file</file>
+      </test-files>
+      <dependencies>
+        <!-- other CF-IDs or external systems this feature depends on -->
+        <depends-on>CF2, PostgreSQL</depends-on>
+      </dependencies>
+    </feature>
+
+    <!-- Example: partially understood feature without tests -->
+    <feature id="CF2" completed="2026-02-08" completeness="PARTIAL" test-coverage="NONE" 
+             ref-item="42">
+      <!-- ref-item points to a reference item in overview-features-bugs.xml -->
+      <title>Payment processing</title>
+      <description>Handles Stripe payments – checkout flow identified, webhook handling unclear</description>
+      <files>
+        <file>src/payments/checkout.py</file>
+        <file>src/payments/webhooks.py</file>
+      </files>
+      <gaps>
+        <gap>Webhook retry logic not understood</gap>
+        <gap>Refund flow not mapped</gap>
+      </gaps>
     </feature>
   </completed-features>
 </project-overview>
 ```
 
-Also update `ai-docs/feature-bugs.xml` with any identified issues, improvements, or TODOs as items with `status="PENDING"`.
+Also generate `ai-docs/overview-features-bugs.xml` with any identified issues, improvements, or TODOs as items with `status="PENDING"`.
 
-If `overview.xml` already exists, **read it** at the start of every session for project context.
+### Session Start
+
+If `overview.xml` already exists, **read it** at the start of every session for project context. Do not re-run analysis unless the user explicitly triggers `/init` or `/update`.
 
 ## Core Rules
 
@@ -271,17 +439,21 @@ If `overview.xml` already exists, **read it** at the start of every session for 
 
 Before implementing ANY user request (feature, bug, change, question about the codebase):
 
-1. **Read** `ai-docs/overview.xml` (project context)
-2. **Read** `ai-docs/feature-bugs.xml` (active items)
+1. **Read** `ai-docs/overview.xml` (project context + existing features)
+2. **Read** `ai-docs/overview-features-bugs.xml` (active items)
 3. **Search** for existing items that match the request (by title, description, related files, or affected area)
-4. **Decide**:
+4. **Impact check**: identify which existing features (from `<completed-features>`) could be affected by the requested change. If any affected feature has `completeness != FULL` or `test-coverage == NONE`:
+   - **Warn the user** about the risk of breaking an incompletely mapped feature
+   - **Check** if a `[REF]` item already exists for that feature – if not, create one as PENDING
+   - **Recommend** completing the reference item before implementing the change
+5. **Decide**:
    - **Existing item found** → update that item (status, tasks, details) rather than creating a duplicate
    - **No match** → create a new item with `status="PENDING"`
-5. **Inform the user** which item ID was created or updated
+6. **Inform the user** which item ID was created or updated, and any impact warnings
 
 ### 2. Always Update the Plan
 
-Every interaction that involves code changes, bug reports, or feature discussion **must** result in an update to `feature-bugs.xml`. This includes:
+Every interaction that involves code changes, bug reports, or feature discussion **must** result in an update to `overview-features-bugs.xml`. This includes:
 
 - New feature requests → new `<item type="feature" status="PENDING">`
 - Bug reports → new `<item type="bug" status="PENDING">`
@@ -303,7 +475,7 @@ PENDING ──→ APPROVED ──→ IN_PROGRESS ──→ DONE
 
 ### 4. ID Assignment
 
-- Read the current highest ID in `feature-bugs.xml`
+- Read the current highest ID in `overview-features-bugs.xml`
 - Assign the next sequential integer
 - Sub-items use the parent ID as prefix for tasks: item 15 → tasks `15.1`, `15.2`, etc.
 
@@ -336,7 +508,7 @@ Rules:
 
 ### 7. Changelog
 
-Update the `<changelog>` block in `feature-bugs.xml` **once per interaction** (not per item change). Group all changes from the same interaction into a single entry.
+Update the `<changelog>` block in `overview-features-bugs.xml` **once per interaction** (not per item change). Group all changes from the same interaction into a single entry.
 
 Format:
 ```xml
@@ -360,7 +532,7 @@ Soft limit: **5 items** created or updated per response.
 
 ### 9. Archival
 
-Completed and denied items are moved to the `<archive>` block in `feature-bugs.xml` and simultaneously registered in `overview.xml`.
+Completed and denied items are moved to the `<archive>` block in `overview-features-bugs.xml` and simultaneously registered in `overview.xml`.
 
 **When to archive:**
 - `DONE` items: when the item AND all its sub-items are DONE, AND no active item has a `depends-on` referencing it
@@ -368,7 +540,7 @@ Completed and denied items are moved to the `<archive>` block in `feature-bugs.x
 
 **Archival process (both files updated in one step):**
 
-1. **Move** the item from the active section to `<archive>` in `feature-bugs.xml`:
+1. **Move** the item from the active section to `<archive>` in `overview-features-bugs.xml`:
    ```xml
    <archive>
      <item id="1" status="DONE" archived="2026-02-08" ...>
@@ -540,15 +712,39 @@ The `<security>` section in `overview.xml` must always reflect the **current** s
   </tasks>
   ...
 </item>
+
+<!-- Reference item for incomplete existing feature -->
+<item id="N" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF2">
+  <title>[REF] Feature name – complete mapping and add tests</title>
+  <justification>Feature CF2 has completeness=PARTIAL, test-coverage=NONE</justification>
+  <tasks>
+    <task id="N.1">Map undocumented behavior</task>
+    <task id="N.2">Write integration/unit tests for core paths</task>
+  </tasks>
+  ...
+</item>
 ```
 
 ## Workflow Summary
 
 ```
-First encounter (no overview.xml)
+First encounter (no overview.xml) or /init
      │
      ▼
-Scan codebase → generate overview.xml + feature-bugs.xml
+Full codebase scan → generate overview.xml + overview-features-bugs.xml
+     │
+     ▼
+─────────────────────────────────────────────────────
+     │
+/update (XMLs already exist)
+     │
+     ▼
+Full codebase scan → verify XMLs against code
+     │
+     ├─ Drift detected?  ──→ Update overview.xml
+     ├─ New features?     ──→ Add to completed-features + create [REF] items
+     ├─ Stale features?   ──→ Flag as STALE, warn user
+     └─ Item warnings?    ──→ Report broken refs, stale items
      │
      ▼
 ─────────────────────────────────────────────────────
@@ -556,7 +752,7 @@ Scan codebase → generate overview.xml + feature-bugs.xml
 Every subsequent request
      │
      ▼
-Read overview.xml + feature-bugs.xml
+Read overview.xml + overview-features-bugs.xml
      │
      ├─ Existing item? ──→ Update item (status, tasks, details)
      │
@@ -584,7 +780,7 @@ Read overview.xml + feature-bugs.xml
                     ▼
               Archive if no active dependents
                     │
-                    ├──→ Move to <archive> in feature-bugs.xml
+                    ├──→ Move to <archive> in overview-features-bugs.xml
                     └──→ Add to <completed-features> in overview.xml
 ```
 
@@ -669,7 +865,7 @@ The user can use slash commands as shortcuts. When a message starts with a slash
 
 **`/security` audit process:**
 
-1. **Read** `overview.xml` security section (known concerns) and all items with `security="true"` in `feature-bugs.xml`
+1. **Read** `overview.xml` security section (known concerns) and all items with `security="true"` in `overview-features-bugs.xml`
 2. **Scan** the codebase against security categories (AUTH, INPUT, DATA, NETWORK, CRYPTO, ACCESS, DISCLOSURE)
 3. **Cross-reference** with existing security items to avoid duplicates
 4. **Create bug items** for each finding:
@@ -709,7 +905,24 @@ The user can use slash commands as shortcuts. When a message starts with a slash
 |---|---|
 | `/plan` | Show summary: counts by status, type, priority + next actionable items |
 | `/overview` | Show architecture summary from overview.xml |
-| `/init` | Run initial code analysis (creates both XML files) |
+| `/init` | Run full code analysis in **initial** mode (creates both XML files, backs up existing) |
+| `/update` | Run code analysis in **update** mode (verify + sync XMLs against current codebase) |
+
+**Examples:**
+```
+/init
+→ Backs up existing XMLs (if any)
+→ Full codebase scan...
+→ Generated overview.xml: 3 patterns, 5 dependencies, 8 features (3 FULL, 4 PARTIAL, 1 UNKNOWN)
+→ Generated overview-features-bugs.xml: 5 [REF] items, 2 bugs, 1 security concern (all PENDING)
+
+/update
+→ Verifying XMLs against codebase...
+→ overview.xml: 2 changes (1 new dependency, 1 new security concern)
+→ Features: 8 verified, 1 STALE, 1 NEW discovered
+→ Items: 12 active, 2 warnings (1 stale PENDING, 1 broken depends-on)
+→ Created 1 new [REF] item
+```
 
 ### Command Processing Rules
 
@@ -725,6 +938,8 @@ The user can use slash commands as shortcuts. When a message starts with a slash
 - **Never implement without checking both XML files first**
 - **Never create duplicate items** – always search existing items before adding
 - **Never skip PENDING** – the user decides what gets built
+- **Always check feature completeness** – warn if changes touch PARTIAL/UNKNOWN/NONE features
+- **Always create `[REF]` items** for incomplete features that are at risk from active work
 - **Always assess security impact** – every item gets a security check during risk evaluation
 - **Always tag security items** – `security="true"` + `[SECURITY]` title prefix + `<security-impact>` block
 - **Always update `<r>` after implementation** – outcomes and lessons-learned are mandatory
