@@ -8,7 +8,8 @@
     },
     "chat.tools.terminal.autoApprove": {
         "mv": true,
-        "prove": true
+        "prove": true,
+        "cp": true
     },
     "github.copilot.chat.codeGeneration.useInstructionFiles": true
 }

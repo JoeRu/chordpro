@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation-plan>
+  <metadata>
+    <title>ChordPro Feature and Bug Plan</title>
+    <version>3.1</version>
+    <date>2026-02-08</date>
+    <status>Initial code analysis (2026-02-08)</status>
+    <summary>
+      Initial analysis of the ChordPro codebase. Established architecture, dependencies, and
+      feature inventory. Created reference items for incomplete feature mapping and test
+      coverage gaps.
+    </summary>
+  </metadata>
+
+  <items>
+    <item id="1" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-1">
+      <title>[REF] CLI pipeline mapping and coverage</title>
+      <justification><![CDATA[
+Core CLI flow is partially mapped. Output selection, filelist parsing, and progress callbacks
+are critical paths with limited documented behavior and edge-case coverage.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="1.1"><![CDATA[Map CLI option handling and output backend selection paths.]]></task>
+        <task id="1.2"><![CDATA[Document filelist parsing and progress callback behavior.]]></task>
+        <task id="1.3"><![CDATA[Add tests for output selection and filelist edge cases.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/10_files.t</file>
+            <description>Filelist parsing edge cases.</description>
+            <assertions>Filelist parsing matches documented behavior across quoting and options.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="2" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-2">
+      <title>[REF] Song parser and directives mapping</title>
+      <justification><![CDATA[
+Directive coverage is broad but not fully mapped. Edge directives and metadata normalization
+behavior need documentation and tests.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="2.1"><![CDATA[Catalog directive handlers and map to element output.]]></task>
+        <task id="2.2"><![CDATA[Document metadata normalization and directive precedence.]]></task>
+        <task id="2.3"><![CDATA[Add tests for edge directives and mixed metadata cases.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/101_directives.t</file>
+            <description>Directive parsing coverage expansion.</description>
+            <assertions>Directive outputs match documented element structure.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="3" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-3">
+      <title>[REF] Chord parsing and transposition mapping</title>
+      <justification><![CDATA[
+Chord parsing supports multiple notation systems and transposition rules that are not fully
+mapped, increasing regression risk for notation-specific features.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="3.1"><![CDATA[Document chord token parsing and naming conventions.]]></task>
+        <task id="3.2"><![CDATA[Map transposition rules and notation-specific conversions.]]></task>
+        <task id="3.3"><![CDATA[Add tests for roman, nashville, and solfege edge cases.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/110_chords_roman.t</file>
+            <description>Chord notation edge cases.</description>
+            <assertions>Notation conversions produce expected symbols and accidentals.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="4" type="refactoring" status="PENDING" priority="LOW" complexity="M" ref-feature="CF-5">
+      <title>[REF] Legacy and auxiliary backend parity</title>
+      <justification><![CDATA[
+Legacy backends vary in feature coverage. Without a parity matrix, regressions are hard to
+detect and behavior differences are undocumented.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="4.1"><![CDATA[Inventory element handlers across PDF/HTML/Text/LaTeX/JSON/MMA/ChordPro/Debug/Meta.]]></task>
+        <task id="4.2"><![CDATA[Document known gaps and intended behavior differences.]]></task>
+        <task id="4.3"><![CDATA[Add baseline tests for at least PDF and Text output.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/100_basic.t</file>
+            <description>Baseline backend output checks.</description>
+            <assertions>Selected backends render core song elements without errors.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="5" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-6">
+      <title>[REF] Markdown backend coverage</title>
+      <justification><![CDATA[
+Markdown backend handler coverage and representations for diagrams and delegates are not
+fully documented or tested.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="5.1"><![CDATA[Audit Markdown handler coverage against ChordProBase elements.]]></task>
+        <task id="5.2"><![CDATA[Define representation for diagrams, grids, and delegate outputs.]]></task>
+        <task id="5.3"><![CDATA[Add or extend tests for Markdown output coverage.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/73_md.t</file>
+            <description>Markdown output coverage tests.</description>
+            <assertions>All core elements have valid Markdown representations.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="6" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-7">
+      <title>[REF] Chord diagrams and grids mapping</title>
+      <justification><![CDATA[
+Diagram and grid rendering involve multiple components and font resources. Coverage and
+variants (keyboard diagrams, repeats) are only partially mapped.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="6.1"><![CDATA[Map diagram generation flow and SVG rendering paths.]]></task>
+        <task id="6.2"><![CDATA[Document grid syntax handling and repeat markers.]]></task>
+        <task id="6.3"><![CDATA[Add tests for keyboard diagrams and grid repeats.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/160_diagrams.t</file>
+            <description>Diagram rendering coverage.</description>
+            <assertions>Diagram outputs match expected SVG or textual format.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="7" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-8">
+      <title>[REF] Delegate integration contracts</title>
+      <justification><![CDATA[
+Delegate integration relies on external tools and internal IO contracts that are not fully
+specified, with minimal automated coverage.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="7.1"><![CDATA[Document delegate input/output contracts and file handling.]]></task>
+        <task id="7.2"><![CDATA[Map error handling for missing tools and failed conversions.]]></task>
+        <task id="7.3"><![CDATA[Add integration tests for ABC and LilyPond delegates.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="integration">
+            <file>t/118_tab.t</file>
+            <description>Delegate integration baseline.</description>
+            <assertions>Delegates produce renderable output or clear errors.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="8" type="refactoring" status="PENDING" priority="LOW" complexity="M" ref-feature="CF-9">
+      <title>[REF] Wx GUI workflow mapping</title>
+      <justification><![CDATA[
+GUI workflows and state transitions are not fully documented, and automated tests are
+uncertain. Mapping reduces regression risk for UI changes.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="8.1"><![CDATA[Document main GUI workflows: open, edit, preview, print.]]></task>
+        <task id="8.2"><![CDATA[Map configuration and output settings used by the GUI.]]></task>
+        <task id="8.3"><![CDATA[Create a manual test checklist for GUI regression.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="human">
+            <file></file>
+            <description>Manual GUI regression checklist run.</description>
+            <assertions>GUI workflows complete without errors and outputs match CLI behavior.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="9" type="refactoring" status="PENDING" priority="HIGH" complexity="M" ref-feature="CF-10">
+      <title>[REF] Configuration system mapping</title>
+      <justification><![CDATA[
+Config precedence, restricted hashes, and overrides affect most features. The behavior is not
+fully documented and lacks dedicated tests.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="9.1"><![CDATA[Document config layering and precedence rules.]]></task>
+        <task id="9.2"><![CDATA[Map restricted hash behavior and error cases.]]></task>
+        <task id="9.3"><![CDATA[Add tests for override merging and invalid key handling.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/15_subst.t</file>
+            <description>Config substitution and override tests.</description>
+            <assertions>Overrides apply in correct order and errors are surfaced clearly.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="10" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-11">
+      <title>[REF] Documentation coverage mapping</title>
+      <justification><![CDATA[
+Docs site covers core usage but advanced configuration and backend-specific behavior are
+incomplete. Mapping gaps helps prioritize documentation work.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="10.1"><![CDATA[Audit docs coverage against existing features and config keys.]]></task>
+        <task id="10.2"><![CDATA[Document backend selection and HTML5 print configuration.]]></task>
+        <task id="10.3"><![CDATA[Build docs site and verify new content renders.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="human">
+            <file>docs/</file>
+            <description>Build docs site with Hugo and review output.</description>
+            <assertions>New sections render correctly and navigation is updated.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+  </items>
+
+  <archive>
+  </archive>
+
+  <changelog>
+    <entry date="2026-02-08">Initial code analysis; generated overview.xml and created 10 [REF] items.</entry>
+  </changelog>
+</implementation-plan>
