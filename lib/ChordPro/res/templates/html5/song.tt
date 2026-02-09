@@ -7,7 +7,7 @@
       - body_html: Pre-rendered song body content
       - data_title, data_subtitle, data_artist, data_album, etc.: Raw metadata for CSS string-set (needs | html)
 %]
-<div class="cp-song[% IF diagrams_position == 'right' %] cp-song-layout-right[% END %]">
+<div class="cp-song[% IF diagrams_position == 'right' %] cp-song-layout-right[% END %][% IF page_break_class %] [% page_break_class | html %][% END %]">
 [% IF title %]
     <h1 class="cp-title"[% IF data_title %] data-title="[% data_title | html %]"[% END %]>[% title %]</h1>
 [% END %]

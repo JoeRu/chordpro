@@ -49,6 +49,16 @@
     page-break-before: always;
 }
 
+.cp-song.cp-page-break-before {
+    break-before: page;
+    page-break-before: always;
+}
+
+.cp-song.cp-page-break-after {
+    break-after: page;
+    page-break-after: always;
+}
+
 /* Songbook parts */
 .cp-cover,
 .cp-front-matter {
@@ -131,6 +141,7 @@
 /* Spacing for chord-only pairs (chords with no lyrics) */
 .cp-chord-only {
     margin-right: 0.5em;
+    align-self: flex-start;
 }
 
 .cp-chord {

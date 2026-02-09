@@ -27,15 +27,111 @@ Topics in this document:
 
 ChordPro provides a single modern HTML5 backend with multiple output modes:
 
-* **responsive** (default): Fluid layout for web viewing and mobile screens
+* **print** (default): Paginated output using [Paged.js](https://pagedjs.org/) for print-ready PDFs
+* **responsive**: Fluid layout for web viewing and mobile screens
 * **screen**: Fixed layout optimized for on-screen display
-* **print**: Paginated output using [Paged.js](https://pagedjs.org/) for print-ready PDFs
 
 Select the mode with `html5.mode` in your configuration. The same backend is used for all modes, with `html5.paged` providing the extra settings used only for print mode. `print` and `paged` are accepted synonyms for the paged layout.
 
 If you want `.html` output to use the modern HTML5 backend by default, set:
 
     html.module : "HTML5"
+
+## Configuration Reference
+
+This section lists the supported HTML5 configuration keys and the defaults supplied by the
+main configuration. Examples are shown in relaxed JSON syntax.
+
+### Core HTML5 Settings
+
+```
+html5 {
+    // Output mode: "print" (default), "responsive", or "screen".
+    mode : "print"
+
+    // Optional songbook parts (HTML or image files).
+    cover : false
+    front-matter : false
+    back-matter : false
+
+    // Template include paths (searched before defaults).
+    template_include_path : []
+
+    // Templates for HTML/CSS generation.
+    templates {
+        css            : "html5/css/base.tt"
+        songbook       : "html5/songbook.tt"
+        song           : "html5/song.tt"
+        songline       : "html5/songline.tt"
+        comment        : "html5/comment.tt"
+        image          : "html5/image.tt"
+        chord_diagrams : "html5/chord-diagrams.tt"
+    }
+
+    // CSS customization (colors, fonts, sizes, spacing).
+    css {
+        colors  : {}
+        fonts   : {}
+        sizes   : {}
+        spacing : {}
+    }
+
+    // Optional external CSS file appended after generated CSS.
+    // css.custom-css-file : "/path/to/extra.css"
+}
+```
+
+### Print Mode Settings (html5.paged)
+
+```
+html5.paged {
+    // Paper size and margins (inherit from pdf.* when not set).
+    // papersize    : "a4"
+    // margintop    : 80
+    // marginbottom : 40
+    // marginleft   : 40
+    // marginright  : 40
+    // headspace    : 60
+    // footspace    : 20
+
+    // Template include paths (searched before defaults).
+    template_include_path : []
+
+    // Templates for paged HTML/CSS generation.
+    templates {
+        css      : "html5/paged/css/base.tt"
+        songbook : "html5/paged/songbook.tt"
+        song     : "html5/paged/song.tt"
+        toc      : "html5/paged/toc.tt"
+    }
+
+    // Song pagination controls.
+    song {
+        // Page break before/after each song: "none", "before", "after", "both".
+        page-break : "none"
+    }
+
+    // CSS customization for paged output.
+    css {
+        colors  : {}
+        fonts   : {}
+        sizes   : {}
+        spacing : {}
+    }
+}
+```
+
+### PDF Compatibility Keys
+
+HTML5 output reuses PDF configuration when HTML5-specific overrides are missing:
+
+* Page size and margins: `pdf.papersize`, `pdf.margintop`, `pdf.marginbottom`,
+  `pdf.marginleft`, `pdf.marginright`, `pdf.headspace`, `pdf.footspace`
+* Formats (headers/footers): `pdf.formats.*`
+* Theme colors: `pdf.theme.*`
+* Spacing multipliers: `pdf.spacing.*`
+* Chorus styling: `pdf.chorus.*`
+* Chord diagrams: `pdf.diagrams.*`
 
 ## Template System
 

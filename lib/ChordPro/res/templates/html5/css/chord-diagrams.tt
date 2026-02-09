@@ -48,7 +48,8 @@
 }
 
 .cp-diagram-svg {
-    width: 4em;
+    width: var(--cp-diagram-width);
+    max-width: var(--cp-diagram-width);
     height: auto;
 }
 

@@ -4,7 +4,7 @@
     <title>ChordPro</title>
     <version>6.090_040</version>
     <analyzed>2026-02-08</analyzed>
-    <updated>2026-02-08</updated>
+    <updated>2026-02-09</updated>
     <repository>https://github.com/ChordPro/chordpro</repository>
   </metadata>
 
@@ -270,6 +270,23 @@
       <gaps>
         <gap>Doc coverage for advanced configuration and backend-specific behavior is partial.</gap>
       </gaps>
+    </feature>
+    <feature id="CF-11" completed="2026-02-09" source-item="11">
+      <title>HTML5 image alignment regression in t/85_html5_image_align.t</title>
+      <description>Image scaling now preserves explicit width/height attributes when scale is set, which restores the expected HTML5 output.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-12" completed="2026-02-09" source-item="12">
+      <title>[REF] HTML5 image scale behavior alignment</title>
+      <description>HTML5 image scaling now treats scale-only inputs as percentage widths, while width+scale remains a multiplier; the page-width test now exercises scale-only behavior.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/190_html5_bug7_image_scale_pagewidth.t</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
     </feature>
   </completed-features>
 </project-overview>
