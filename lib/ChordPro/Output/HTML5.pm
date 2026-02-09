@@ -1106,6 +1106,23 @@ class ChordPro::Output::HTML5
             }
         }
 
+        my $page_break_class = '';
+        if ($paged_mode) {
+            my $config = $self->config // {};
+            my $break_setting = lc(
+                eval { $config->{html5}->{paged}->{song}->{'page-break'} } // 'none'
+            );
+            $break_setting = 'none'
+                unless $break_setting =~ /^(?:none|before|after|both)\z/;
+
+            my @break_classes;
+            push @break_classes, 'cp-page-break-before'
+                if $break_setting eq 'before' || $break_setting eq 'both';
+            push @break_classes, 'cp-page-break-after'
+                if $break_setting eq 'after' || $break_setting eq 'both';
+            $page_break_class = join(' ', @break_classes);
+        }
+
         # Prepare template variables
         my $vars = {
             title => $processed_title,
@@ -1117,6 +1134,7 @@ class ChordPro::Output::HTML5
             body_html => $body_html,
             paged_mode => $paged_mode,
             song_id => $song_id,
+            page_break_class => $page_break_class,
             %$data_attrs,  # Merge data attributes
         };
 
@@ -1481,15 +1499,15 @@ class ChordPro::Output::HTML5
     # =================================================================
 
     method generate_default_css($paged_mode = 0) {
-        my $config = $self->config // {};
-        my $html5_cfg = eval { $config->{html5} } // {};
+        my $config = $self->config;
+        my $html5_cfg = $config->{html5};
         
         # Extract and clone CSS sub-configs to plain hashes (avoid restricted hash issues)
-        my $css_config = eval { $html5_cfg->{css} } // {};
-        my $colors_cfg = eval { $css_config->{colors} } // {};
-        my $fonts_cfg = eval { $css_config->{fonts} } // {};
-        my $sizes_cfg = eval { $css_config->{sizes} } // {};
-        my $spacing_cfg = eval { $css_config->{spacing} } // {};
+        my $css_config = $html5_cfg->{css};
+        my $colors_cfg = $css_config->{colors};
+        my $fonts_cfg = $css_config->{fonts};
+        my $sizes_cfg = $css_config->{sizes};
+        my $spacing_cfg = $css_config->{spacing};
         
         # Resolve PDF config → CSS (Phase 4)
         my $theme = $self->_resolve_theme_colors();
@@ -1509,36 +1527,36 @@ class ChordPro::Output::HTML5
             colors => { %$colors_cfg },
             fonts => { %$fonts_cfg },
             sizes => { %$sizes_cfg },
-            chords_under => is_true(eval { $config->{settings}->{'chords-under'} }),
+            chords_under => is_true($config->{settings}->{'chords-under'}),
             
             # Paged mode flag
             paged_mode => $paged_mode,
         };
 
         if ($paged_mode) {
-            my $paged_cfg = eval { $html5_cfg->{paged} } // {};
-            my $pdf_cfg = eval { $config->{pdf} } // {};
+            my $paged_cfg = $html5_cfg->{paged};
+            my $pdf_cfg = $config->{pdf};
 
             $vars->{papersize} = eval { $paged_cfg->{papersize} }
-                // eval { $pdf_cfg->{papersize} }
+                // $pdf_cfg->{papersize}
                 // 'a4';
             $vars->{margintop} = eval { $paged_cfg->{margintop} }
-                // eval { $pdf_cfg->{margintop} }
+                // $pdf_cfg->{margintop}
                 // 80;
             $vars->{marginbottom} = eval { $paged_cfg->{marginbottom} }
-                // eval { $pdf_cfg->{marginbottom} }
+                // $pdf_cfg->{marginbottom}
                 // 40;
             $vars->{marginleft} = eval { $paged_cfg->{marginleft} }
-                // eval { $pdf_cfg->{marginleft} }
+                // $pdf_cfg->{marginleft}
                 // 40;
             $vars->{marginright} = eval { $paged_cfg->{marginright} }
-                // eval { $pdf_cfg->{marginright} }
+                // $pdf_cfg->{marginright}
                 // 40;
             $vars->{headspace} = eval { $paged_cfg->{headspace} }
-                // eval { $pdf_cfg->{headspace} }
+                // $pdf_cfg->{headspace}
                 // 60;
             $vars->{footspace} = eval { $paged_cfg->{footspace} }
-                // eval { $pdf_cfg->{footspace} }
+                // $pdf_cfg->{footspace}
                 // 20;
 
             my $format_generator = ChordPro::Output::HTML5Helper::FormatGenerator->new(
@@ -1553,12 +1571,11 @@ class ChordPro::Output::HTML5
         my $template;
         if ($paged_mode) {
             # Try paged template first, fall back to regular
-            my $paged_cfg = eval { $html5_cfg->{paged} } // {};
-            $template = eval { $paged_cfg->{templates}->{css} } 
-                     // eval { $html5_cfg->{templates}->{css} } 
-                     // 'html5/css/base.tt';
+            my $paged_cfg = $html5_cfg->{paged};
+            $template = $paged_cfg->{templates}->{css}
+                     // $html5_cfg->{templates}->{css};
         } else {
-            $template = eval { $html5_cfg->{templates}->{css} } // 'html5/css/base.tt';
+            $template = $html5_cfg->{templates}->{css};
         }
         
         $template_engine->process($template, $vars, \$css)

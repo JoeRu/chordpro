@@ -31,8 +31,8 @@ perl Makefile.PL
 # Build (REQUIRED after modifying Perl modules - blib/ caches compiled code)
 make
 
-# Run tests
-make test          # Standard tests in t/
+# Run tests 
+make test          # Standard tests in t/ - - a complete test runs about 260 seconds
 make tests         # Include extended tests in xt/
 
 # Run specific test

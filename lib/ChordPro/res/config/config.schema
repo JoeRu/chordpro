@@ -2721,6 +2721,42 @@
       }
     },
     {
+      "title": "HTML5 Output",
+      "type": "object",
+      "properties": {
+        "html5": {
+          "description": "Settings for HTML5 output.",
+          "type": "object",
+          "properties": {
+            "mode": {
+              "description": "HTML5 output mode.",
+              "type": "string",
+              "enum": ["responsive", "screen", "print", "paged"],
+              "default": "print"
+            },
+            "paged": {
+              "description": "Settings for paged HTML5 output.",
+              "type": "object",
+              "properties": {
+                "song": {
+                  "description": "Song pagination controls for paged output.",
+                  "type": "object",
+                  "properties": {
+                    "page-break": {
+                      "description": "Insert a page break before or after each song in paged output.",
+                      "type": "string",
+                      "enum": ["none", "before", "after", "both"],
+                      "default": "none"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "title": "ChordPro Output",
       "type": "object",
       "properties": {

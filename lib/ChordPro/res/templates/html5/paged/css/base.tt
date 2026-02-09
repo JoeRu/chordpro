@@ -13,6 +13,8 @@
 
 [% INCLUDE 'html5/css/typography.tt' %]
 
+[% INCLUDE 'html5/css/chord-diagrams.tt' %]
+
 [% INCLUDE 'html5/paged/css/layout.tt' %]
 
 [% INCLUDE 'html5/paged/css/print-media.tt' %]

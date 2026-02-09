@@ -4,7 +4,7 @@
     <title>ChordPro Feature and Bug Plan</title>
     <version>3.1</version>
     <date>2026-02-08</date>
-    <updated>2026-02-08</updated>
+    <updated>2026-02-09</updated>
     <status>Initial code analysis (2026-02-08)</status>
     <summary>
       Initial analysis of the ChordPro codebase. Established architecture, dependencies, and
@@ -221,7 +221,7 @@ fully documented and lacks dedicated tests.
       </verification>
     </item>
 
-    <item id="10" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-11">
+    <item id="10" type="refactoring" status="APPROVED" priority="MEDIUM" complexity="M" ref-feature="CF-11">
       <title>[REF] Documentation coverage mapping</title>
       <justification><![CDATA[
 Docs site covers core usage but advanced configuration and backend-specific behavior are
@@ -244,7 +244,278 @@ incomplete. Mapping gaps helps prioritize documentation work.
       </verification>
     </item>
 
-        <item id="11" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4">
+    <item id="13" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4">
+      <title>HTML5 format config access uses redundant eval fallbacks</title>
+      <justification><![CDATA[
+Default configuration is always loaded first, so HTML5 format entries should exist in the
+config tree. Redundant eval-based fallbacks (e.g., eval { $config->{html5} } // {}) can mask
+config errors and blur the intended handling of restricted hashes. The HTML5 format generator
+should rely on the default config guarantees and only use eval where restricted hashes require
+safe access.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-13-html5-format-config-access-uses-redundant-eval-fallbacks</branch>
+      <tasks>
+        <task id="13.1"><![CDATA[Confirm default config guarantees for html5/pdf format keys and how restricted hashes are accessed safely.]]></task>
+        <task id="13.2"><![CDATA[Remove redundant eval fallbacks in HTML5 format generation and related config access paths.]]></task>
+        <task id="13.3"><![CDATA[Add or update tests/docs to cover HTML5 format generation with default config and restricted hashes.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>HTML5 format generator with default config.</description>
+            <assertions>Format rules are generated without eval fallbacks and remain correct with restricted hashes.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Removed eval fallbacks for HTML5 config paths guaranteed by defaults, while keeping guarded access for optional or overridden format keys (including cases where pdf.formats omits default/title/first) and for custom CSS/paged overrides.</observations>
+        <lessons-learned>Restricted hashes raise on disallowed keys, so optional or overwritten config keys still require guarded access even when defaults are always loaded.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="14" type="refactoring" status="DONE" priority="MEDIUM" complexity="S" ref-feature="CF-4">
+      <title>Make HTML5 print mode the default config value</title>
+      <justification><![CDATA[
+HTML5 output is now commonly used for paged/print workflows. Setting html5.mode default to
+"print" aligns the default configuration with the desired output mode and reduces the need
+for per-project overrides. This change should update the default config and its generated
+Config::Data snapshot, plus any docs or tests that assume "responsive" as the default.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>refactoring/item-14-make-html5-print-mode-default</branch>
+      <tasks>
+        <task id="14.1"><![CDATA[Update the default html5.mode value in lib/ChordPro/res/config/chordpro.json to "print".]]></task>
+        <task id="14.2"><![CDATA[Regenerate lib/ChordPro/Config/Data.pm via script/cfgboot.pl or the standard build step.]]></task>
+        <task id="14.3"><![CDATA[Update docs/tests that assume "responsive" is the default HTML5 mode.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/79_html5_oddeven.t</file>
+            <description>HTML5 paged mode CSS generation.</description>
+            <assertions>Default config uses print mode and paged CSS rules are generated as expected.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Default HTML5 mode now uses print/paged output, and the generated Config::Data snapshot reflects the new default.</observations>
+        <lessons-learned>Regenerating Config::Data.pm also refreshes Config.pod, so documentation artifacts must be tracked alongside config changes.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/config/chordpro.json</file>
+          <file>lib/ChordPro/Config/Data.pm</file>
+          <file>lib/ChordPro/res/pod/Config.pod</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="15" type="refactoring" status="DONE" priority="MEDIUM" complexity="M" ref-feature="CF-11">
+      <title>Update HTML5 configuration docs with full config feature set and examples</title>
+      <justification><![CDATA[
+The HTML5 configuration guide needs a complete, current inventory of supported settings and
+examples so users can configure templates, paged output, CSS customization, and PDF
+compatibility without relying on defaults or source code. Updating the documentation reduces
+configuration errors and aligns with recent HTML5 backend changes.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>refactoring/item-15-update-html5-configuration-docs</branch>
+      <tasks>
+        <task id="15.1"><![CDATA[Audit HTML5 configuration keys against lib/ChordPro/res/config/chordpro.json and HTML5 backend usage.]]></task>
+        <task id="15.2"><![CDATA[Update docs/content/ChordPro-Configuration-HTML5.md with a complete config feature list and examples.]]></task>
+        <task id="15.3"><![CDATA[Call out default behaviors and inheritance rules (html5, html5.paged, pdf fallbacks).]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="human">
+            <file>docs/content/ChordPro-Configuration-HTML5.md</file>
+            <description>Documentation review for HTML5 configuration completeness.</description>
+            <assertions>All supported HTML5 config keys are listed with at least one example per section.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Added a configuration reference section with full HTML5 key coverage, updated the default mode description, and documented paged overrides and PDF fallbacks.</observations>
+        <lessons-learned>Keeping a short reference block near the top makes it easier to reconcile docs with evolving config defaults.</lessons-learned>
+        <files>
+          <file>docs/content/ChordPro-Configuration-HTML5.md</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="16" type="bug" status="DONE" priority="HIGH" complexity="M" ref-feature="CF-4">
+      <title>HTML5 config rejects paged margins and css fonts in user config</title>
+      <justification><![CDATA[
+Running HTML5 output with a user config fails with "unknown item" errors for
+html5.paged.papersize/margins and html5.css.fonts.text, indicating the config schema or
+override handling is rejecting valid HTML5 settings. This blocks practical HTML5 print
+configuration despite defaults supporting these keys.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-16-html5-config-rejects-paged-margins-css-fonts</branch>
+      <tasks>
+        <task id="16.1"><![CDATA[Reproduce the config errors with the provided command and config file.]]></task>
+        <task id="16.2"><![CDATA[Identify why html5.paged.* and html5.css.fonts.* are rejected (schema, merge, or validation path).]]></task>
+        <task id="16.3"><![CDATA[Fix config validation/merge so HTML5 paged margins and css fonts are accepted in user configs.]]></task>
+        <task id="16.4"><![CDATA[Add regression coverage for html5.paged margins and html5.css.fonts in config overrides.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/210_configs.t</file>
+            <description>HTML5 config override acceptance.</description>
+            <assertions>html5.paged margins and html5.css.fonts overrides load without unknown-item errors.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>HTML5 override keys now load without unknown-item errors, and paged margin defaults are represented in the base config.</observations>
+        <lessons-learned>Allowing free-form CSS override maps requires explicit relaxations in config validation while keeping other keys strict.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Config.pm</file>
+          <file>lib/ChordPro/res/config/chordpro.json</file>
+          <file>lib/ChordPro/Config/Data.pm</file>
+          <file>lib/ChordPro/res/pod/Config.pod</file>
+          <file>t/210_configs.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="17" type="bug" status="IN_PROGRESS" priority="HIGH" complexity="M" ref-feature="CF-7">
+      <title>HTML5 chord diagram SVGs expand to full width</title>
+      <justification><![CDATA[
+In HTML5 paged output, chord diagram SVGs render at full column width instead of the
+expected compact size (around 2-3em). The SVGs should have a fixed max width or be
+controllable via CSS so diagram size remains consistent and readable in song layouts.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-17-html5-chord-diagram-svgs-width</branch>
+      <tasks>
+        <task id="17.1"><![CDATA[Reproduce the full-width diagram rendering in HTML5 paged output and capture the generated HTML/CSS.]]></task>
+        <task id="17.2"><![CDATA[Identify the CSS or template rule responsible for svg sizing in html5 chord diagrams.]]></task>
+        <task id="17.3"><![CDATA[Constrain diagram SVG sizing (e.g., max-width in em) or add a configurable CSS variable override.]]></task>
+        <task id="17.4"><![CDATA[Add regression coverage for diagram sizing in HTML5 paged output.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/86_html5_diagram_pos.t</file>
+            <description>HTML5 chord diagram sizing.</description>
+            <assertions>SVG diagrams respect the configured max width and do not expand to full column width.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>PROBLEM</outcome>
+        <observations>Added a CSS diagram width variable and included chord diagram styles in the paged CSS template; updated t/86_html5_diagram_pos.t to assert diagram sizing, but the extended test run was interrupted (exit 130) before completion.</observations>
+        <lessons-learned>Paged HTML5 output needs explicit inclusion of shared CSS templates to avoid missing sizing rules.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/templates/html5/css/variables.tt</file>
+          <file>lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/base.tt</file>
+          <file>t/86_html5_diagram_pos.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="18" type="bug" status="IN_PROGRESS" priority="HIGH" complexity="S" ref-feature="CF-4">
+      <title>HTML5 chord-only pairs align with lyrics instead of chord line</title>
+      <justification><![CDATA[
+When a chord-lyric pair has an empty lyric span (chord-only, e.g., trailing [Am] [Em] at the
+end of a line), the HTML5 output aligns the chord with the lyric baseline instead of the
+chord line. This misalignment makes chord-only entries drop to the lyric line and disrupts
+the chord row alignment.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-18-html5-chord-only-align-lyrics</branch>
+      <tasks>
+        <task id="18.1"><![CDATA[Reproduce chord-only alignment behavior in HTML5 output and capture the HTML/CSS for cp-chord-lyric-pair cp-chord-only.]]></task>
+        <task id="18.2"><![CDATA[Identify the CSS/layout rule that aligns chord-only pairs to the lyric baseline instead of the chord line.]]></task>
+        <task id="18.3"><![CDATA[Fix chord-only alignment so chords remain on the chord line (e.g., adjust display/vertical-align for cp-chord-only).]]></task>
+        <task id="18.4"><![CDATA[Add regression coverage for chord-only alignment in HTML5 output.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/192_html5_chord_only_align.t</file>
+            <description>HTML5 chord-only pair alignment.</description>
+            <assertions>Chord-only pairs remain aligned with the chord line and do not drop to the lyric baseline.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>PROBLEM</outcome>
+        <observations>Added flex-start alignment for chord-only pairs in HTML5 and paged CSS and created t/192_html5_chord_only_align.t; MANIFEST updated, but the extended test run was interrupted (exit 130) before completion.</observations>
+        <lessons-learned>Chord-only alignment depends on consistent flex item alignment across both standard and paged CSS templates.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/templates/html5/css/songlines.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+          <file>t/192_html5_chord_only_align.t</file>
+          <file>MANIFEST</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="19" type="feature" status="IN_PROGRESS" priority="MEDIUM" complexity="M" ref-feature="CF-4">
+      <title>HTML5 configurable song page breaks</title>
+      <justification><![CDATA[
+HTML5 paged output needs a configurable way to force page breaks before or after each song
+so users can control song separation in print layouts without manual CSS edits.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>feature/item-19-html5-configurable-song-page-breaks</branch>
+      <tasks>
+        <task id="19.1"><![CDATA[Define HTML5 config keys for song page breaks (before/after/both/none) and update config schema/defaults.]]></task>
+        <task id="19.2"><![CDATA[Apply the config in the HTML5 song wrapper (paged output) with CSS classes or inline styles.]]></task>
+        <task id="19.3"><![CDATA[Add or update documentation for the new HTML5 page break setting.]]></task>
+        <task id="19.4"><![CDATA[Add regression tests for page-break before/after song rendering in HTML5 paged output.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/94_html5_page_breaks.t</file>
+            <description>HTML5 song page-break configuration.</description>
+            <assertions>Configured before/after page-breaks appear on the song container in paged output.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>PROBLEM</outcome>
+        <observations>Added html5.paged.song.page-break config, song wrapper classes, paged CSS break rules, docs/schema updates, and t/94_html5_page_breaks.t. Standard tests passed, but make tests failed in xt/01_config.t due to missing lib/ChordPro/res/config/chordpro.prp.</observations>
+        <lessons-learned>Extended tests depend on generated config property files; ensure chordpro.prp is available before running xt/ tests.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/config/chordpro.json</file>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/song.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/song.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+          <file>lib/ChordPro/res/config/config.schema</file>
+          <file>docs/content/ChordPro-Configuration-HTML5.md</file>
+          <file>t/94_html5_page_breaks.t</file>
+          <file>MANIFEST</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+  </items>
+
+  <archive>
+    <item id="11" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4" archived="2026-02-09">
       <title>HTML5 image alignment regression in t/85_html5_image_align.t</title>
       <justification><![CDATA[
 t/85_html5_image_align.t fails subtest 5, indicating a regression in HTML5 image alignment
@@ -276,8 +547,7 @@ rendering. This breaks expected HTML5 output formatting.
         </files>
       </r>
     </item>
-
-    <item id="12" type="refactoring" status="DONE" priority="MEDIUM" complexity="S" ref-feature="CF-4">
+    <item id="12" type="refactoring" status="DONE" priority="MEDIUM" complexity="S" ref-feature="CF-4" archived="2026-02-09">
       <title>[REF] HTML5 image scale behavior alignment</title>
       <justification><![CDATA[
 HTML5 image scaling logic and tests diverge on whether scale should override explicit
@@ -321,9 +591,6 @@ prevents regressions across HTML5 image tests.
         </files>
       </r>
     </item>
-  </items>
-
-  <archive>
   </archive>
 
   <changelog>
@@ -332,5 +599,20 @@ prevents regressions across HTML5 image tests.
     <entry date="2026-02-08">Item 11 implemented. HTML5 image scaling preserves explicit width/height when scale is provided.</entry>
     <entry date="2026-02-08">Added refactoring item to align HTML5 image scale behavior and tests.</entry>
     <entry date="2026-02-08">Item 12 implemented. Aligned HTML5 image scaling logic and tests for scale-only vs width+scale behavior.</entry>
+    <entry date="2026-02-09">Archived items 11 and 12.</entry>
+    <entry date="2026-02-09">Added bug item for HTML5 format config access and redundant eval fallbacks.</entry>
+    <entry date="2026-02-09">Item 13 implemented. Reduced redundant eval access in HTML5 format configuration paths.</entry>
+    <entry date="2026-02-09">Added refactoring item to change default HTML5 mode to print.</entry>
+    <entry date="2026-02-09">Added refactoring item to update HTML5 configuration documentation.</entry>
+    <entry date="2026-02-09">Approved items 14 and 15.</entry>
+    <entry date="2026-02-09">Items 14 and 15 implemented. Defaulted HTML5 mode to print and expanded HTML5 configuration documentation.</entry>
+    <entry date="2026-02-09">Added bug item for HTML5 config override validation errors in paged margins and CSS fonts.</entry>
+    <entry date="2026-02-09">Item 16 implemented. Allowed HTML5 paged margin and CSS font overrides in user config.</entry>
+    <entry date="2026-02-09">Added bug item for HTML5 chord diagram SVG sizing in paged output.</entry>
+    <entry date="2026-02-09">Added bug item for HTML5 chord-only alignment dropping to lyric baseline.</entry>
+    <entry date="2026-02-09">Approved items 17 and 18.</entry>
+    <entry date="2026-02-09">Items 17 and 18 implemented. Added diagram sizing variable with paged CSS include and aligned chord-only pairs; added tests, but extended test run was interrupted.</entry>
+    <entry date="2026-02-09">Added feature item for configurable HTML5 page breaks before/after songs.</entry>
+    <entry date="2026-02-09">Item 19 implemented. Added configurable HTML5 paged song page breaks with template classes, CSS rules, docs, and tests; xt/01_config.t failed due to missing chordpro.prp.</entry>
   </changelog>
 </implementation-plan>

@@ -1215,13 +1215,17 @@
         paged {
     
             // Paper size for pagination (inherits from pdf.papersize if not set).
-            // papersize : "a4"
+            papersize : null
     
             // Page margins in points (inherits from pdf margins if not set).
-            // margintop : 80
-            // marginbottom : 40
-            // marginleft : 40
-            // marginright : 40
+            margintop : null
+            marginbottom : null
+            marginleft : null
+            marginright : null
+    
+            // Space for page titles and footers (inherits from pdf head/foot space).
+            headspace : null
+            footspace : null
     
             // Include paths for templates.
             template_include_path : []
@@ -1235,6 +1239,12 @@
                 songbook : "html5/paged/songbook.tt"
                 song : "html5/paged/song.tt"
                 toc : "html5/paged/toc.tt"
+            }
+    
+            // Song pagination controls.
+            song {
+                // Page break before/after each song: "none", "before", "after", "both".
+                page-break : "none"
             }
     
             // CSS customization.
@@ -1270,9 +1280,9 @@
     // Settings for HTML5 (output) backends.
     html5 {
     
-        // Output mode: "responsive" (default), "screen", "print" (paged.js).
+        // Output mode: "responsive", "screen", "print" (paged.js).
         // "print" mode enables pagination with paged.js for PDF-like output.
-        mode : "responsive"
+        mode : "print"
     
         // Songbook parts (HTML or image files).
         // cover : "cover.html"
@@ -1311,13 +1321,17 @@
         paged {
     
             // Paper size for pagination (inherits from pdf.papersize if not set).
-            // papersize : "a4"
+            papersize : null
     
             // Page margins in points (inherits from pdf margins if not set).
-            // margintop : 80
-            // marginbottom : 40
-            // marginleft : 40
-            // marginright : 40
+            margintop : null
+            marginbottom : null
+            marginleft : null
+            marginright : null
+    
+            // Space for page titles and footers (inherits from pdf head/foot space).
+            headspace : null
+            footspace : null
     
             // Include paths for templates.
             template_include_path : []
@@ -1331,6 +1345,12 @@
                 songbook : "html5/paged/songbook.tt"
                 song : "html5/paged/song.tt"
                 toc : "html5/paged/toc.tt"
+            }
+    
+            // Song pagination controls.
+            song {
+                // Page break before/after each song: "none", "before", "after", "both".
+                page-break : "none"
             }
     
             // CSS customization.

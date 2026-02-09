@@ -29,6 +29,7 @@
 /* Spacing for chord-only pairs (chords with no lyrics) */
 .cp-chord-only {
     margin-right: 0.5em;
+    align-self: flex-start;
 }
 
 .cp-chord {

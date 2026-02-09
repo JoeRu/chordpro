@@ -7,7 +7,7 @@ use utf8;
 use File::Path qw(make_path);
 use ChordPro::Testing;
 
-plan tests => 6;
+plan tests => 8;
 
 make_path('out');
 
@@ -39,6 +39,12 @@ sub run_position_test {
     close $out_fh;
 
     $assert_cb->($content);
+
+    like(
+        $content,
+        qr/\.cp-diagram-svg\s*\{[^}]*max-width:\s*var\(--cp-diagram-width\)/s,
+        'Diagram SVG sizing is constrained via CSS'
+    );
 
     unlink $out;
     unlink $cfg;
