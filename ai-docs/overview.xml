@@ -4,7 +4,7 @@
     <title>ChordPro</title>
     <version>6.090_040</version>
     <analyzed>2026-02-08</analyzed>
-    <updated>2026-02-09</updated>
+    <updated>2026-02-10</updated>
     <repository>https://github.com/ChordPro/chordpro</repository>
   </metadata>
 
@@ -285,6 +285,89 @@
       <files>
         <file>lib/ChordPro/Output/HTML5.pm</file>
         <file>t/190_html5_bug7_image_scale_pagewidth.t</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-10" completed="2026-02-10" source-item="10">
+      <title>[REF] Documentation coverage mapping</title>
+      <description>Added backend selection and HTML5 print-mode guidance to configuration overview and HTML5 configuration docs, and the docs build now completes successfully.</description>
+      <files>
+        <file>docs/content/ChordPro-Configuration-Overview.md</file>
+        <file>docs/content/ChordPro-Configuration-HTML5.md</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-13" completed="2026-02-10" source-item="13">
+      <title>HTML5 format config access uses redundant eval fallbacks</title>
+      <description>Removed eval fallbacks for HTML5 config paths guaranteed by defaults, while keeping guarded access for optional or overridden format keys (including cases where pdf.formats omits default/title/first) and for custom CSS/paged overrides.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-14" completed="2026-02-10" source-item="14">
+      <title>Make HTML5 print mode the default config value</title>
+      <description>Default HTML5 mode now uses print/paged output, and the generated Config::Data snapshot reflects the new default.</description>
+      <files>
+        <file>lib/ChordPro/res/config/chordpro.json</file>
+        <file>lib/ChordPro/Config/Data.pm</file>
+        <file>lib/ChordPro/res/pod/Config.pod</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-15" completed="2026-02-10" source-item="15">
+      <title>Update HTML5 configuration docs with full config feature set and examples</title>
+      <description>Added a configuration reference section with full HTML5 key coverage, updated the default mode description, and documented paged overrides and PDF fallbacks.</description>
+      <files>
+        <file>docs/content/ChordPro-Configuration-HTML5.md</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-16" completed="2026-02-10" source-item="16">
+      <title>HTML5 config rejects paged margins and css fonts in user config</title>
+      <description>HTML5 override keys now load without unknown-item errors, and paged margin defaults are represented in the base config.</description>
+      <files>
+        <file>lib/ChordPro/Config.pm</file>
+        <file>lib/ChordPro/res/config/chordpro.json</file>
+        <file>lib/ChordPro/Config/Data.pm</file>
+        <file>lib/ChordPro/res/pod/Config.pod</file>
+        <file>t/210_configs.t</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-20" completed="2026-02-10" source-item="20">
+      <title>HTML5 paged newpage uses legacy page-break-only CSS</title>
+      <description>Newpage directives now emit paged break classes and CSS rules use break-before/break-after with page-break fallbacks.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+        <file>t/95_html5_paged_newpage.t</file>
+      </files>
+    </feature>
+    <feature id="CF-22" completed="2026-02-10" source-item="22">
+      <title>HTML5 paged cover/front/back matter omit named page rules</title>
+      <description>Cover/front/back matter wrappers now assign named pages that map to @page rules.</description>
+      <files>
+        <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/page-setup.tt</file>
+        <file>t/97_html5_paged_named_pages_matter.t</file>
+      </files>
+    </feature>
+    <feature id="CF-24" completed="2026-02-10" source-item="24">
+      <title>[REF] Refactor HTML5 paged stylesheet to use section-based layout rules</title>
+      <description>Updated HTML5 paged tests to accept section-based wrappers and more flexible class ordering; diagram placement checks now handle section wrappers. Full test suite passes.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/paged/song.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/toc.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/base.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+        <file>ai-docs/pagedjs-analytics-and-usage.md</file>
+        <file>t/80_html5_songbook_parts.t</file>
+        <file>t/86_html5_diagram_pos.t</file>
+        <file>t/97_html5_paged_named_pages_matter.t</file>
+        <file>t/99_html5_paged_stylesheet_sections.t</file>
         <file>ai-docs/overview-features-bugs.xml</file>
       </files>
     </feature>
