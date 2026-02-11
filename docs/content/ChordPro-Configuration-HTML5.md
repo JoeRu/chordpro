@@ -129,6 +129,9 @@ html5.paged {
         page-break : "none"
     }
 
+    // Note: "before" and "both" insert breaks only between songs (after the first)
+    // to avoid leading blank pages.
+
     // Newpage/new_physical_page pagination controls.
     newpage {
         // Targeted page break for {new_page}: "page", "right", "left", "recto", "verso".

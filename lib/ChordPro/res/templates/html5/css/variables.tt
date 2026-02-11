@@ -62,3 +62,4 @@
     --grid-symbols-color: [% grid_styles.symbols_color %];
     --grid-volta-color: [% grid_styles.volta_color %];
     [% END %]
+}

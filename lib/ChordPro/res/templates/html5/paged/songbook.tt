@@ -15,10 +15,15 @@
 
     <!-- Paged.js for pagination -->
     <script src="https://unpkg.com/pagedjs@0.4.3/dist/paged.polyfill.js"></script>
-
+[% IF css_files.0 %]
+[% FOREACH css_file IN css_files %]
+    <link rel="stylesheet" href="[% css_file | html %]">
+[% END %]
+[% ELSE %]
     <style>
 [% css %]
     </style>
+[% END %]
 </head>
 <body class="chordpro-songbook chordpro-paged">
     <div class="book-content">

@@ -75,12 +75,12 @@ sub run_break_test {
     close $out_fh;
 
     my $before_rx = qr/class="cp-song-break\b[^"]*\bcp-page-break-before\b/;
-    my $before_song_rx = qr/class="cp-song\b[^"]*\bcp-page-break-before\b/;
+    my $before_song_rx = qr/<section\b[^>]*class="[^"]*\bcp-song\b[^"]*\bcp-page-break-before\b/;
     my $after_rx = qr/class="cp-song[^"]*\bcp-page-break-after\b/;
 
     if ($expect_before) {
       like($content, $before_rx, "$label includes page-break before class");
-      like($content, $before_song_rx, "$label includes page-break before class on song");
+      unlike($content, $before_song_rx, "$label omits page-break before class on song");
     } else {
       unlike($content, $before_rx, "$label omits page-break before class");
       unlike($content, $before_song_rx, "$label omits page-break before class on song");

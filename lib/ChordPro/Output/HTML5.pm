@@ -1604,18 +1604,18 @@ class ChordPro::Output::HTML5
         close $fh;
     }
 
+    method _condense_html_output($output) {
+        return '' unless defined $output;
+        $output =~ s/\n[ \t]*\n(?:[ \t]*\n)+/\n\n/g;
+        return $output;
+    }
+
     method generate_paged_css_assets($mode = 'minimal') {
         my $vars = $self->_build_css_vars(1);
 
-        if ($mode eq 'minimal') {
-            return {
-                layout => $self->_process_template_file('html5/paged/css/layout-minimal.tt', $vars),
-                content => $self->_process_template_file('html5/paged/css/content-minimal.tt', $vars),
-            };
-        }
-
         return {
-            layout => $self->generate_default_css(1),
+            layout => $self->_process_template_file('html5/paged/css/layout.tt', $vars),
+            content => $self->_process_template_file('html5/paged/css/content.tt', $vars),
         };
     }
 
@@ -1905,7 +1905,6 @@ sub generate_songbook {
         my $song_page_break_class = $song_break_after;
         if ($paged_mode && $song_index > 1 && $song_break_before) {
             $before_break_html = qq{<div class="cp-song-break $song_break_before" aria-hidden="true">&nbsp;</div>\n};
-            $song_page_break_class = join(' ', grep { $_ ne '' } ($song_break_before, $song_break_after));
         }
 
         my $song_html = $backend->generate_song(
@@ -1933,19 +1932,11 @@ sub generate_songbook {
 
             my $mode = $bundle->{mode} // 'minimal';
             my $css_assets = $backend->generate_paged_css_assets($mode);
-            my $css_files = [];
-
-            if ($mode eq 'minimal') {
-                my $layout_name = $bundle->{css}->{layout} // 'layout.css';
-                my $content_name = $bundle->{css}->{content} // 'content.css';
-                $backend->_write_text_file(File::Spec->catfile($bundle_dir, $layout_name), $css_assets->{layout});
-                $backend->_write_text_file(File::Spec->catfile($bundle_dir, $content_name), $css_assets->{content});
-                $css_files = [ $layout_name, $content_name ];
-            } else {
-                my $layout_name = $bundle->{css}->{layout} // 'bundle.css';
-                $backend->_write_text_file(File::Spec->catfile($bundle_dir, $layout_name), $css_assets->{layout});
-                $css_files = [ $layout_name ];
-            }
+            my $layout_name = $bundle->{css}->{layout} // 'layout.css';
+            my $content_name = $bundle->{css}->{content} // 'content.css';
+            $backend->_write_text_file(File::Spec->catfile($bundle_dir, $layout_name), $css_assets->{layout});
+            $backend->_write_text_file(File::Spec->catfile($bundle_dir, $content_name), $css_assets->{content});
+            my $css_files = [ $layout_name, $content_name ];
 
             my $vars = {
                 title => $sb->{title} // $songs->[0]->{title} // 'Songbook',
@@ -1958,11 +1949,8 @@ sub generate_songbook {
                 paged_mode => $paged_mode,
             };
 
-            my $template_name = $mode eq 'minimal'
-                ? 'paged_songbook_minimal'
-                : 'paged_songbook';
-
-            my $output = $backend->_process_template($template_name, $vars);
+            my $output = $backend->_process_template('paged_songbook', $vars);
+            $output = $backend->_condense_html_output($output);
             $backend->_write_text_file($html_path, $output);
             return [];
         }
@@ -1988,9 +1976,11 @@ sub generate_songbook {
         $paged_mode ? 'paged_songbook' : 'songbook', 
         $vars
     );
+    $output = $backend->_condense_html_output($output);
 
-    # Return as array ref of lines (ChordPro expects this format)
-    return [ $output =~ /^.*\n?/gm ];
+    # Return as array ref of lines (ChordPro joins with \n on write)
+    my @lines = split(/\n/, $output);
+    return \@lines;
 }
 
 # =================================================================
