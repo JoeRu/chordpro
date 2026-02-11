@@ -2745,8 +2745,20 @@
                     "page-break": {
                       "description": "Insert a page break before or after each song in paged output.",
                       "type": "string",
-                      "enum": ["none", "before", "after", "both"],
+                      "enum": ["none", "before", "after", "both", "before-right", "before-left", "before-recto", "before-verso", "after-right", "after-left", "after-recto", "after-verso", "right", "left", "recto", "verso"],
                       "default": "none"
+                    }
+                  }
+                },
+                "newpage": {
+                  "description": "Newpage pagination controls for paged output.",
+                  "type": "object",
+                  "properties": {
+                    "page-break": {
+                      "description": "Targeted page break for newpage directives in paged output.",
+                      "type": "string",
+                      "enum": ["page", "right", "left", "recto", "verso"],
+                      "default": "page"
                     }
                   }
                 }

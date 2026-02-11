@@ -1239,8 +1239,18 @@ html5 {
 
         // Song pagination controls.
         song {
-            // Page break before/after each song: "none", "before", "after", "both".
+            // Page break before/after each song.
+            // Values: "none", "before", "after", "both".
+            // Targeted breaks: "before-right", "before-left", "before-recto", "before-verso",
+            //                  "after-right", "after-left", "after-recto", "after-verso",
+            //                  "right", "left", "recto", "verso" (aliases for before-*).
             page-break : "none"
+        }
+
+        // Newpage/new_physical_page pagination controls.
+        newpage {
+            // Targeted page break for {new_page}: "page", "right", "left", "recto", "verso".
+            page-break : "page"
         }
 
         // CSS customization.
@@ -1345,8 +1355,18 @@ html5 {
 
         // Song pagination controls.
         song {
-            // Page break before/after each song: "none", "before", "after", "both".
+            // Page break before/after each song.
+            // Values: "none", "before", "after", "both".
+            // Targeted breaks: "before-right", "before-left", "before-recto", "before-verso",
+            //                  "after-right", "after-left", "after-recto", "after-verso",
+            //                  "right", "left", "recto", "verso" (aliases for before-*).
             page-break : "none"
+        }
+
+        // Newpage/new_physical_page pagination controls.
+        newpage {
+            // Targeted page break for {new_page}: "page", "right", "left", "recto", "verso".
+            page-break : "page"
         }
 
         // CSS customization.

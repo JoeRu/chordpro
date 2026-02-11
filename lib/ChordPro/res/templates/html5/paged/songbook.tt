@@ -38,43 +38,5 @@
 [% back_matter_html %]
 [% END %]
     </div>
-    <script>
-        document.addEventListener("pagedjs:rendered", function () {
-            var entries = document.querySelectorAll(".cp-toc-entry[data-page-ref]");
-            if (!entries.length) {
-                return;
-            }
-
-            entries.forEach(function (entry) {
-                var ref = entry.getAttribute("data-page-ref");
-                if (!ref) {
-                    return;
-                }
-
-                var target = document.querySelector(ref);
-                if (!target) {
-                    return;
-                }
-
-                var page = target.closest(".pagedjs_page");
-                if (!page) {
-                    return;
-                }
-
-                var number = page.getAttribute("data-page-number") || page.dataset.pageNumber;
-                if (!number) {
-                    var numberEl = page.querySelector(".pagedjs_page_number");
-                    number = numberEl ? numberEl.textContent.trim() : "";
-                }
-
-                if (number) {
-                    var slot = entry.querySelector(".cp-toc-page");
-                    if (slot) {
-                        slot.textContent = number;
-                    }
-                }
-            });
-        });
-    </script>
 </body>
 </html>

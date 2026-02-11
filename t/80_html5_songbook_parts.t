@@ -82,9 +82,9 @@ open my $out_fh, '<:utf8', $out_file or die "Cannot open $out_file: $!";
 my $content = do { local $/; <$out_fh> };
 close $out_fh;
 
-like($content, qr/class="cp-cover"/, 'Cover wrapper present');
-like($content, qr/class="cp-front-matter"/, 'Front matter wrapper present');
-like($content, qr/class="cp-back-matter"/, 'Back matter wrapper present');
+like($content, qr/class="[^"]*\bcp-cover\b/, 'Cover wrapper present');
+like($content, qr/class="[^"]*\bcp-front-matter\b/, 'Front matter wrapper present');
+like($content, qr/class="[^"]*\bcp-back-matter\b/, 'Back matter wrapper present');
 
 my $cover_pos = index($content, 'cover-content');
 my $front_pos = index($content, 'front-content');

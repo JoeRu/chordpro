@@ -1,51 +1,43 @@
 #!/usr/bin/perl
 
-# HTML5 paged TOC generation test
-
 use strict;
 use warnings;
 use utf8;
 
 use File::Path qw(make_path);
+use Test::More;
 use ChordPro::Testing;
 
 plan tests => 5;
 
 make_path('out');
 
-my $cho_file = 'out/html5_toc_test.cho';
-my $cfg_file = 'out/html5_toc_config.json';
-my $out_file = 'out/html5_toc_output.html';
+my $cho_file = 'out/96_html5_paged_recto_verso.cho';
+my $cfg_file = 'out/96_html5_paged_recto_verso.json';
+my $out_file = 'out/96_html5_paged_recto_verso.html';
 
 open my $cho_fh, '>:utf8', $cho_file or die "Cannot create $cho_file: $!";
-print $cho_fh <<'EOT';
-{title: Alpha Song}
-{artist: Artist A}
-
-[C]Alpha line
+print {$cho_fh} <<'EOT';
+{title: Recto Break}
+[C]First song
 
 {new_song}
-{title: Bravo Song}
-{artist: Artist B}
-
-[G]Bravo line
+{title: Second Song}
+[G]Second song
 EOT
 close $cho_fh;
 
 open my $cfg_fh, '>:utf8', $cfg_file or die "Cannot create $cfg_file: $!";
-print $cfg_fh <<'EOC';
+print {$cfg_fh} <<'EOC';
 {
-  "html5": { "mode": "print" },
-  "contents": [
-    {
-      "name": "table_of_contents",
-      "fields": ["songindex"],
-      "label": "Table of Contents",
-      "line": "%{title}",
-      "pageno": "%{page}",
-      "omit": false
+  "html5": {
+    "mode": "print",
+    "paged": {
+      "song": {
+        "page-break": "before-recto"
+      }
     }
-  ],
+  },
   "pdf": {
     "papersize": "a4",
     "margintop": 80,
@@ -77,9 +69,9 @@ open my $out_fh, '<:utf8', $out_file or die "Cannot open $out_file: $!";
 my $content = do { local $/; <$out_fh> };
 close $out_fh;
 
-like($content, qr/class="cp-toc"/, 'TOC container present');
-like($content, qr/class="cp-toc-entry"/, 'TOC entry elements present');
-like($content, qr/href="#cp-song-1"/, 'TOC entry references first song');
-like($content, qr/target-counter\(attr\(href\), page\)/, 'TOC uses target-counter for page numbers');
+like($content, qr/class="cp-song-break\b[^"]*cp-page-break-before-recto\b/, 'song break uses recto break class');
+like($content, qr/class="cp-song\b[^"]*cp-page-break-before-recto\b/, 'song uses recto break class');
+like($content, qr/\.cp-song-break\.cp-page-break-before-recto\s*\{[^}]*break-before:\s*recto;/s, 'paged CSS includes break-before recto');
+like($content, qr/\@page\s*:blank\s*\{[^}]*content:\s*none;/s, 'blank page rules suppress margin content');
 
 unlink $cho_file, $cfg_file, $out_file;

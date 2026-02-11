@@ -55,9 +55,10 @@ run_position_test(
     '{"diagrams":{"show":"all"},"pdf":{"diagrams":{"show":"bottom","align":"right"}}}',
     sub {
         my ($content) = @_;
-        my ($song_html) = $content =~ /<div class="cp-song[^"]*">([\s\S]*?)<\/div><!-- \.cp-song -->/;
-        my $line_pos = index($song_html // '', 'Line one');
-        my $diagram_pos = index($song_html // '', '<div class="cp-chord-diagrams');
+        my ($tag, $song_html) = $content =~ /<(div|section)\b[^>]*class="[^"]*\bcp-song\b[^"]*"[^>]*>([\s\S]*?)<\/\1><!-- \.cp-song -->/;
+        $song_html = $song_html // '';
+        my $line_pos = index($song_html, 'Line one');
+        my $diagram_pos = index($song_html, '<div class="cp-chord-diagrams');
         ok($diagram_pos > $line_pos, 'Bottom placement renders diagrams after body');
         like($content, qr/cp-chord-diagrams-align-right/, 'Bottom placement applies alignment class');
     },

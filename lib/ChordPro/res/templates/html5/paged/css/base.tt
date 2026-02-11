@@ -15,6 +15,12 @@
 
 [% INCLUDE 'html5/css/chord-diagrams.tt' %]
 
+[% INCLUDE 'html5/css/sections.tt' %]
+
+[% INCLUDE 'html5/css/songlines.tt' %]
+
+[% INCLUDE 'html5/css/tab-grid.tt' %]
+
 [% INCLUDE 'html5/paged/css/layout.tt' %]
 
 [% INCLUDE 'html5/paged/css/print-media.tt' %]

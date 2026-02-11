@@ -37,6 +37,20 @@ If you want `.html` output to use the modern HTML5 backend by default, set:
 
     html.module : "HTML5"
 
+Print mode configuration lives under `html5.paged`. When values are not set, the
+backend inherits paper size and margins from `pdf.*`.
+
+```
+html5 {
+    mode : "print"
+    paged {
+        papersize    : "letter"
+        margintop    : 72
+        marginbottom : 54
+    }
+}
+```
+
 ## Configuration Reference
 
 This section lists the supported HTML5 configuration keys and the defaults supplied by the
@@ -107,8 +121,18 @@ html5.paged {
 
     // Song pagination controls.
     song {
-        // Page break before/after each song: "none", "before", "after", "both".
+        // Page break before/after each song.
+        // Values: "none", "before", "after", "both".
+        // Targeted breaks: "before-right", "before-left", "before-recto", "before-verso",
+        //                  "after-right", "after-left", "after-recto", "after-verso",
+        //                  "right", "left", "recto", "verso" (aliases for before-*).
         page-break : "none"
+    }
+
+    // Newpage/new_physical_page pagination controls.
+    newpage {
+        // Targeted page break for {new_page}: "page", "right", "left", "recto", "verso".
+        page-break : "page"
     }
 
     // CSS customization for paged output.
@@ -1043,7 +1067,7 @@ Complete HTML5 configuration structure:
 * **Paged.js Documentation**: [https://pagedjs.org/en/documentation/](https://pagedjs.org/en/documentation/)
 * **Template Toolkit Manual**: [http://www.template-toolkit.org/docs/manual/](http://www.template-toolkit.org/docs/manual/)
 * **CSS Paged Media**: [https://www.w3.org/TR/css-page-3/](https://www.w3.org/TR/css-page-3/)
-* **ChordPro File Format**: [ChordPro Reference]({{< relref "chordpro-file-format-specification" >}})
+* **ChordPro File Format**: [ChordPro Reference]({{< relref "ChordPro-Introduction" >}})
 
 ## Tips and Best Practices
 

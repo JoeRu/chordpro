@@ -69,7 +69,6 @@ After implementation, verify the work:
 - **Check for syntax errors** in modified files (lint, parse, compile as appropriate)
 - **Manual verification steps**: if `<manual-steps>` are defined, describe what to check and confirm basic functionality
 - **If verification fails**: fix the issue and re-verify. If unable to fix, set outcome to `PROBLEM` with observations
-- **Allways run the full test suite** to catch regressions, even if the item only touched a few files. Fix the issue and re-verify.
 
 ### 8. Update Result Block
 
