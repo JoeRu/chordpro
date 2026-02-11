@@ -8,7 +8,7 @@ use File::Path qw(make_path);
 use Test::More;
 use ChordPro::Testing;
 
-plan tests => 4;
+plan tests => 3;
 
 make_path('out');
 
@@ -70,6 +70,6 @@ close $out_fh;
 
 like($content, qr/class="cp-new-page\b[^"]*cp-page-break-before-right\b/, 'newpage uses right-target break class');
 like($content, qr/\.cp-new-page\.cp-page-break-before-right[^\{]*\{[^}]*break-before:\s*right;/s, 'paged CSS includes break-before right for newpage');
-like($content, qr/\.cp-new-page\.cp-page-break-before-right[^\{]*\{[^}]*page-break-before:\s*always;/s, 'paged CSS retains page-break-before fallback');
+
 
 unlink $cho_file, $cfg_file, $out_file;

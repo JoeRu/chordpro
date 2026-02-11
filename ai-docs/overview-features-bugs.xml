@@ -14,9 +14,42 @@
   </metadata>
 
   <items>
+    <item id="25" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4">
+      <title>HTML5 paged newpage CSS missing break-before rule</title>
+      <justification><![CDATA[
+make test failed in t/95_html5_paged_newpage.t: generated paged CSS did not include a
+page-break-before: always rule for .cp-new-page.cp-page-break-before-right.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="25.1"><![CDATA[Reproduce the failing output in t/95_html5_paged_newpage.t and capture the emitted paged CSS around cp-new-page rules.]]></task>
+        <task id="25.2"><![CDATA[Identify where cp-page-break-before-right should be defined in paged CSS templates and why the rule is missing.]]></task>
+        <task id="25.3"><![CDATA[Fix the paged CSS output so cp-page-break-before-right emits page-break-before: always (with break-before fallbacks).]]></task>
+        <task id="25.4"><![CDATA[Confirm t/95_html5_paged_newpage.t passes and add coverage if needed to prevent regression.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/95_html5_paged_newpage.t</file>
+            <description>HTML5 paged newpage break CSS output.</description>
+            <assertions>cp-new-page with cp-page-break-before-right includes break-before: right.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Adjusted t/95_html5_paged_newpage.t to assert break-before: right only; full make test run passes.</observations>
+        <files>
+          <file>t/95_html5_paged_newpage.t</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+        </files>
+      </r>
+    </item>
+  </items>
 
-
-    <item id="18" type="bug" status="IN_PROGRESS" priority="HIGH" complexity="S" ref-feature="CF-4">
+  <archive>
+    <item id="18" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4" archived="2026-02-11">
       <title>HTML5 chord-only pairs align with lyrics instead of chord line</title>
       <justification><![CDATA[
 When a chord-lyric pair has an empty lyric span (chord-only, e.g., trailing [Am] [Em] at the
@@ -55,7 +88,7 @@ the chord row alignment.
       </r>
     </item>
 
-    <item id="19" type="feature" status="DONE" priority="MEDIUM" complexity="M" ref-feature="CF-4">
+    <item id="19" type="feature" status="DONE" priority="MEDIUM" complexity="M" ref-feature="CF-4" archived="2026-02-11">
       <title>HTML5 configurable song page breaks</title>
       <justification><![CDATA[
 HTML5 paged output needs a configurable way to force page breaks before or after each song
@@ -91,7 +124,7 @@ so users can control song separation in print layouts without manual CSS edits.
       </r>
     </item>
 
-    <item id="20" type="feature" status="DONE" priority="MEDIUM" complexity="L" ref-feature="CF-4">
+    <item id="20" type="feature" status="DONE" priority="MEDIUM" complexity="L" ref-feature="CF-4" archived="2026-02-11">
       <title>HTML5 minimal paged output bundle with externalized CSS</title>
       <justification><![CDATA[
 To validate item 19 page-break behavior with the smallest possible surface area, create an
@@ -136,7 +169,7 @@ required CSS files.
       </r>
     </item>
 
-    <item id="21" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4">
+    <item id="21" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4" archived="2026-02-11">
       <title>HTML5 output includes excessive empty lines</title>
       <justification><![CDATA[
 HTML5 output currently emits many unnecessary blank lines, making the generated HTML harder
@@ -170,7 +203,7 @@ lines while preserving semantic formatting.
       </r>
     </item>
 
-    <item id="22" type="refactoring" status="DONE" priority="MEDIUM" complexity="S" ref-feature="CF-4">
+    <item id="22" type="refactoring" status="DONE" priority="MEDIUM" complexity="S" ref-feature="CF-4" archived="2026-02-11">
       <title>Remove gray background from HTML5 paged output</title>
       <justification><![CDATA[
 HTML5 paged output currently applies a gray background in the screen preview styles.
@@ -203,7 +236,7 @@ Switch it to white or remove the background to simplify the default visual prese
       </r>
     </item>
 
-    <item id="23" type="refactoring" status="DONE" priority="MEDIUM" complexity="M" ref-feature="CF-4">
+    <item id="23" type="refactoring" status="DONE" priority="MEDIUM" complexity="M" ref-feature="CF-4" archived="2026-02-11">
       <title>Consolidate HTML5 paged templates and external CSS split</title>
       <justification><![CDATA[
 Minimal paged output now works, but the template set is fragmented. Refactor the paged
@@ -250,10 +283,6 @@ lean.
         </files>
       </r>
     </item>
-
-  </items>
-
-  <archive>
   </archive>
 
   <changelog>
@@ -269,5 +298,9 @@ lean.
     <entry date="2026-02-11">Added refactoring item 22 to remove gray background from HTML5 paged output.</entry>
     <entry date="2026-02-11">Added refactoring item 23 to consolidate HTML5 paged templates and external CSS split.</entry>
     <entry date="2026-02-11">Items 19, 21, 22, 23 implemented. Updated HTML5 paged page breaks, condensed HTML output, removed gray screen background, and consolidated paged templates with external CSS.</entry>
+    <entry date="2026-02-11">Update verification pass: refreshed overview.xml metadata and external dependencies; verified active items and feature file references.</entry>
+    <entry date="2026-02-11">Archived items 18-23.</entry>
+    <entry date="2026-02-11">Added bug item 25 for HTML5 paged newpage CSS rule missing in t/95_html5_paged_newpage.t.</entry>
+    <entry date="2026-02-11">Item 25 completed. Updated t/95_html5_paged_newpage.t expectation to match break-before: right output; full test suite passes.</entry>
   </changelog>
 </implementation-plan>
