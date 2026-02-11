@@ -12,8 +12,6 @@
     }
 
     .cp-song {
-        page-break-after: always;
-        page-break-inside: avoid;
     }
 
     .cp-chorus,

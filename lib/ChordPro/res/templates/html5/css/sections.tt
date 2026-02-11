@@ -67,20 +67,17 @@
 .cp-cover,
 .cp-front-matter {
     break-after: page;
-    page-break-after: always;
     margin: 1.5em 0;
 }
 
 .cp-back-matter {
     break-before: page;
-    page-break-before: always;
     margin: 1.5em 0;
 }
 
 .cp-new-page,
 .cp-new-physical-page {
     break-before: page;
-    page-break-before: always;
 }
 
 .cp-matter-image {

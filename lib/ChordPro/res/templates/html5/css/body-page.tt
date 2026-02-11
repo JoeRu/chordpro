@@ -13,5 +13,4 @@ body.chordpro-songbook {
 /* Song Container */
 .cp-song {
     margin-bottom: 3em;
-    page-break-after: always;
 }

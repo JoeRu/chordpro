@@ -1,3 +1,10 @@
+[%# Paged layout stylesheet (page structure and breaks) %]
+[% INCLUDE 'html5/paged/css/string-set.tt' %]
+
+[% INCLUDE 'html5/paged/css/page-setup.tt' %]
+
+[% format_rules %]
+
 /* Table of contents */
 section.cp-toc,
 section[data-type="toc"],
@@ -195,3 +202,5 @@ section[data-type="backmatter"],
     break-inside: avoid;
     page-break-inside: avoid;
 }
+
+[% INCLUDE 'html5/paged/css/print-media.tt' %]

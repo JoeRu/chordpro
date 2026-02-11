@@ -3,24 +3,6 @@
 %]
 /* ChordPro HTML5 with Paged.js Stylesheet */
 
-[% INCLUDE 'html5/paged/css/string-set.tt' %]
-
-[% INCLUDE 'html5/paged/css/page-setup.tt' %]
-
-[% format_rules %]
-
-[% INCLUDE 'html5/css/variables.tt' %]
-
-[% INCLUDE 'html5/css/typography.tt' %]
-
-[% INCLUDE 'html5/css/chord-diagrams.tt' %]
-
-[% INCLUDE 'html5/css/sections.tt' %]
-
-[% INCLUDE 'html5/css/songlines.tt' %]
-
-[% INCLUDE 'html5/css/tab-grid.tt' %]
+[% INCLUDE 'html5/paged/css/content.tt' %]
 
 [% INCLUDE 'html5/paged/css/layout.tt' %]
-
-[% INCLUDE 'html5/paged/css/print-media.tt' %]

@@ -55,7 +55,7 @@ the chord row alignment.
       </r>
     </item>
 
-    <item id="19" type="feature" status="APPROVED" priority="MEDIUM" complexity="M" ref-feature="CF-4">
+    <item id="19" type="feature" status="DONE" priority="MEDIUM" complexity="M" ref-feature="CF-4">
       <title>HTML5 configurable song page breaks</title>
       <justification><![CDATA[
 HTML5 paged output needs a configurable way to force page breaks before or after each song
@@ -79,19 +79,13 @@ so users can control song separation in print layouts without manual CSS edits.
         </tests>
       </verification>
       <r>
-        <outcome>PROBLEM</outcome>
-        <observations>Actual combination of styles does not work.</observations>
-        <lessons-learned>Dedicated break elements are more reliable than relying solely on break-before on the song wrapper.</lessons-learned>
+        <outcome>DONE</outcome>
+        <observations>Paged song breaks now insert dedicated break elements between songs and only apply after-break classes on song wrappers, with tests and docs updated accordingly.</observations>
+        <lessons-learned>Dedicated break elements avoid leading blank pages and behave more consistently than relying on wrapper break-before.</lessons-learned>
         <files>
-          <file>lib/ChordPro/res/config/chordpro.json</file>
           <file>lib/ChordPro/Output/HTML5.pm</file>
-          <file>lib/ChordPro/res/templates/html5/song.tt</file>
-          <file>lib/ChordPro/res/templates/html5/paged/song.tt</file>
-          <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
-          <file>lib/ChordPro/res/config/config.schema</file>
           <file>docs/content/ChordPro-Configuration-HTML5.md</file>
           <file>t/94_html5_page_breaks.t</file>
-          <file>MANIFEST</file>
           <file>ai-docs/overview-features-bugs.xml</file>
         </files>
       </r>
@@ -142,7 +136,7 @@ required CSS files.
       </r>
     </item>
 
-    <item id="21" type="bug" status="PENDING" priority="HIGH" complexity="S" ref-feature="CF-4">
+    <item id="21" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4">
       <title>HTML5 output includes excessive empty lines</title>
       <justification><![CDATA[
 HTML5 output currently emits many unnecessary blank lines, making the generated HTML harder
@@ -164,9 +158,19 @@ lines while preserving semantic formatting.
           </test>
         </tests>
       </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>HTML5 output now normalizes multiple blank lines and returns newline-free line arrays to avoid doubled spacing.</observations>
+        <lessons-learned>Normalize HTML output before line splitting to prevent writer joins from reintroducing extra whitespace.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>testing/96_html5_condense_output.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
     </item>
 
-    <item id="22" type="refactoring" status="PENDING" priority="MEDIUM" complexity="S" ref-feature="CF-4">
+    <item id="22" type="refactoring" status="DONE" priority="MEDIUM" complexity="S" ref-feature="CF-4">
       <title>Remove gray background from HTML5 paged output</title>
       <justification><![CDATA[
 HTML5 paged output currently applies a gray background in the screen preview styles.
@@ -187,9 +191,19 @@ Switch it to white or remove the background to simplify the default visual prese
           </test>
         </tests>
       </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Paged screen preview styles now use a white background and the regression test validates the change.</observations>
+        <lessons-learned>Keeping preview styles aligned with print defaults avoids visual surprises.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/templates/html5/paged/css/print-media.tt</file>
+          <file>testing/97_html5_paged_background.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
     </item>
 
-    <item id="23" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-4">
+    <item id="23" type="refactoring" status="DONE" priority="MEDIUM" complexity="M" ref-feature="CF-4">
       <title>Consolidate HTML5 paged templates and external CSS split</title>
       <justification><![CDATA[
 Minimal paged output now works, but the template set is fragmented. Refactor the paged
@@ -214,6 +228,27 @@ lean.
           </test>
         </tests>
       </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Consolidated paged CSS into shared layout/content templates, updated bundle output to always externalize CSS, moved minimal templates into testing, and refreshed config docs and tests.</observations>
+        <lessons-learned>Shared layout/content templates keep bundled and inline paged output consistent with fewer moving parts.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/base.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/content.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/songbook.tt</file>
+          <file>lib/ChordPro/res/config/chordpro.json</file>
+          <file>lib/ChordPro/res/pod/Config.pod</file>
+          <file>lib/ChordPro/Config/Data.pm</file>
+          <file>Makefile</file>
+          <file>testing/98_html5_paged_template_refactor.t</file>
+          <file>testing/templates/html5/paged/songbook-minimal.tt</file>
+          <file>testing/templates/html5/paged/css/layout-minimal.tt</file>
+          <file>testing/templates/html5/paged/css/content-minimal.tt</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
     </item>
 
   </items>
@@ -233,5 +268,6 @@ lean.
     <entry date="2026-02-11">Added bug item 21 for condensing HTML5 output empty lines.</entry>
     <entry date="2026-02-11">Added refactoring item 22 to remove gray background from HTML5 paged output.</entry>
     <entry date="2026-02-11">Added refactoring item 23 to consolidate HTML5 paged templates and external CSS split.</entry>
+    <entry date="2026-02-11">Items 19, 21, 22, 23 implemented. Updated HTML5 paged page breaks, condensed HTML output, removed gray screen background, and consolidated paged templates with external CSS.</entry>
   </changelog>
 </implementation-plan>

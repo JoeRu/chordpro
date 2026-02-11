@@ -9,7 +9,15 @@
     "chat.tools.terminal.autoApprove": {
         "mv": true,
         "prove": true,
-        "cp": true
+        "cp": true,
+        "/^perl script/cfgboot\\.pl$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^perl script/cfgboot\\.pl lib/ChordPro/res/config/chordpro\\.json$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     },
     "github.copilot.chat.codeGeneration.useInstructionFiles": true
 }
