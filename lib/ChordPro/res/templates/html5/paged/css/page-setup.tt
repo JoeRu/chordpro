@@ -18,4 +18,37 @@
     }
 }
 
+@page cover {
+    /* Named page for cover content */
+}
+
+@page frontmatter {
+    /* Named page for front matter content */
+}
+
+@page backmatter {
+    /* Named page for back matter content */
+}
+
+@page :blank {
+    @top-left {
+        content: none;
+    }
+    @top-center {
+        content: none;
+    }
+    @top-right {
+        content: none;
+    }
+    @bottom-left {
+        content: none;
+    }
+    @bottom-center {
+        content: none;
+    }
+    @bottom-right {
+        content: none;
+    }
+}
+
 /* Page-specific rules are generated from config above */

@@ -606,10 +606,12 @@ class ChordPro::Output::HTML5
                 $html .= $self->render_section_end('comment_box');
             }
             elsif ($type eq 'new_page' || $type eq 'newpage') {
-                $html .= qq{<div class="cp-new-page"></div>\n};
+                my $break_class = $self->_newpage_break_class();
+                $html .= qq{<div class="cp-new-page$break_class"></div>\n};
             }
             elsif ($type eq 'new_physical_page') {
-                $html .= qq{<div class="cp-new-physical-page"></div>\n};
+                my $break_class = $self->_newpage_break_class();
+                $html .= qq{<div class="cp-new-physical-page$break_class"></div>\n};
             }
             elsif ($type eq 'colb' || $type eq 'column_break') {
                 $html .= qq{<div class="cp-column-break"></div>\n};
@@ -1011,7 +1013,7 @@ class ChordPro::Output::HTML5
     # SONG GENERATION - Override to customize structure
     # =================================================================
 
-    method generate_song($song, $paged_mode = 0, $song_id = undef) {
+    method generate_song($song, $paged_mode = 0, $song_id = undef, $page_break_class_override = undef) {
         # Structurize the song to convert start_of/end_of directives into containers
         eval { $song->structurize } if $song->can('structurize');
 
@@ -1032,32 +1034,32 @@ class ChordPro::Output::HTML5
             $body_html = $self->_process_song_body($song->{body}, $song);
         }
 
-                # Generate chord diagrams if present (unless lyrics-only)
+        # Generate chord diagrams if present (unless lyrics-only)
         my $chord_diagrams_html = '';
         unless ($self->is_lyrics_only()) {
             $chord_diagrams_html = $self->render_chord_diagrams($song);
         }
 
-                # Diagram placement and alignment (HTML5 overrides PDF)
-                my $diagrams_position = '';
-                my $diagrams_align = '';
-                if ($chord_diagrams_html ne '') {
-                        my $config = $self->config // {};
-                        my $html5_diagrams = eval { $config->{html5}->{diagrams} } // {};
-                        my $pdf_diagrams = eval { $config->{pdf}->{diagrams} } // {};
+        # Diagram placement and alignment (HTML5 overrides PDF)
+        my $diagrams_position = '';
+        my $diagrams_align = '';
+        if ($chord_diagrams_html ne '') {
+            my $config = $self->config // {};
+            my $html5_diagrams = eval { $config->{html5}->{diagrams} } // {};
+            my $pdf_diagrams = eval { $config->{pdf}->{diagrams} } // {};
 
-                        $diagrams_position = lc( eval { $html5_diagrams->{show} }
-                            // eval { $pdf_diagrams->{show} }
-                            // 'bottom' );
-                        $diagrams_align = lc( eval { $html5_diagrams->{align} }
-                            // eval { $pdf_diagrams->{align} }
-                            // 'left' );
+            $diagrams_position = lc( eval { $html5_diagrams->{show} }
+                // eval { $pdf_diagrams->{show} }
+                // 'bottom' );
+            $diagrams_align = lc( eval { $html5_diagrams->{align} }
+                // eval { $pdf_diagrams->{align} }
+                // 'left' );
 
-                        $diagrams_position = 'bottom'
-                            unless $diagrams_position =~ /^(?:top|bottom|right|below)\z/;
-                        $diagrams_align = 'left'
-                            unless $diagrams_align =~ /^(?:left|right|center|spread)\z/;
-                }
+            $diagrams_position = 'bottom'
+                unless $diagrams_position =~ /^(?:top|bottom|right|below)\z/;
+            $diagrams_align = 'left'
+                unless $diagrams_align =~ /^(?:left|right|center|spread)\z/;
+        }
 
         # Process title/subtitles with markup
         my $processed_title = $song->{title} ? $self->process_text_with_markup($song->{title}) : '';
@@ -1108,19 +1110,14 @@ class ChordPro::Output::HTML5
 
         my $page_break_class = '';
         if ($paged_mode) {
-            my $config = $self->config // {};
-            my $break_setting = lc(
-                eval { $config->{html5}->{paged}->{song}->{'page-break'} } // 'none'
-            );
-            $break_setting = 'none'
-                unless $break_setting =~ /^(?:none|before|after|both)\z/;
-
-            my @break_classes;
-            push @break_classes, 'cp-page-break-before'
-                if $break_setting eq 'before' || $break_setting eq 'both';
-            push @break_classes, 'cp-page-break-after'
-                if $break_setting eq 'after' || $break_setting eq 'both';
-            $page_break_class = join(' ', @break_classes);
+            if (defined $page_break_class_override) {
+                $page_break_class = $page_break_class_override;
+            } else {
+                my $config = $self->config // {};
+                my $break_setting = eval { $config->{html5}->{paged}->{song}->{'page-break'} } // 'none';
+                my $classes = $self->_break_classes_for_setting($break_setting, 'none');
+                $page_break_class = join(' ', @$classes) if @$classes;
+            }
         }
 
         # Prepare template variables
@@ -1218,6 +1215,14 @@ class ChordPro::Output::HTML5
     method _render_matter($path, $class_name) {
         return '' unless $path;
 
+        my %type_for_class = (
+            'cp-cover' => 'cover',
+            'cp-front-matter' => 'frontmatter',
+            'cp-back-matter' => 'backmatter',
+        );
+        my $data_type = $type_for_class{$class_name};
+        my $data_attr = $data_type ? qq{ data-type="$data_type"} : '';
+
         my $resolved = expand_tilde($path);
         unless (-f $resolved) {
             warn("HTML5 matter file not found: $resolved\n");
@@ -1237,11 +1242,11 @@ class ChordPro::Output::HTML5
             local $/;
             my $content = <$fh> // '';
             close $fh;
-            return qq{<div class="$class_name">$content</div>};
+            return qq{<section class="$class_name cp-matter"$data_attr>$content</section>};
         }
 
         my $image_html = $self->render_image($resolved, { class => 'cp-matter-image' });
-        return qq{<div class="$class_name">$image_html</div>};
+        return qq{<section class="$class_name cp-matter"$data_attr>$image_html</section>};
     }
 
     # =================================================================
@@ -1250,7 +1255,8 @@ class ChordPro::Output::HTML5
 
     # Override layout directive handlers for HTML
     method handle_newpage($elt) {
-        return qq{<div style="page-break-before: always;"></div>\n};
+        my $break_class = $self->_newpage_break_class();
+        return qq{<div class="cp-new-page$break_class"></div>\n};
     }
 
     method handle_new_page($elt) {
@@ -1260,6 +1266,90 @@ class ChordPro::Output::HTML5
     method handle_new_physical_page($elt) {
         # In HTML, physical page is same as logical page
         return $self->handle_newpage($elt);
+    }
+
+    # =================================================================
+    # PAGED BREAK HELPERS
+    # =================================================================
+
+    method _is_paged_mode() {
+        my $config = $self->config // {};
+        my $mode = lc(eval { $config->{html5}->{mode} } // '');
+        return ($mode eq 'print' || $mode eq 'paged');
+    }
+
+    method _parse_break_setting($setting, $default_mode = 'none') {
+        my $value = lc($setting // '');
+        return { mode => $default_mode, target => 'page' } if $value eq '';
+
+        if ($value =~ /^(none|before|after|both)\z/) {
+            return { mode => $1, target => 'page' };
+        }
+
+        if ($value =~ /^(right|left|recto|verso|page)\z/) {
+            return { mode => 'before', target => $1 };
+        }
+
+        if ($value =~ /^(before|after|both)-(right|left|recto|verso|page)\z/) {
+            return { mode => $1, target => $2 };
+        }
+
+        return { mode => $default_mode, target => 'page' };
+    }
+
+    method _break_class($position, $target) {
+        return '' unless $position;
+        $target //= 'page';
+        return "cp-page-break-$position" if $target eq 'page';
+        return "cp-page-break-$position-$target";
+    }
+
+    method _break_classes_for_setting($setting, $default_mode = 'none') {
+        my $parsed = $self->_parse_break_setting($setting, $default_mode);
+        my $mode = $parsed->{mode} // 'none';
+        my $target = $parsed->{target} // 'page';
+        return [] if $mode eq 'none';
+
+        my @classes;
+        if ($mode eq 'before' || $mode eq 'both') {
+            my $class = $self->_break_class('before', $target);
+            push @classes, $class if $class;
+        }
+        if ($mode eq 'after' || $mode eq 'both') {
+            my $class = $self->_break_class('after', $target);
+            push @classes, $class if $class;
+        }
+
+        return \@classes;
+    }
+
+    method _break_classes_for_setting_positions($setting, $default_mode = 'none') {
+        my $parsed = $self->_parse_break_setting($setting, $default_mode);
+        my $mode = $parsed->{mode} // 'none';
+        my $target = $parsed->{target} // 'page';
+        my %classes = ( before => [], after => [] );
+        return \%classes if $mode eq 'none';
+
+        if ($mode eq 'before' || $mode eq 'both') {
+            my $class = $self->_break_class('before', $target);
+            push @{ $classes{before} }, $class if $class;
+        }
+        if ($mode eq 'after' || $mode eq 'both') {
+            my $class = $self->_break_class('after', $target);
+            push @{ $classes{after} }, $class if $class;
+        }
+
+        return \%classes;
+    }
+
+    method _newpage_break_class() {
+        return '' unless $self->_is_paged_mode();
+
+        my $config = $self->config // {};
+        my $setting = eval { $config->{html5}->{paged}->{newpage}->{'page-break'} } // 'page';
+        my $classes = $self->_break_classes_for_setting($setting, 'before');
+        return '' unless @$classes;
+        return ' ' . join(' ', @$classes);
     }
 
     method handle_colb($elt) {
@@ -1729,13 +1819,37 @@ sub generate_songbook {
     # Process each song (returns HTML strings)
     my @songs_html;
     my $song_index = 0;
+    my $song_break_before = '';
+    my $song_break_after = '';
+    if ($paged_mode) {
+        my $break_setting = eval { $config->{html5}->{paged}->{song}->{'page-break'} } // 'none';
+        my $classes = $backend->_break_classes_for_setting_positions($break_setting, 'none');
+        $song_break_before = join(' ', @{ $classes->{before} }) if @{ $classes->{before} };
+        $song_break_after = join(' ', @{ $classes->{after} }) if @{ $classes->{after} };
+    }
+
     foreach my $song ( @{$songs} ) {
         $song_index++;
         $song->{meta} //= {};
         $song->{meta}->{songindex} //= [ $song_index ];
         my $song_id = "cp-song-$song_index";
         $song->{meta}->{html5_id} = [ $song_id ];
-        push @songs_html, $backend->generate_song($song, $paged_mode, $song_id);
+
+        my $before_break_html = '';
+        my $song_page_break_class = $song_break_after;
+        if ($paged_mode && $song_index > 1 && $song_break_before) {
+            $before_break_html = qq{<div class="cp-song-break $song_break_before" aria-hidden="true">&nbsp;</div>\n};
+            $song_page_break_class = join(' ', grep { $_ ne '' } ($song_break_before, $song_break_after));
+        }
+
+        my $song_html = $backend->generate_song(
+            $song,
+            $paged_mode,
+            $song_id,
+            $song_page_break_class,
+        );
+
+        push @songs_html, $before_break_html . $song_html;
     }
 
     # Generate CSS
