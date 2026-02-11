@@ -2761,6 +2761,44 @@
                       "default": "page"
                     }
                   }
+                },
+                "bundle": {
+                  "description": "Bundle output settings for paged HTML5 (folder output with external CSS).",
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "description": "Write paged HTML output as a folder bundle with externalized CSS.",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "mode": {
+                      "description": "Bundle template mode.",
+                      "type": "string",
+                      "enum": ["minimal"],
+                      "default": "minimal"
+                    },
+                    "html": {
+                      "description": "HTML file name inside the bundle folder.",
+                      "type": ["string", "null"],
+                      "default": null
+                    },
+                    "css": {
+                      "description": "CSS filenames for the bundle.",
+                      "type": "object",
+                      "properties": {
+                        "layout": {
+                          "description": "Layout CSS filename.",
+                          "type": "string",
+                          "default": "layout.css"
+                        },
+                        "content": {
+                          "description": "Content CSS filename.",
+                          "type": "string",
+                          "default": "content.css"
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }

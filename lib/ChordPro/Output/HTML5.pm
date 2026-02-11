@@ -18,9 +18,12 @@ use Text::Layout;
 use Template;
 use MIME::Base64 qw(encode_base64);
 use Unicode::Collate;
+use File::Basename qw(fileparse);
+use File::Path qw(make_path);
+use File::Spec;
 
 use ChordPro::Paths;
-use ChordPro::Files qw(fs_load fs_blob);
+use ChordPro::Files qw(fs_load fs_blob fs_open);
 use ChordPro::Output::ChordProBase;
 use ChordPro::Output::ChordDiagram::SVG;
 use ChordPro::Output::HTML5Helper::FormatGenerator;
@@ -1490,6 +1493,132 @@ class ChordPro::Output::HTML5
     # CSS GENERATION
     # =================================================================
 
+    method _build_css_vars($paged_mode = 0) {
+        my $config = $self->config;
+        my $html5_cfg = $config->{html5};
+
+        # Extract and clone CSS sub-configs to plain hashes (avoid restricted hash issues)
+        my $css_config = $html5_cfg->{css};
+        my $colors_cfg = $css_config->{colors};
+        my $fonts_cfg = $css_config->{fonts};
+        my $sizes_cfg = $css_config->{sizes};
+        my $spacing_cfg = $css_config->{spacing};
+
+        # Resolve PDF config -> CSS (Phase 4)
+        my $theme = $self->_resolve_theme_colors();
+        my $spacing = $self->_resolve_spacing();
+        my $chorus_styles = $self->_resolve_chorus_styles();
+        my $grid_styles = $self->_resolve_grid_styles();
+
+        my $vars = {
+            # Phase 4: PDF config compatibility
+            theme => $theme,
+            spacing => $spacing,
+            chorus_styles => $chorus_styles,
+            grid_styles => $grid_styles,
+
+            # CSS customization from config (Phase 3 user overrides)
+            # Deep clone to plain hashes to avoid restricted hash issues in templates
+            colors => { %$colors_cfg },
+            fonts => { %$fonts_cfg },
+            sizes => { %$sizes_cfg },
+            chords_under => is_true($config->{settings}->{'chords-under'}),
+
+            # Paged mode flag
+            paged_mode => $paged_mode,
+        };
+
+        if ($paged_mode) {
+            my $paged_cfg = $html5_cfg->{paged};
+            my $pdf_cfg = $config->{pdf};
+
+            $vars->{papersize} = eval { $paged_cfg->{papersize} }
+                // $pdf_cfg->{papersize}
+                // 'a4';
+            $vars->{margintop} = eval { $paged_cfg->{margintop} }
+                // $pdf_cfg->{margintop}
+                // 80;
+            $vars->{marginbottom} = eval { $paged_cfg->{marginbottom} }
+                // $pdf_cfg->{marginbottom}
+                // 40;
+            $vars->{marginleft} = eval { $paged_cfg->{marginleft} }
+                // $pdf_cfg->{marginleft}
+                // 40;
+            $vars->{marginright} = eval { $paged_cfg->{marginright} }
+                // $pdf_cfg->{marginright}
+                // 40;
+            $vars->{headspace} = eval { $paged_cfg->{headspace} }
+                // $pdf_cfg->{headspace}
+                // 60;
+            $vars->{footspace} = eval { $paged_cfg->{footspace} }
+                // $pdf_cfg->{footspace}
+                // 20;
+
+            my $format_generator = ChordPro::Output::HTML5Helper::FormatGenerator->new(
+                config => $config,
+                options => $self->options,
+            );
+            $vars->{format_rules} = $format_generator->generate_rules();
+        }
+
+        return $vars;
+    }
+
+    method _process_template_file($template, $vars) {
+        my $output = '';
+        $template_engine->process($template, $vars, \$output)
+            || die "Template error ($template): " . $template_engine->error();
+        return $output;
+    }
+
+    method _paged_bundle_settings($paged_mode) {
+        return { enabled => 0 } unless $paged_mode;
+
+        my $config = $self->config // {};
+        my $bundle = eval { $config->{html5}->{paged}->{bundle} };
+        return { enabled => 0 } unless defined $bundle;
+
+        if (!is_hashref($bundle)) {
+            my $value = lc("$bundle");
+            return { enabled => 1, mode => 'minimal', css => {} }
+                if $value eq 'minimal';
+            return { enabled => is_true($bundle), mode => 'minimal', css => {} };
+        }
+
+        my $enabled = is_true(eval { $bundle->{enabled} } // 0);
+        my $mode = lc(eval { $bundle->{mode} } // 'minimal');
+        my $css = eval { $bundle->{css} };
+        $css = {} unless is_hashref($css);
+
+        return {
+            enabled => $enabled,
+            mode => $mode,
+            css => { %$css },
+            html => eval { $bundle->{html} },
+        };
+    }
+
+    method _write_text_file($path, $content) {
+        my $fh = fs_open($path, '>:utf8');
+        print {$fh} $content;
+        close $fh;
+    }
+
+    method generate_paged_css_assets($mode = 'minimal') {
+        my $vars = $self->_build_css_vars(1);
+
+        if ($mode eq 'minimal') {
+            return {
+                layout => $self->_process_template_file('html5/paged/css/layout-minimal.tt', $vars),
+                content => $self->_process_template_file('html5/paged/css/content-minimal.tt', $vars),
+            };
+        }
+
+        return {
+            layout => $self->generate_default_css(1),
+        };
+    }
+
     # =================================================================
     # CONFIGURATION RESOLUTION (Phase 4 - PDF Config Compatibility)
     # =================================================================
@@ -1591,70 +1720,7 @@ class ChordPro::Output::HTML5
     method generate_default_css($paged_mode = 0) {
         my $config = $self->config;
         my $html5_cfg = $config->{html5};
-        
-        # Extract and clone CSS sub-configs to plain hashes (avoid restricted hash issues)
-        my $css_config = $html5_cfg->{css};
-        my $colors_cfg = $css_config->{colors};
-        my $fonts_cfg = $css_config->{fonts};
-        my $sizes_cfg = $css_config->{sizes};
-        my $spacing_cfg = $css_config->{spacing};
-        
-        # Resolve PDF config → CSS (Phase 4)
-        my $theme = $self->_resolve_theme_colors();
-        my $spacing = $self->_resolve_spacing();
-        my $chorus_styles = $self->_resolve_chorus_styles();
-        my $grid_styles = $self->_resolve_grid_styles();
-        
-        my $vars = {
-            # Phase 4: PDF config compatibility
-            theme => $theme,
-            spacing => $spacing,
-            chorus_styles => $chorus_styles,
-            grid_styles => $grid_styles,
-            
-            # CSS customization from config (Phase 3 user overrides)
-            # Deep clone to plain hashes to avoid restricted hash issues in templates
-            colors => { %$colors_cfg },
-            fonts => { %$fonts_cfg },
-            sizes => { %$sizes_cfg },
-            chords_under => is_true($config->{settings}->{'chords-under'}),
-            
-            # Paged mode flag
-            paged_mode => $paged_mode,
-        };
-
-        if ($paged_mode) {
-            my $paged_cfg = $html5_cfg->{paged};
-            my $pdf_cfg = $config->{pdf};
-
-            $vars->{papersize} = eval { $paged_cfg->{papersize} }
-                // $pdf_cfg->{papersize}
-                // 'a4';
-            $vars->{margintop} = eval { $paged_cfg->{margintop} }
-                // $pdf_cfg->{margintop}
-                // 80;
-            $vars->{marginbottom} = eval { $paged_cfg->{marginbottom} }
-                // $pdf_cfg->{marginbottom}
-                // 40;
-            $vars->{marginleft} = eval { $paged_cfg->{marginleft} }
-                // $pdf_cfg->{marginleft}
-                // 40;
-            $vars->{marginright} = eval { $paged_cfg->{marginright} }
-                // $pdf_cfg->{marginright}
-                // 40;
-            $vars->{headspace} = eval { $paged_cfg->{headspace} }
-                // $pdf_cfg->{headspace}
-                // 60;
-            $vars->{footspace} = eval { $paged_cfg->{footspace} }
-                // $pdf_cfg->{footspace}
-                // 20;
-
-            my $format_generator = ChordPro::Output::HTML5Helper::FormatGenerator->new(
-                config => $config,
-                options => $self->options,
-            );
-            $vars->{format_rules} = $format_generator->generate_rules();
-        }
+        my $vars = $self->_build_css_vars($paged_mode);
         
         # Process CSS template (use paged CSS template if in paged mode)
         my $css = '';
@@ -1850,6 +1916,56 @@ sub generate_songbook {
         );
 
         push @songs_html, $before_break_html . $song_html;
+    }
+
+    my $bundle = $backend->_paged_bundle_settings($paged_mode);
+    if ($bundle->{enabled}) {
+        my $output_path = $options->{output} // '';
+        if (!$output_path || $output_path eq '-') {
+            warn("HTML5 bundle output requires a file path; falling back to inline output.\n");
+        } else {
+            my ($base, $dir, $ext) = fileparse($output_path, qr/\.[^.]*$/);
+            my $bundle_dir = $ext ? File::Spec->catdir($dir, $base) : $output_path;
+            make_path($bundle_dir) unless -d $bundle_dir;
+
+            my $html_name = $bundle->{html} // ($ext ? "$base$ext" : 'index.html');
+            my $html_path = File::Spec->catfile($bundle_dir, $html_name);
+
+            my $mode = $bundle->{mode} // 'minimal';
+            my $css_assets = $backend->generate_paged_css_assets($mode);
+            my $css_files = [];
+
+            if ($mode eq 'minimal') {
+                my $layout_name = $bundle->{css}->{layout} // 'layout.css';
+                my $content_name = $bundle->{css}->{content} // 'content.css';
+                $backend->_write_text_file(File::Spec->catfile($bundle_dir, $layout_name), $css_assets->{layout});
+                $backend->_write_text_file(File::Spec->catfile($bundle_dir, $content_name), $css_assets->{content});
+                $css_files = [ $layout_name, $content_name ];
+            } else {
+                my $layout_name = $bundle->{css}->{layout} // 'bundle.css';
+                $backend->_write_text_file(File::Spec->catfile($bundle_dir, $layout_name), $css_assets->{layout});
+                $css_files = [ $layout_name ];
+            }
+
+            my $vars = {
+                title => $sb->{title} // $songs->[0]->{title} // 'Songbook',
+                cover_html => '',
+                front_matter_html => '',
+                back_matter_html => '',
+                toc_html => '',
+                songs => \@songs_html,
+                css_files => $css_files,
+                paged_mode => $paged_mode,
+            };
+
+            my $template_name = $mode eq 'minimal'
+                ? 'paged_songbook_minimal'
+                : 'paged_songbook';
+
+            my $output = $backend->_process_template($template_name, $vars);
+            $backend->_write_text_file($html_path, $output);
+            return [];
+        }
     }
 
     # Generate CSS
