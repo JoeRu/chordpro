@@ -4,7 +4,7 @@
     <title>ChordPro</title>
     <version>6.090_040</version>
     <analyzed>2026-02-08</analyzed>
-    <updated>2026-02-10</updated>
+    <updated>2026-02-11</updated>
     <repository>https://github.com/ChordPro/chordpro</repository>
   </metadata>
 
@@ -54,6 +54,7 @@
       <dependency>Unicode::Collate 1.31 and Unicode::Normalize 1.26</dependency>
       <dependency>Optional: Template 3.010 and LaTeX::Encode 0.092.0 (LaTeX backend)</dependency>
       <dependency>Optional: LilyPond binary (delegate)</dependency>
+      <dependency>Windows only: Win32::LongPath 2.0</dependency>
       <dependency>Bundled: paged.js for HTML5 print mode</dependency>
       <dependency>Docs: Hugo (uses Go 1.18 module for search indexing)</dependency>
     </external-dependencies>
@@ -368,6 +369,81 @@
         <file>t/86_html5_diagram_pos.t</file>
         <file>t/97_html5_paged_named_pages_matter.t</file>
         <file>t/99_html5_paged_stylesheet_sections.t</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-18" completed="2026-02-11" source-item="18">
+      <title>HTML5 chord-only pairs align with lyrics instead of chord line</title>
+      <description>Added flex-start alignment for chord-only pairs in HTML5 and paged CSS and created t/192_html5_chord_only_align.t; MANIFEST updated, but the extended test run was interrupted (exit 130) before completion.</description>
+      <files>
+        <file>lib/ChordPro/res/templates/html5/css/songlines.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+        <file>t/192_html5_chord_only_align.t</file>
+        <file>MANIFEST</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-19" completed="2026-02-11" source-item="19">
+      <title>HTML5 configurable song page breaks</title>
+      <description>Paged song breaks now insert dedicated break elements between songs and only apply after-break classes on song wrappers, with tests and docs updated accordingly.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>docs/content/ChordPro-Configuration-HTML5.md</file>
+        <file>t/94_html5_page_breaks.t</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-20" completed="2026-02-11" source-item="20">
+      <title>HTML5 minimal paged output bundle with externalized CSS</title>
+      <description>Added a minimal paged bundle mode that writes a folder with HTML plus split layout/content CSS, and introduced a minimal paged songbook template that omits TOC. Implemented a focused regression test; running make refreshed Config/Data.pm and Config.pod after the config changes.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/paged/songbook-minimal.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/layout-minimal.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/content-minimal.tt</file>
+        <file>lib/ChordPro/res/config/chordpro.json</file>
+        <file>lib/ChordPro/res/config/config.schema</file>
+        <file>lib/ChordPro/Config/Data.pm</file>
+        <file>lib/ChordPro/res/pod/Config.pod</file>
+        <file>testing/95_html5_minimal_paged_bundle.t</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-21" completed="2026-02-11" source-item="21">
+      <title>HTML5 output includes excessive empty lines</title>
+      <description>HTML5 output now normalizes multiple blank lines and returns newline-free line arrays to avoid doubled spacing.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>testing/96_html5_condense_output.t</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-22" completed="2026-02-11" source-item="22">
+      <title>Remove gray background from HTML5 paged output</title>
+      <description>Paged screen preview styles now use a white background and the regression test validates the change.</description>
+      <files>
+        <file>lib/ChordPro/res/templates/html5/paged/css/print-media.tt</file>
+        <file>testing/97_html5_paged_background.t</file>
+        <file>ai-docs/overview-features-bugs.xml</file>
+      </files>
+    </feature>
+    <feature id="CF-23" completed="2026-02-11" source-item="23">
+      <title>Consolidate HTML5 paged templates and external CSS split</title>
+      <description>Consolidated paged CSS into shared layout/content templates, updated bundle output to always externalize CSS, moved minimal templates into testing, and refreshed config docs and tests.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/base.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/content.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/songbook.tt</file>
+        <file>lib/ChordPro/res/config/chordpro.json</file>
+        <file>lib/ChordPro/res/pod/Config.pod</file>
+        <file>lib/ChordPro/Config/Data.pm</file>
+        <file>Makefile</file>
+        <file>testing/98_html5_paged_template_refactor.t</file>
+        <file>testing/templates/html5/paged/songbook-minimal.tt</file>
+        <file>testing/templates/html5/paged/css/layout-minimal.tt</file>
+        <file>testing/templates/html5/paged/css/content-minimal.tt</file>
         <file>ai-docs/overview-features-bugs.xml</file>
       </files>
     </feature>
