@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<implementation-plan>
+  <metadata>
+    <title>ChordPro Feature and Bug Plan</title>
+    <version>3.1</version>
+    <date>2026-02-08</date>
+    <updated>2026-02-10</updated>
+    <status>Initial code analysis (2026-02-08)</status>
+    <summary>
+      Initial analysis of the ChordPro codebase. Established architecture, dependencies, and
+      feature inventory. Created reference items for incomplete feature mapping and test
+      coverage gaps.
+    </summary>
+  </metadata>
+
+  <items>
+    <item id="1" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-1">
+      <title>[REF] CLI pipeline mapping and coverage</title>
+      <justification><![CDATA[
+Core CLI flow is partially mapped. Output selection, filelist parsing, and progress callbacks
+are critical paths with limited documented behavior and edge-case coverage.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="1.1"><![CDATA[Map CLI option handling and output backend selection paths.]]></task>
+        <task id="1.2"><![CDATA[Document filelist parsing and progress callback behavior.]]></task>
+        <task id="1.3"><![CDATA[Add tests for output selection and filelist edge cases.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/10_files.t</file>
+            <description>Filelist parsing edge cases.</description>
+            <assertions>Filelist parsing matches documented behavior across quoting and options.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="2" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-2">
+      <title>[REF] Song parser and directives mapping</title>
+      <justification><![CDATA[
+Directive coverage is broad but not fully mapped. Edge directives and metadata normalization
+behavior need documentation and tests.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="2.1"><![CDATA[Catalog directive handlers and map to element output.]]></task>
+        <task id="2.2"><![CDATA[Document metadata normalization and directive precedence.]]></task>
+        <task id="2.3"><![CDATA[Add tests for edge directives and mixed metadata cases.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/101_directives.t</file>
+            <description>Directive parsing coverage expansion.</description>
+            <assertions>Directive outputs match documented element structure.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="3" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-3">
+      <title>[REF] Chord parsing and transposition mapping</title>
+      <justification><![CDATA[
+Chord parsing supports multiple notation systems and transposition rules that are not fully
+mapped, increasing regression risk for notation-specific features.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="3.1"><![CDATA[Document chord token parsing and naming conventions.]]></task>
+        <task id="3.2"><![CDATA[Map transposition rules and notation-specific conversions.]]></task>
+        <task id="3.3"><![CDATA[Add tests for roman, nashville, and solfege edge cases.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/110_chords_roman.t</file>
+            <description>Chord notation edge cases.</description>
+            <assertions>Notation conversions produce expected symbols and accidentals.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="4" type="refactoring" status="PENDING" priority="LOW" complexity="M" ref-feature="CF-5">
+      <title>[REF] Legacy and auxiliary backend parity</title>
+      <justification><![CDATA[
+Legacy backends vary in feature coverage. Without a parity matrix, regressions are hard to
+detect and behavior differences are undocumented.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="4.1"><![CDATA[Inventory element handlers across PDF/HTML/Text/LaTeX/JSON/MMA/ChordPro/Debug/Meta.]]></task>
+        <task id="4.2"><![CDATA[Document known gaps and intended behavior differences.]]></task>
+        <task id="4.3"><![CDATA[Add baseline tests for at least PDF and Text output.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/100_basic.t</file>
+            <description>Baseline backend output checks.</description>
+            <assertions>Selected backends render core song elements without errors.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="5" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-6">
+      <title>[REF] Markdown backend coverage</title>
+      <justification><![CDATA[
+Markdown backend handler coverage and representations for diagrams and delegates are not
+fully documented or tested.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="5.1"><![CDATA[Audit Markdown handler coverage against ChordProBase elements.]]></task>
+        <task id="5.2"><![CDATA[Define representation for diagrams, grids, and delegate outputs.]]></task>
+        <task id="5.3"><![CDATA[Add or extend tests for Markdown output coverage.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/73_md.t</file>
+            <description>Markdown output coverage tests.</description>
+            <assertions>All core elements have valid Markdown representations.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="6" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-7">
+      <title>[REF] Chord diagrams and grids mapping</title>
+      <justification><![CDATA[
+Diagram and grid rendering involve multiple components and font resources. Coverage and
+variants (keyboard diagrams, repeats) are only partially mapped.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="6.1"><![CDATA[Map diagram generation flow and SVG rendering paths.]]></task>
+        <task id="6.2"><![CDATA[Document grid syntax handling and repeat markers.]]></task>
+        <task id="6.3"><![CDATA[Add tests for keyboard diagrams and grid repeats.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/160_diagrams.t</file>
+            <description>Diagram rendering coverage.</description>
+            <assertions>Diagram outputs match expected SVG or textual format.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="7" type="refactoring" status="PENDING" priority="MEDIUM" complexity="M" ref-feature="CF-8">
+      <title>[REF] Delegate integration contracts</title>
+      <justification><![CDATA[
+Delegate integration relies on external tools and internal IO contracts that are not fully
+specified, with minimal automated coverage.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="7.1"><![CDATA[Document delegate input/output contracts and file handling.]]></task>
+        <task id="7.2"><![CDATA[Map error handling for missing tools and failed conversions.]]></task>
+        <task id="7.3"><![CDATA[Add integration tests for ABC and LilyPond delegates.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="integration">
+            <file>t/118_tab.t</file>
+            <description>Delegate integration baseline.</description>
+            <assertions>Delegates produce renderable output or clear errors.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="8" type="refactoring" status="PENDING" priority="LOW" complexity="M" ref-feature="CF-9">
+      <title>[REF] Wx GUI workflow mapping</title>
+      <justification><![CDATA[
+GUI workflows and state transitions are not fully documented, and automated tests are
+uncertain. Mapping reduces regression risk for UI changes.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="8.1"><![CDATA[Document main GUI workflows: open, edit, preview, print.]]></task>
+        <task id="8.2"><![CDATA[Map configuration and output settings used by the GUI.]]></task>
+        <task id="8.3"><![CDATA[Create a manual test checklist for GUI regression.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="human">
+            <file></file>
+            <description>Manual GUI regression checklist run.</description>
+            <assertions>GUI workflows complete without errors and outputs match CLI behavior.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="9" type="refactoring" status="PENDING" priority="HIGH" complexity="M" ref-feature="CF-10">
+      <title>[REF] Configuration system mapping</title>
+      <justification><![CDATA[
+Config precedence, restricted hashes, and overrides affect most features. The behavior is not
+fully documented and lacks dedicated tests.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="9.1"><![CDATA[Document config layering and precedence rules.]]></task>
+        <task id="9.2"><![CDATA[Map restricted hash behavior and error cases.]]></task>
+        <task id="9.3"><![CDATA[Add tests for override merging and invalid key handling.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/15_subst.t</file>
+            <description>Config substitution and override tests.</description>
+            <assertions>Overrides apply in correct order and errors are surfaced clearly.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="17" type="bug" status="IN_PROGRESS" priority="HIGH" complexity="M" ref-feature="CF-7">
+      <title>HTML5 chord diagram SVGs expand to full width</title>
+      <justification><![CDATA[
+In HTML5 paged output, chord diagram SVGs render at full column width instead of the
+expected compact size (around 2-3em). The SVGs should have a fixed max width or be
+controllable via CSS so diagram size remains consistent and readable in song layouts.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-17-html5-chord-diagram-svgs-width</branch>
+      <tasks>
+        <task id="17.1"><![CDATA[Reproduce the full-width diagram rendering in HTML5 paged output and capture the generated HTML/CSS.]]></task>
+        <task id="17.2"><![CDATA[Identify the CSS or template rule responsible for svg sizing in html5 chord diagrams.]]></task>
+        <task id="17.3"><![CDATA[Constrain diagram SVG sizing (e.g., max-width in em) or add a configurable CSS variable override.]]></task>
+        <task id="17.4"><![CDATA[Add regression coverage for diagram sizing in HTML5 paged output.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/86_html5_diagram_pos.t</file>
+            <description>HTML5 chord diagram sizing.</description>
+            <assertions>SVG diagrams respect the configured max width and do not expand to full column width.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>PROBLEM</outcome>
+        <observations>Added a CSS diagram width variable and included chord diagram styles in the paged CSS template; updated t/86_html5_diagram_pos.t to assert diagram sizing, but the extended test run was interrupted (exit 130) before completion.</observations>
+        <lessons-learned>Paged HTML5 output needs explicit inclusion of shared CSS templates to avoid missing sizing rules.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/templates/html5/css/variables.tt</file>
+          <file>lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/base.tt</file>
+          <file>t/86_html5_diagram_pos.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="18" type="bug" status="IN_PROGRESS" priority="HIGH" complexity="S" ref-feature="CF-4">
+      <title>HTML5 chord-only pairs align with lyrics instead of chord line</title>
+      <justification><![CDATA[
+When a chord-lyric pair has an empty lyric span (chord-only, e.g., trailing [Am] [Em] at the
+end of a line), the HTML5 output aligns the chord with the lyric baseline instead of the
+chord line. This misalignment makes chord-only entries drop to the lyric line and disrupts
+the chord row alignment.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-18-html5-chord-only-align-lyrics</branch>
+      <tasks>
+        <task id="18.1"><![CDATA[Reproduce chord-only alignment behavior in HTML5 output and capture the HTML/CSS for cp-chord-lyric-pair cp-chord-only.]]></task>
+        <task id="18.2"><![CDATA[Identify the CSS/layout rule that aligns chord-only pairs to the lyric baseline instead of the chord line.]]></task>
+        <task id="18.3"><![CDATA[Fix chord-only alignment so chords remain on the chord line (e.g., adjust display/vertical-align for cp-chord-only).]]></task>
+        <task id="18.4"><![CDATA[Add regression coverage for chord-only alignment in HTML5 output.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/192_html5_chord_only_align.t</file>
+            <description>HTML5 chord-only pair alignment.</description>
+            <assertions>Chord-only pairs remain aligned with the chord line and do not drop to the lyric baseline.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>PROBLEM</outcome>
+        <observations>Added flex-start alignment for chord-only pairs in HTML5 and paged CSS and created t/192_html5_chord_only_align.t; MANIFEST updated, but the extended test run was interrupted (exit 130) before completion.</observations>
+        <lessons-learned>Chord-only alignment depends on consistent flex item alignment across both standard and paged CSS templates.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/templates/html5/css/songlines.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+          <file>t/192_html5_chord_only_align.t</file>
+          <file>MANIFEST</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="19" type="feature" status="APPROVED" priority="MEDIUM" complexity="M" ref-feature="CF-4">
+      <title>HTML5 configurable song page breaks</title>
+      <justification><![CDATA[
+HTML5 paged output needs a configurable way to force page breaks before or after each song
+so users can control song separation in print layouts without manual CSS edits.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>feature/item-19-html5-configurable-song-page-breaks</branch>
+      <tasks>
+        <task id="19.1"><![CDATA[Define HTML5 config keys for song page breaks (before/after/both/none) and update config schema/defaults.]]></task>
+        <task id="19.2"><![CDATA[Apply the config in the HTML5 song wrapper (paged output) with CSS classes or inline styles.]]></task>
+        <task id="19.3"><![CDATA[Add or update documentation for the new HTML5 page break setting.]]></task>
+        <task id="19.4"><![CDATA[Add regression tests for page-break before/after song rendering in HTML5 paged output.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/94_html5_page_breaks.t</file>
+            <description>HTML5 song page-break configuration.</description>
+            <assertions>Configured before/after page-breaks appear on the song container in paged output.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>PROBLEM</outcome>
+        <observations>Actual combination of styles does not work.</observations>
+        <lessons-learned>Dedicated break elements are more reliable than relying solely on break-before on the song wrapper.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/config/chordpro.json</file>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/song.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/song.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+          <file>lib/ChordPro/res/config/config.schema</file>
+          <file>docs/content/ChordPro-Configuration-HTML5.md</file>
+          <file>t/94_html5_page_breaks.t</file>
+          <file>MANIFEST</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+  </items>
+
+  <archive>
+  </archive>
+
+  <changelog>
+    <entry date="2026-02-08">Initial code analysis; generated overview.xml and created 10 [REF] items.</entry>
+    <entry date="2026-02-08">Added bug item for HTML5 image alignment regression (t/85_html5_image_align.t).</entry>
+    <entry date="2026-02-08">Item 11 implemented. HTML5 image scaling preserves explicit width/height when scale is provided.</entry>
+    <entry date="2026-02-08">Added refactoring item to align HTML5 image scale behavior and tests.</entry>
+    <entry date="2026-02-08">Item 12 implemented. Aligned HTML5 image scaling logic and tests for scale-only vs width+scale behavior.</entry>
+    <entry date="2026-02-09">Archived items 11 and 12.</entry>
+  </changelog>
+</implementation-plan>

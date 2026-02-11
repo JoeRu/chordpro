@@ -1242,6 +1242,7 @@ html5 {
             
             // HTML templates (override html5 templates).
             songbook : "html5/paged/songbook.tt"
+            songbook_minimal : "html5/paged/songbook-minimal.tt"
             song : "html5/paged/song.tt"
             toc : "html5/paged/toc.tt"
         }
@@ -1260,6 +1261,17 @@ html5 {
         newpage {
             // Targeted page break for {new_page}: "page", "right", "left", "recto", "verso".
             page-break : "page"
+        }
+
+        // Bundle output settings (externalized CSS and folder output).
+        bundle {
+            enabled : false
+            mode : "minimal"
+            html : null
+            css {
+                layout : "layout.css"
+                content : "content.css"
+            }
         }
 
         // CSS customization.
@@ -1358,6 +1370,7 @@ html5 {
             
             // HTML templates (override html5 templates).
             songbook : "html5/paged/songbook.tt"
+            songbook_minimal : "html5/paged/songbook-minimal.tt"
             song : "html5/paged/song.tt"
             toc : "html5/paged/toc.tt"
         }
@@ -1376,6 +1389,17 @@ html5 {
         newpage {
             // Targeted page break for {new_page}: "page", "right", "left", "recto", "verso".
             page-break : "page"
+        }
+
+        // Bundle output settings (externalized CSS and folder output).
+        bundle {
+            enabled : false
+            mode : "minimal"
+            html : null
+            css {
+                layout : "layout.css"
+                content : "content.css"
+            }
         }
 
         // CSS customization.
