@@ -78,7 +78,7 @@ my $content = do { local $/; <$out_fh> };
 close $out_fh;
 
 like($content, qr/class="cp-toc"/, 'TOC container present');
-like($content, qr/class="cp-toc-entry"/, 'TOC entry elements present');
+like($content, qr/<a[^>]*class=["'][^"']*cp-toc-entry\b/, 'TOC entry elements present');
 like($content, qr/href="#cp-song-1"/, 'TOC entry references first song');
 like($content, qr/target-counter\(attr\(href\), page\)/, 'TOC uses target-counter for page numbers');
 

@@ -202,22 +202,21 @@ pages while keeping song page numbers intact.
         </tests>
       </verification>
       <risks>
+        <risk>Paged.js margin box behavior may vary by browser or paged.js version; scoping rules must avoid hiding page numbers on non-TOC pages.</risk>
+      </risks>
+      <replan date="2026-02-12">
+        <reason>User reported the duplicate number is emitted by paged.js margin content.</reason>
+        <changes>Tasks rewritten to target pagedjs margin boxes and TOC page scoping; added manual verification; complexity S→M; added risks.</changes>
+      </replan>
+      <r>
         <outcome>DONE</outcome>
         <observations>TOC pages now use a named page with a dedicated @page rule that suppresses bottom margin content; HTML5 paged mode falls back to the paged CSS base so page rules are always emitted.</observations>
         <lessons-learned>When paged output relies on margin boxes, ensure the paged CSS template is selected even when configs omit paged templates.</lessons-learned>
-        <reason>User reported the duplicate number is emitted by paged.js margin content.</reason>
-          <file>lib/ChordPro/Output/HTML5.pm</file>
-        <changes>Tasks rewritten to target pagedjs margin boxes and TOC page scoping; added manual verification; complexity S→M; added risks.</changes>
-      </replan>
-          <file>lib/ChordPro/res/templates/html5/paged/css/page-setup.tt</file>
-      <r>
-        <outcome>PROBLEM</outcome>
-        <observations>TOC entries conditionally suppress target-counter page numbers, but the duplicate persists via paged.js margin content on TOC pages.</observations>
-        <lessons-learned>Margin-box page numbers require separate scoping from TOC entry rendering.</lessons-learned>
         <files>
           <file>lib/ChordPro/Output/HTML5.pm</file>
           <file>lib/ChordPro/res/templates/html5/paged/toc.tt</file>
           <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/page-setup.tt</file>
           <file>t/98_html5_paged_toc_page_numbers.t</file>
           <file>ai-docs/overview-features-bugs.xml</file>
         </files>
@@ -247,6 +246,40 @@ results when users work with automation.
           </test>
         </tests>
       </verification>
+    </item>
+
+    <item id="33" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4">
+      <title>HTML5 TOC output missing expected entry markup in t/78_html5_toc.t</title>
+      <justification><![CDATA[
+The test suite reports t/78_html5_toc.t failing with the generated HTML missing the
+expected TOC entry markup (class="cp-toc-entry"). This indicates the TOC rendering path
+is not emitting expected structure for the non-paged HTML5 output.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-33-html5-toc-missing-entry-markup</branch>
+      <tasks>
+        <task id="33.1"><![CDATA[Reproduce the failure in t/78_html5_toc.t and capture the generated HTML output around the TOC section.]]></task>
+        <task id="33.2"><![CDATA[Identify why the TOC template output is missing the expected cp-toc-entry element in non-paged HTML5 mode.]]></task>
+        <task id="33.3"><![CDATA[Fix the HTML5 TOC rendering to restore the expected cp-toc-entry markup and update tests if needed.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/78_html5_toc.t</file>
+            <description>HTML5 TOC markup presence.</description>
+            <assertions>Generated HTML includes cp-toc-entry elements in the TOC section.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>The HTML output already includes TOC entries, but the test regex was too strict; it now matches anchor tags with cp-toc-entry regardless of extra classes.</observations>
+        <lessons-learned>TOC entry class assertions should allow additional classes introduced by pagination features.</lessons-learned>
+        <files>
+          <file>t/78_html5_toc.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
     </item>
   </items>
 
@@ -509,5 +542,7 @@ lean.
     <entry date="2026-02-12">Added feature item 32 for an end-user HTML5 template starter directory with documentation and AI agent guidance.</entry>
     <entry date="2026-02-12">Item 31 implemented. TOC page numbers now use a conditional target-counter class to avoid duplicates when line templates include %{page}; added a regression test update.</entry>
     <entry date="2026-02-12">Item 31 completed. TOC pages use a named @page rule to suppress paged.js margin page numbers, and paged CSS now defaults to the paged base template.</entry>
+    <entry date="2026-02-12">Added bug item 33 for failing t/78_html5_toc.t (missing cp-toc-entry markup).</entry>
+    <entry date="2026-02-12">Item 33 completed. Relaxed the TOC entry assertion to accept cp-toc-entry with additional classes.</entry>
   </changelog>
 </implementation-plan>
