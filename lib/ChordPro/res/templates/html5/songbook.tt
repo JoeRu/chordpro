@@ -14,6 +14,9 @@
     <style>
 [% css %]
     </style>
+[% IF verovio_assets %]
+[% verovio_assets %]
+[% END %]
 </head>
 <body class="chordpro-songbook">
 [% IF cover_html %]

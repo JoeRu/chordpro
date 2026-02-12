@@ -16,7 +16,9 @@ use utf8;
 use Ref::Util qw(is_ref is_hashref);
 use Text::Layout;
 use Template;
-use MIME::Base64 qw(encode_base64);
+use MIME::Base64 qw(encode_base64 decode_base64);
+use JSON::PP qw(encode_json);
+use Encode qw(encode);
 use Unicode::Collate;
 use File::Basename qw(fileparse);
 use File::Path qw(make_path);
@@ -38,6 +40,14 @@ class ChordPro::Output::HTML5
     
     # Template engine for CSS generation
     field $template_engine;
+
+    # Cached abc2svg font asset path
+    field $abc2svg_font_asset_path;
+
+    # Verovio inline rendering state
+    field $verovio_required = 0;
+    field $verovio_counter = 0;
+    field $verovio_assets_inline;
 
     BUILD {
         # Initialize SVG diagram generator with HTML escape function
@@ -64,6 +74,10 @@ class ChordPro::Output::HTML5
             INCLUDE_PATH => $include_path,
             INTERPOLATE => 1,
         }) || die "$Template::ERROR\n";
+
+        $verovio_required = 0;
+        $verovio_counter = 0;
+        $verovio_assets_inline = undef;
     }
 
     # =================================================================
@@ -671,7 +685,13 @@ class ChordPro::Output::HTML5
     method _render_delegate_element($element, $song = undef) {
         my $delegate = $element->{delegate} // '';
         my $handler = $element->{handler} // '';
-        return '' unless $delegate && $handler;
+        return '' unless $delegate;
+
+        if (lc($delegate) eq 'abc' && $self->_html5_abc_renderer() eq 'verovio') {
+            return $self->_render_abc_verovio($element);
+        }
+
+        return '' unless $handler;
 
         my $pkg = __PACKAGE__;
         $pkg =~ s/::Output::[:\w]+$/::Delegate::$delegate/;
@@ -694,13 +714,213 @@ class ChordPro::Output::HTML5
         }
 
         my $res = $hd->( $song, elt => $elt, pagewidth => undef );
-        return '' unless $res;
+        unless ($res) {
+            warn("HTML5: Delegate $delegate failed to render\n");
+            my $label = $self->escape_text($delegate);
+            return qq{<div class="cp-delegate cp-delegate-error">Delegate $label failed to render.</div>\n};
+        }
 
         if (ref($res) eq 'ARRAY') {
             return join('', map { $self->_render_delegate_result($_) } @$res);
         }
 
         return $self->_render_delegate_result($res);
+    }
+
+        method _html5_abc_renderer() {
+                my $config = $self->config // {};
+                my $renderer = eval { $config->{html5}->{delegates}->{abc}->{renderer} }
+                        // eval { $config->{html5}->{abc}->{renderer} }
+                        // 'abc2svg';
+                $renderer = lc($renderer // '');
+                return 'verovio' if $renderer eq 'verovio';
+                return 'abc2svg';
+        }
+
+        method _render_abc_verovio($element) {
+                my @data;
+                if ($element->{data}) {
+                        if (ref($element->{data}) eq 'ARRAY') {
+                                @data = @{$element->{data}};
+                        } else {
+                                @data = ($element->{data});
+                        }
+                } elsif ($element->{uri}) {
+                        my $loaded = fs_load($element->{uri});
+                        if ($loaded && ref($loaded) eq 'ARRAY') {
+                                @data = @$loaded;
+                        } elsif (defined $loaded) {
+                                @data = ($loaded);
+                        }
+                }
+
+                return '' unless @data;
+
+                $verovio_required = 1;
+                $verovio_counter++;
+
+                my $abc_text = join("\n", @data);
+                my $abc_bytes = encode('UTF-8', $abc_text);
+                my $abc_b64 = encode_base64($abc_bytes, '');
+                my $options = {
+                        inputFrom => 'abc',
+                        font => 'Bravura',
+                        svgViewBox => 1,
+                        adjustPageHeight => 1,
+                };
+                my $options_bytes = encode('UTF-8', encode_json($options));
+                my $options_b64 = encode_base64($options_bytes, '');
+                my $abc_attr = $self->escape_text($abc_b64);
+                my $opts_attr = $self->escape_text($options_b64);
+                my $id = "cp-abc-verovio-$verovio_counter";
+
+                return qq{<div class="cp-delegate cp-delegate-abc cp-delegate-verovio" data-abc-id="$id" data-abc-base64="$abc_attr" data-verovio-options="$opts_attr"></div>\n};
+        }
+
+        method _verovio_assets_inline() {
+                return $verovio_assets_inline if defined $verovio_assets_inline;
+
+                my $module_path = CP->findres("verovio/verovio-module.mjs");
+                my $toolkit_path = CP->findres("verovio/verovio.mjs");
+                my $font_path = CP->findres("verovio/Bravura.otf");
+
+                if (!$module_path || !$toolkit_path || !$font_path) {
+                        warn("HTML5: Verovio assets not found; skipping inline Verovio renderer.\n");
+                        $verovio_assets_inline = '';
+                        return $verovio_assets_inline;
+                }
+
+                my $module_b64 = encode_base64(fs_blob($module_path), '');
+                my $toolkit_b64 = encode_base64(fs_blob($toolkit_path), '');
+                my $font_b64 = encode_base64(fs_blob($font_path), '');
+
+                my $css = qq{
+            \@font-face{font-family:"Bravura";font-style:normal;font-weight:400;src:url("data:font/otf;base64,$font_b64") format("opentype");}
+            };
+
+                my $loader = <<'JS';
+<script id="cp-verovio-loader" type="module">
+(() => {
+    const decodeBase64 = (b64) => {
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        if (typeof TextDecoder !== "undefined") {
+            return new TextDecoder("utf-8").decode(bytes);
+        }
+        let result = "";
+        for (let i = 0; i < bytes.length; i++) {
+            result += String.fromCharCode(bytes[i]);
+        }
+        return decodeURIComponent(escape(result));
+    };
+
+    const moduleB64 = document.getElementById("cp-verovio-module").textContent.trim();
+    const toolkitB64 = document.getElementById("cp-verovio-toolkit").textContent.trim();
+    const moduleUrl = URL.createObjectURL(new Blob([decodeBase64(moduleB64)], { type: "text/javascript" }));
+    const toolkitUrl = URL.createObjectURL(new Blob([decodeBase64(toolkitB64)], { type: "text/javascript" }));
+
+    Promise.all([import(moduleUrl), import(toolkitUrl)])
+        .then(async ([moduleMod, toolkitMod]) => {
+            URL.revokeObjectURL(moduleUrl);
+            URL.revokeObjectURL(toolkitUrl);
+            const createModule = moduleMod.default;
+            const { VerovioToolkit } = toolkitMod;
+            const verovioModule = await createModule();
+            const toolkit = new VerovioToolkit(verovioModule);
+            const elements = document.querySelectorAll(".cp-delegate-verovio[data-abc-base64]");
+            elements.forEach((element) => {
+                const abcB64 = element.dataset.abcBase64;
+                if (!abcB64) {
+                    return;
+                }
+                const abc = decodeBase64(abcB64);
+                let options = {};
+                const optionsB64 = element.dataset.verovioOptions;
+                if (optionsB64) {
+                    try {
+                        options = JSON.parse(decodeBase64(optionsB64));
+                    } catch (err) {
+                        console.error("ChordPro: invalid Verovio options", err);
+                    }
+                }
+                if (!options.inputFrom) {
+                    options.inputFrom = "abc";
+                }
+                if (!options.font) {
+                    options.font = "Bravura";
+                }
+                if (options.svgViewBox === undefined) {
+                    options.svgViewBox = true;
+                }
+                if (options.adjustPageHeight === undefined) {
+                    options.adjustPageHeight = true;
+                }
+                try {
+                    const svg = toolkit.renderData(abc, options);
+                    element.innerHTML = svg;
+                } catch (err) {
+                    element.classList.add("cp-delegate-error");
+                    element.textContent = "Verovio render failed.";
+                    console.error("ChordPro: Verovio render failed", err);
+                }
+            });
+        })
+        .catch((err) => {
+            console.error("ChordPro: Verovio init failed", err);
+        });
+})();
+</script>
+JS
+
+                $verovio_assets_inline = qq{<style id="cp-verovio-font">\n$css</style>\n}
+                    . qq{<script id="cp-verovio-module" type="application/base64">$module_b64</script>\n}
+                    . qq{<script id="cp-verovio-toolkit" type="application/base64">$toolkit_b64</script>\n}
+                    . $loader;
+                return $verovio_assets_inline;
+        }
+
+        method _verovio_assets_if_needed() {
+                return '' unless $verovio_required;
+                return $self->_verovio_assets_inline();
+        }
+
+    method _normalize_svg_font_data_uri($svg) {
+        return $svg unless defined $svg && $svg ne '';
+        # abc2svg embeds music fonts as application/octet-stream; browsers may skip these.
+        $svg =~ s/data:application\/octet-stream;/data:font\/ttf;/g;
+        $svg =~ s/data:font\/ttf(?!;base64)/data:font\/ttf;base64/g;
+        $svg =~ s/(\@font-face\{[\s\S]*?\bsrc:url\((['"])?data:font\/ttf[^)]+\2\))(?!\s*format\("truetype"\))/$1 format("truetype")/g;
+        if ($svg =~ /(\.f\d+)\{font:([0-9.]+px)\s+music\b/) {
+            my ($class, $size) = ($1, $2);
+            $svg =~ s/<style>/<style>\n${class}{font-family:music;font-size:${size};}/;
+        }
+        return $svg;
+    }
+
+    method _ensure_abc2svg_font_asset($base64) {
+        return $abc2svg_font_asset_path if $abc2svg_font_asset_path;
+
+        my $options = $self->options // {};
+        my $output_path = $options->{output} // '';
+        return undef if !$output_path || $output_path eq '-';
+
+        my ($base, $dir) = fileparse($output_path);
+        my $font_name = 'abc2svg-music.ttf';
+        my $font_path = File::Spec->catfile($dir, $font_name);
+        my $data = decode_base64($base64 // '');
+        return undef unless defined $data && length($data) > 0;
+
+        if (!-f $font_path || -s $font_path != length($data)) {
+            open my $fh, '>:raw', $font_path or return undef;
+            print {$fh} $data;
+            close $fh;
+        }
+
+        $abc2svg_font_asset_path = $font_name;
+        return $abc2svg_font_asset_path;
     }
 
     method _render_delegate_result($res) {
@@ -725,8 +945,16 @@ class ChordPro::Output::HTML5
                 }
             }
 
-            return '' unless $svg ne '';
-            return qq{<div class="cp-delegate cp-delegate-svg">\n$svg\n</div>\n};
+                        $svg = $self->_normalize_svg_font_data_uri($svg);
+                        if ($svg =~ /data:font\/ttf;base64,([A-Za-z0-9+\/=]+)/) {
+                            my $font_url = $self->_ensure_abc2svg_font_asset($1);
+                            if ($font_url) {
+                                $svg =~ s/\@font-face\{[^}]*?src:url\([^)]+\)[^}]*\}/\@font-face{font-family:music;font-style:normal;font-weight:400;src:url("$font_url") format("truetype");}/g;
+                            }
+                        }
+
+                        return '' unless $svg ne '';
+                        return qq{<div class="cp-delegate cp-delegate-svg">\n$svg\n</div>\n};
         }
 
         my $opts = { %{ $res->{opts} // {} }, class => 'cp-delegate' };
@@ -1920,6 +2148,8 @@ sub generate_songbook {
         push @songs_html, $before_break_html . $song_html;
     }
 
+    my $verovio_assets = $backend->_verovio_assets_if_needed();
+
     my $bundle = $backend->_paged_bundle_settings($paged_mode);
     if ($bundle->{enabled}) {
         my $output_path = $options->{output} // '';
@@ -1949,6 +2179,7 @@ sub generate_songbook {
                 toc_html => '',
                 songs => \@songs_html,
                 css_files => $css_files,
+                verovio_assets => $verovio_assets,
                 paged_mode => $paged_mode,
             };
 
@@ -1971,6 +2202,7 @@ sub generate_songbook {
         toc_html => $backend->_generate_toc($songs, $paged_mode),
         songs => \@songs_html,
         css => $css,
+        verovio_assets => $verovio_assets,
         paged_mode => $paged_mode,
     };
 

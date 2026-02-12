@@ -489,3 +489,6 @@ t/ref/84_pages.csv
 t/ref/85_pages.csv
 t/ref/86_pages.csv
 t/ref/87_pages.csv
+lib/ChordPro/res/verovio/Bravura.otf
+lib/ChordPro/res/verovio/verovio-module.mjs
+lib/ChordPro/res/verovio/verovio.mjs

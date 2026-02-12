@@ -2734,6 +2734,26 @@
               "enum": ["responsive", "screen", "print", "paged"],
               "default": "print"
             },
+            "delegates": {
+              "description": "HTML5 delegate rendering overrides.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "abc": {
+                  "description": "ABC delegate settings for HTML5 output.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "renderer": {
+                      "description": "Renderer selection for ABC delegates in HTML5 output.",
+                      "type": "string",
+                      "enum": ["abc2svg", "verovio"],
+                      "default": "abc2svg"
+                    }
+                  }
+                }
+              }
+            },
             "paged": {
               "description": "Settings for paged HTML5 output.",
               "type": "object",

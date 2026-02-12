@@ -281,6 +281,97 @@ is not emitting expected structure for the non-paged HTML5 output.
         </files>
       </r>
     </item>
+
+    <item id="34" type="bug" status="APPROVED" priority="HIGH" complexity="XL" ref-feature="CF-8">
+      <title>ABC delegate does not render in HTML5 for Lowlands sample</title>
+      <justification><![CDATA[
+The ABC delegate fails in HTML5 output when rendering testing/lowlands.cho. PDF output
+(testing/lowlands.pdf) renders the ABC blocks correctly and is the reference, but HTML5
+  omits or fails to render the delegate content correctly. The latest HTML5 output shows empty
+  boxes and missing symbols (accidentals, barlines, repeat dots, flags), indicating the SVG
+  music font is not loading in browsers. Edge 144 on local files still fails after multiple
+  font embedding strategies, so the rendering path must move to a JS music renderer that
+  controls its own font loading (Verovio.js). This blocks ABC usage in HTML5 output for a
+  known sample.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-34-abc-delegate-html5-lowlands</branch>
+      <tasks>
+        <task id="34.1"><![CDATA[Add a Verovio.js-based HTML5 rendering path for ABC delegates that embeds the ABC source and renders SVG client-side.]]></task>
+        <task id="34.2"><![CDATA[Bundle the Verovio.js assets (JS + SMuFL font) into HTML5 output for local file usage, avoiding external CDN dependencies.]]></task>
+        <task id="34.3"><![CDATA[Provide a fallback or opt-in configuration flag to switch between abc2svg and Verovio rendering for HTML5 output.]]></task>
+        <task id="34.4"><![CDATA[Update HTML5 templates or delegate rendering to inject the Verovio-rendered SVG into the DOM at the correct location.]]></task>
+        <task id="34.5"><![CDATA[Add regression coverage that validates the Verovio renderer wiring (script tags, data payload, and rendered SVG container markers).]]></task>
+        <task id="34.6"><![CDATA[Manually verify Edge 144 local-file output for testing/lowlands.cho shows accidentals, barlines, repeat dots, and flagged notes.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Generate HTML5 output for testing/lowlands.cho and confirm the Verovio-rendered SVG shows all music symbols in Edge local file viewing.</description>
+            <assertions>ABC delegate content appears in the HTML5 output at the expected location with all expected music symbols visible in Edge.</assertions>
+          </test>
+          <test type="manual">
+            <description>Generate a PDF for testing/lowlands.cho and confirm the ABC blocks render as a reference baseline.</description>
+            <assertions>ABC delegate content appears in the PDF output at the expected location.</assertions>
+          </test>
+          <test type="unit">
+            <file>testing/abc_delegate_lowlands.t</file>
+            <description>ABC delegate output is wired for Verovio rendering in HTML5 output.</description>
+            <assertions>HTML includes Verovio script assets, a data payload for the ABC source, and a render target container.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <risks>
+        <risk>Bundling Verovio assets increases HTML output size and may require license review; client-side rendering may impact load time on large songbooks.</risk>
+      </risks>
+      <replan date="2026-02-12">
+        <reason>User clarified that ABC fails in HTML5 output while PDF works as reference.</reason>
+        <changes>Title and justification updated to target HTML5; tasks rewritten to reproduce HTML5 failure, compare PDF baseline, and focus on HTML5 delegate embedding; verification expanded with HTML5 and PDF checks; added risk note.</changes>
+      </replan>
+      <replan date="2026-02-12">
+        <reason>User reported HTML5 output still renders empty boxes and missing music symbols (accidentals, barlines, repeat dots, flags).</reason>
+        <changes>Updated justification and tasks to focus on SVG font-face and data URI compatibility; verification tightened to require visible music symbols; complexity raised M→L; status reset to APPROVED; risk updated to cover font-face changes.</changes>
+      </replan>
+      <replan date="2026-02-12">
+        <reason>Edge local-file rendering still fails after multiple font embedding strategies; user requested Verovio.js rendering fallback.</reason>
+        <changes>Tasks rewritten to implement Verovio-based HTML5 rendering with bundled assets and configuration; verification updated for Verovio wiring and Edge manual check; complexity L→XL; status reset to APPROVED; risks updated for asset size/licensing.</changes>
+      </replan>
+      <r>
+        <outcome>HUMAN_REVIEW</outcome>
+        <observations>HTML5 delegate rendering now keeps @font-face inside the SVG but rewrites it to load a local abc2svg music font file, while also injecting an explicit music font-family rule; regression coverage asserts the asset, CSS reference, and explicit font-family rule.</observations>
+        <lessons-learned>Some browsers require @font-face to live inside the SVG even when the font file is external; keep both explicit font-family and a local font asset.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>testing/abc_delegate_lowlands.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="35" type="bug" status="PENDING" priority="HIGH" complexity="S" ref-feature="CF-4">
+      <title>HTML5 Verovio output warns on wide character input</title>
+      <justification><![CDATA[
+Running HTML5 generation with the Verovio renderer on testing/mollymalone.cho emits a
+warning: "Wide character in subroutine entry" at lib/ChordPro/Output/HTML5.pm line 762.
+The warning appears during Verovio inline asset handling and should not be triggered for
+Unicode lyrics or ABC blocks. It indicates an encoding mismatch in the Verovio HTML5 path.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="35.1"><![CDATA[Reproduce the warning using testing/mollymalone.cho and capture the exact HTML5 Verovio output path and line referenced in HTML5.pm.]]></task>
+        <task id="35.2"><![CDATA[Identify the encoding boundary causing the wide character warning (ABC payload encoding, base64 handling, or inline script assembly) and adjust the conversion to operate on bytes safely.]]></task>
+        <task id="35.3"><![CDATA[Add regression coverage that asserts HTML5 Verovio output generation completes without wide character warnings.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>testing/html5_verovio_wide_char.t</file>
+            <description>HTML5 Verovio output avoids wide character warnings for Unicode ABC inputs.</description>
+            <assertions>No wide character warning is emitted during HTML5 generation.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
   </items>
 
   <archive>
@@ -544,5 +635,11 @@ lean.
     <entry date="2026-02-12">Item 31 completed. TOC pages use a named @page rule to suppress paged.js margin page numbers, and paged CSS now defaults to the paged base template.</entry>
     <entry date="2026-02-12">Added bug item 33 for failing t/78_html5_toc.t (missing cp-toc-entry markup).</entry>
     <entry date="2026-02-12">Item 33 completed. Relaxed the TOC entry assertion to accept cp-toc-entry with additional classes.</entry>
+    <entry date="2026-02-12">Added bug item 34 for ABC delegate failure in testing/lowlands.cho.</entry>
+    <entry date="2026-02-12">Item 34 implemented (pending review). Normalized ABC SVG font data URIs for HTML5 delegates, added a failure placeholder, and created an HTML5 regression test.</entry>
+    <entry date="2026-02-12">Item 34 updated (pending review). Ensured ABC SVG font data URIs include base64 markers and truetype format hints; updated HTML5 regression test accordingly.</entry>
+    <entry date="2026-02-12">Item 34 updated (pending review). Moved ABC SVG font-face definitions into HTML output to avoid SVG font blocking; refreshed HTML5 regression coverage.</entry>
+    <entry date="2026-02-12">Item 34 updated (pending review). Rewrote abc2svg SVG @font-face to point at the local font file while keeping it inside the SVG and injecting an explicit music font-family rule.</entry>
+    <entry date="2026-02-12">Added bug item 35 for wide character warnings in HTML5 Verovio output.</entry>
   </changelog>
 </implementation-plan>

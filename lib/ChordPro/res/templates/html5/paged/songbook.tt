@@ -24,6 +24,9 @@
 [% css %]
     </style>
 [% END %]
+[% IF verovio_assets %]
+[% verovio_assets %]
+[% END %]
 </head>
 <body class="chordpro-songbook chordpro-paged">
     <div class="book-content">

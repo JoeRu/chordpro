@@ -1199,6 +1199,14 @@ html5 {
         chord_diagrams : "html5/chord-diagrams.tt"
     }
 
+    // Delegate rendering overrides for HTML5 output.
+    delegates {
+        abc {
+            // Renderer selection: "abc2svg" (default) or "verovio".
+            renderer : abc2svg
+        }
+    }
+
     // CSS customization.
     css {
         colors : {}
@@ -1324,6 +1332,14 @@ html5 {
         image : "html5/image.tt"
         songline : "html5/songline.tt"
         chord_diagrams : "html5/chord-diagrams.tt"
+    }
+
+    // Delegate rendering overrides for HTML5 output.
+    delegates {
+        abc {
+            // Renderer selection: "abc2svg" (default) or "verovio".
+            renderer : abc2svg
+        }
     }
 
     // CSS customization.

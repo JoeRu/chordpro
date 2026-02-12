@@ -82,6 +82,14 @@ html5 {
         chord_diagrams : "html5/chord-diagrams.tt"
     }
 
+    // Delegate rendering overrides (ABC only).
+    delegates {
+        abc {
+            // "abc2svg" (default) or "verovio".
+            renderer : "verovio"
+        }
+    }
+
     // CSS customization (colors, fonts, sizes, spacing).
     css {
         colors  : {}
