@@ -8,7 +8,7 @@ use File::Path qw(make_path);
 use Test::More;
 use ChordPro::Testing;
 
-plan tests => 4;
+plan tests => 6;
 
 make_path('out');
 
@@ -30,13 +30,18 @@ close $cho_fh;
 open my $cfg_fh, '>:utf8', $cfg_file or die "Cannot create $cfg_file: $!";
 print {$cfg_fh} <<'EOC';
 {
-  "html5": { "mode": "print" },
+  "html5": {
+    "mode": "print",
+    "paged": {
+      "templates": { "css": "html5/paged/css/base.tt" }
+    }
+  },
   "contents": [
     {
       "name": "table_of_contents",
       "fields": ["songindex"],
       "label": "Table of Contents",
-      "line": "%{title}",
+      "line": "%{title} %{page}",
       "pageno": "%{page}",
       "omit": false
     }
@@ -74,6 +79,8 @@ close $out_fh;
 
 like($content, qr/class="cp-toc"/, 'TOC container present');
 like($content, qr/class="cp-toc-entry"[^>]*href="#cp-song-1"/, 'TOC entry link present');
-like($content, qr/target-counter\(attr\(href\), page\)/, 'TOC uses target-counter for page numbers');
+unlike($content, qr/class="cp-toc-entry[^"]*cp-toc-page-target/, 'TOC avoids duplicate page numbers when line includes page');
+like($content, qr/page:\s*toc;/, 'TOC pages use named page');
+like($content, qr/\@page\s+toc[\s\S]*?\@bottom-right[\s\S]*?content:\s*none;/, 'TOC pages suppress margin page numbers');
 
 unlink $cho_file, $cfg_file, $out_file;

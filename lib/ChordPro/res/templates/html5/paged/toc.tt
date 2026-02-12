@@ -13,7 +13,7 @@
 [% IF entry.type == 'break' %]
         <div class="cp-toc-break">[% entry.text | html %]</div>
 [% ELSE %]
-        <a class="cp-toc-entry" href="[% entry.page_ref | html %]">
+        <a class="cp-toc-entry[% UNLESS entry.page_in_line %] cp-toc-page-target[% END %]" href="[% entry.page_ref | html %]">
             <span class="cp-toc-text">[% entry.text | html %]</span>
             <span class="cp-toc-dots"></span>
         </a>
