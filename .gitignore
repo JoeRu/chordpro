@@ -41,6 +41,7 @@ MANIFEST.SKIP
 ABC/
 Cases/
 Design/
+!Design/ai-docs/**
 aux/
 cava/
 ghstats/
