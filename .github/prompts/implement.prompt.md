@@ -85,7 +85,7 @@ For each completed item, fill the `<r>` block:
 </r>
 ```
 
-- Set `outcome` to `DONE` if verification passed, `PROBLEM` if issues remain
+- Set `outcome` to `DONE` if verification passed, `PROBLEM` if issues remain, if type is "bug" ask user to confirm if the bug is fixed - or set it to `HUMAN_REVIEW` if unsure
 - List ALL files that were created or modified
 - Record observations about unexpected findings or decisions made
 - Record lessons learned for future reference

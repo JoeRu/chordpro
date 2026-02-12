@@ -30,6 +30,19 @@
     /* Named page for back matter content */
 }
 
+@page toc {
+    /* Suppress margin page numbers on TOC pages */
+    @bottom-left {
+        content: none;
+    }
+    @bottom-center {
+        content: none;
+    }
+    @bottom-right {
+        content: none;
+    }
+}
+
 @page :blank {
     @top-left {
         content: none;

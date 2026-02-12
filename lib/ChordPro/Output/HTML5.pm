@@ -1164,6 +1164,7 @@ class ChordPro::Output::HTML5
             my $page_tpl = eval { $ctl->{pageno} } // '%{page}';
             my $break_tpl = eval { $ctl->{break} };
             my $name = eval { $ctl->{name} } // 'toc';
+            my $line_has_page = ($line_tpl // '') =~ /%\{page(?:\b|[^}]*)\}/;
 
             my $book = prep_outlines($songs, {
                 fields => $fields,
@@ -1200,6 +1201,7 @@ class ChordPro::Output::HTML5
                     text => $title,
                     page_text => $page_text,
                     page_ref => '#' . $song_id,
+                    page_in_line => $line_has_page ? 1 : 0,
                 };
             }
 
@@ -1726,12 +1728,13 @@ class ChordPro::Output::HTML5
         my $css = '';
         my $template;
         if ($paged_mode) {
-            # Try paged template first, fall back to regular
+            # Try paged template first, fall back to paged base
             my $paged_cfg = $html5_cfg->{paged};
             $template = $paged_cfg->{templates}->{css}
-                     // $html5_cfg->{templates}->{css};
+                     // 'html5/paged/css/base.tt';
         } else {
-            $template = $html5_cfg->{templates}->{css};
+            $template = $html5_cfg->{templates}->{css}
+                     // 'html5/css/base.tt';
         }
         
         $template_engine->process($template, $vars, \$css)

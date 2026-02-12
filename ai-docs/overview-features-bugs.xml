@@ -4,7 +4,7 @@
     <title>ChordPro Feature and Bug Plan</title>
     <version>3.1</version>
     <date>2026-02-08</date>
-    <updated>2026-02-11</updated>
+    <updated>2026-02-12</updated>
     <status>Initial code analysis (2026-02-08)</status>
     <summary>
       Initial analysis of the ChordPro codebase. Established architecture, dependencies, and
@@ -45,6 +45,208 @@ page-break-before: always rule for .cp-new-page.cp-page-break-before-right.
           <file>lib/ChordPro/Output/HTML5.pm</file>
         </files>
       </r>
+    </item>
+
+    <item id="26" type="feature" status="PENDING" priority="MEDIUM" complexity="XL">
+      <title>Comprehensive ChordPro feature-coverage test song</title>
+      <justification><![CDATA[
+The current test corpus covers features across many focused fixtures, but there is no
+single test song that exercises all supported language directives and delegate features
+for a holistic visual completeness review. A consolidated .cho file enables quick
+inspection across backends and helps confirm that feature interactions render correctly.
+]]></justification>
+      <depends-on></depends-on>
+      <acceptance-criteria>
+        <criterion><![CDATA[A single .cho test song exists that covers all documented language directives and constructs, with explicit section labels for traceability.]]></criterion>
+        <criterion><![CDATA[All delegate features (ABC, LilyPond, SVG, Grille, Strum, TextBlock, Program) are exercised with clear, minimal examples and safe defaults.]]></criterion>
+        <criterion><![CDATA[The test song lives in testing/ with guidance for promotion to t/ after review, per AI-generated test policy.]]></criterion>
+        <criterion><![CDATA[A visual verification guide exists that lists expected backend outputs and any optional dependencies.]]></criterion>
+      </acceptance-criteria>
+      <tasks>
+        <task id="26.1"><![CDATA[Inventory language features and map them to song sections that can coexist in a single .cho file without ambiguity.]]></task>
+        <task id="26.2"><![CDATA[Define safe delegate samples, including optional dependency gating and fallback text where external binaries are unavailable.]]></task>
+        <task id="26.3"><![CDATA[Compose the consolidated test song in testing/ and ensure supporting assets (SVG, images, delegate inputs) are included.]]></task>
+        <task id="26.4"><![CDATA[Document a visual verification workflow and backend coverage expectations.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Generate HTML5, PDF, and Markdown outputs from the consolidated test song and visually inspect directive/delegate sections.</description>
+            <assertions>Each section renders and the delegate blocks appear or are skipped with a clear placeholder when dependencies are missing.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="27" type="feature" status="PENDING" priority="MEDIUM" complexity="M">
+      <title>Language feature coverage matrix for test song</title>
+      <justification><![CDATA[
+To avoid omissions, a coverage matrix is required to map every documented directive and
+construct to a specific section in the consolidated test song.
+]]></justification>
+      <depends-on>26</depends-on>
+      <parent>26</parent>
+      <tasks>
+        <task id="27.1"><![CDATA[Enumerate language directives from docs and existing tests, grouping by metadata, layout, and rendering behavior.]]></task>
+        <task id="27.2"><![CDATA[Define a section outline that includes a minimal example for each directive without conflicts.]]></task>
+        <task id="27.3"><![CDATA[Record the mapping in a checklist to be embedded or referenced by the test song.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Review the coverage matrix to confirm all documented directives are mapped to a test song section.</description>
+            <assertions>No documented language feature remains unmapped.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="28" type="feature" status="PENDING" priority="MEDIUM" complexity="M">
+      <title>Delegate feature coverage samples</title>
+      <justification><![CDATA[
+Delegate features rely on external tools or embedded engines. The consolidated test song
+needs minimal, deterministic samples for each delegate with safe behavior when optional
+dependencies are missing.
+]]></justification>
+      <depends-on>26</depends-on>
+      <parent>26</parent>
+      <tasks>
+        <task id="28.1"><![CDATA[Define minimal delegate inputs for ABC, LilyPond, SVG, Grille, Strum, TextBlock, and Program.]]></task>
+        <task id="28.2"><![CDATA[Specify how the test song should behave when optional delegate binaries are not available (skip/placeholder).]]></task>
+        <task id="28.3"><![CDATA[Confirm delegate output formats align with existing backend support and do not require extra runtime flags.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Generate output with delegates enabled and verify each delegate block renders or provides a clear fallback marker.</description>
+            <assertions>All delegate blocks are visible and traceable in output.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="29" type="feature" status="PENDING" priority="MEDIUM" complexity="M">
+      <title>Consolidated .cho test song and assets</title>
+      <justification><![CDATA[
+The core artifact is a consolidated .cho file placed in testing/ that references all
+language and delegate feature sections, along with any required asset files.
+]]></justification>
+      <depends-on>27,28</depends-on>
+      <parent>26</parent>
+      <tasks>
+        <task id="29.1"><![CDATA[Create the consolidated test song in testing/ with labeled sections per the coverage matrix.]]></task>
+        <task id="29.2"><![CDATA[Add supporting assets (SVG, images, delegate inputs) under testing/ in a structured subfolder.]]></task>
+        <task id="29.3"><![CDATA[Provide notes for promoting the test song to t/ after review, consistent with AI-generated test policy.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Load the test song through script/chordpro.pl to ensure parsing succeeds without warnings.</description>
+            <assertions>The song parses cleanly and all sections are present in output.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="30" type="feature" status="PENDING" priority="MEDIUM" complexity="S">
+      <title>Visual verification guide for completeness check</title>
+      <justification><![CDATA[
+Completeness checks require a quick, repeatable workflow. A short guide should list
+commands, expected outputs, and optional dependencies.
+]]></justification>
+      <depends-on>29</depends-on>
+      <parent>26</parent>
+      <tasks>
+        <task id="30.1"><![CDATA[Document commands for generating PDF, HTML5, and Markdown outputs from the consolidated test song.]]></task>
+        <task id="30.2"><![CDATA[List expected section headings and delegate output notes for visual inspection.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Follow the guide to generate outputs and confirm the section checklist matches actual output.</description>
+            <assertions>The guide is sufficient to complete a visual completeness pass.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="31" type="bug" status="DONE" priority="HIGH" complexity="M" ref-feature="CF-4">
+      <title>HTML5 TOC shows duplicate page number on right</title>
+      <justification><![CDATA[
+On page 1 of the HTML5 table of contents output, the page number appears twice: once in
+the middle and once on the right. The duplicate right-side page number should be removed
+so each TOC entry shows a single page number.
+New evidence shows the duplicate is emitted by paged.js margin content
+(`div.pagedjs_margin-content`), so the fix must suppress the margin-page number on TOC
+pages while keeping song page numbers intact.
+]]></justification>
+      <depends-on></depends-on>
+      <branch>bug/item-31-html5-toc-duplicate-page-number</branch>
+      <tasks>
+        <task id="31.1"><![CDATA[Reproduce the HTML5 TOC output and trace the paged.js margin boxes that emit div.pagedjs_margin-content on TOC pages.]]></task>
+        <task id="31.2"><![CDATA[Identify the CSS/page rule that injects the margin page number and scope it so TOC pages suppress the margin content while song pages retain it.]]></task>
+        <task id="31.3"><![CDATA[Update the TOC template or page naming so TOC pages can be targeted by a dedicated @page rule or margin override.]]></task>
+        <task id="31.4"><![CDATA[Add or update regression coverage to ensure TOC output has a single page number and margin-content is suppressed on TOC pages.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/html5/</file>
+            <description>HTML5 TOC page-number duplication.</description>
+            <assertions>Each TOC entry renders a single page-number element; TOC pages do not emit a right-side pagedjs margin page number.</assertions>
+          </test>
+          <test type="manual">
+            <description>Inspect HTML5 print output for page 1 TOC and confirm only one page number is visible.</description>
+            <assertions>No pagedjs margin page number appears on TOC pages; song pages still show margin numbers.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <risks>
+        <outcome>DONE</outcome>
+        <observations>TOC pages now use a named page with a dedicated @page rule that suppresses bottom margin content; HTML5 paged mode falls back to the paged CSS base so page rules are always emitted.</observations>
+        <lessons-learned>When paged output relies on margin boxes, ensure the paged CSS template is selected even when configs omit paged templates.</lessons-learned>
+        <reason>User reported the duplicate number is emitted by paged.js margin content.</reason>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+        <changes>Tasks rewritten to target pagedjs margin boxes and TOC page scoping; added manual verification; complexity S→M; added risks.</changes>
+      </replan>
+          <file>lib/ChordPro/res/templates/html5/paged/css/page-setup.tt</file>
+      <r>
+        <outcome>PROBLEM</outcome>
+        <observations>TOC entries conditionally suppress target-counter page numbers, but the duplicate persists via paged.js margin content on TOC pages.</observations>
+        <lessons-learned>Margin-box page numbers require separate scoping from TOC entry rendering.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/paged/toc.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+          <file>t/98_html5_paged_toc_page_numbers.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="32" type="feature" status="PENDING" priority="MEDIUM" complexity="L">
+      <title>HTML5 user template starter directory with docs and AI agent guide</title>
+      <justification><![CDATA[
+End users who want to build their own HTML5 songbook need a ready-to-copy template
+directory with config, templates, and a song workspace. Providing thorough documentation
+and an AI-agent guidance file lowers the barrier to customization and enables consistent
+results when users work with automation.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="32.1"><![CDATA[Define a template-directory layout that includes a config file, HTML5 template tree, and a songs folder suitable for end-user customization.]]></task>
+        <task id="32.2"><![CDATA[Create documentation in .md files that explains how to use the starter directory, customize templates, and build a songbook.]]></task>
+        <task id="32.3"><![CDATA[Add a comprehensive AI-agent guidance file describing inputs, expected outputs, and safe customization workflows for templates and songs.]]></task>
+        <task id="32.4"><![CDATA[Provide a minimal example config and song list that demonstrates the workflow without relying on optional dependencies.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Follow the documentation to generate an HTML5 songbook using the starter directory.</description>
+            <assertions>The template directory works with the provided config and produces a valid HTML5 output.</assertions>
+          </test>
+        </tests>
+      </verification>
     </item>
   </items>
 
@@ -302,5 +504,10 @@ lean.
     <entry date="2026-02-11">Archived items 18-23.</entry>
     <entry date="2026-02-11">Added bug item 25 for HTML5 paged newpage CSS rule missing in t/95_html5_paged_newpage.t.</entry>
     <entry date="2026-02-11">Item 25 completed. Updated t/95_html5_paged_newpage.t expectation to match break-before: right output; full test suite passes.</entry>
+    <entry date="2026-02-12">Added feature epic item 26 and sub-items 27-30 for a comprehensive feature-coverage test song and visual verification workflow.</entry>
+    <entry date="2026-02-12">Added bug item 31 for duplicate HTML5 TOC page numbers on the right side.</entry>
+    <entry date="2026-02-12">Added feature item 32 for an end-user HTML5 template starter directory with documentation and AI agent guidance.</entry>
+    <entry date="2026-02-12">Item 31 implemented. TOC page numbers now use a conditional target-counter class to avoid duplicates when line templates include %{page}; added a regression test update.</entry>
+    <entry date="2026-02-12">Item 31 completed. TOC pages use a named @page rule to suppress paged.js margin page numbers, and paged CSS now defaults to the paged base template.</entry>
   </changelog>
 </implementation-plan>
