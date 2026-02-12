@@ -43,4 +43,9 @@
     .cp-song {
         border-bottom: none;
     }
+
+    /* reset of Page-Counter */
+    .page-counter-reset {
+     counter-reset: page 1;
+    }
 }

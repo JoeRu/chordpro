@@ -36,6 +36,7 @@
 [% IF toc_html %]
 [% toc_html %]
 [% END %]
+<div class="page-counter-reset" />
 [% FOREACH song IN songs %]
 [% song %]
 [% END %]
