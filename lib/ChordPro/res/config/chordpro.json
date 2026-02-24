@@ -408,6 +408,9 @@ delegates {
 
         // Obsolete. Please use parser.preprocess.env-... instead.
         preprocess.abc : []
+
+        html.handler  : abc2svg_html
+        html5.handler : abc2svg_html
     }
 
     // Embedding Lilypond.
@@ -431,9 +434,14 @@ delegates {
 
     // Embedding Strums. EXPERIMENTAL
     strum {
-        pdf.type     : image
-        module       : Strum
-        pdf.handler  : strum2xo
+        type     : image
+        module   : Strum
+        handler  : strum2xo
+        preamble : []
+
+        pdf.handler   : strum2xo
+        html.handler  : strum2html
+        html5.handler : strum2html
     }
 
     // Embedding SVG.
@@ -445,9 +453,13 @@ delegates {
 
     // Embedding textblock.
     textblock {
-        module      : TextBlock
-        pdf.type    : image
-        pdf.handler : txt2xform
+        type    : image
+        module  : TextBlock
+        handler : txt2xform
+
+        pdf.handler   : txt2xform
+        html.handler  : txt2html
+        html5.handler : txt2html
     }
 }
 
@@ -1198,7 +1210,7 @@ html5 {
     templates {
         // CSS template.
         css : "html5/css/base.tt"
-        
+
         // HTML templates.
         songbook : "html5/songbook.tt"
         song : "html5/song.tt"
@@ -1214,6 +1226,13 @@ html5 {
         fonts : {}
         sizes : {}
         spacing : {}
+    }
+
+    // Chord diagram layout overrides for HTML5 output.
+    diagrams {
+        // Layout direction for the chord diagram box when diagrams.show is "right".
+        // Values: "vertical" (stacked, default) or "horizontal" (side-by-side).
+        direction : "vertical"
     }
 
     // Settings for paged output (with paged.js pagination).
@@ -1407,6 +1426,13 @@ html5 {
             sizes : {}
             spacing : {}
         }
+    }
+
+    // Chord diagram layout overrides for HTML5 output.
+    diagrams {
+        // Layout direction for the chord diagram box when diagrams.show is "right".
+        // Values: "vertical" (stacked, default) or "horizontal" (side-by-side).
+        direction : "vertical"
     }
 }
 

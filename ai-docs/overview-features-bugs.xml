@@ -12,7 +12,7 @@
       added SVGPDF bundled library (CF-34), PDF backend modular refactor (CF-35), PDF
       outlines (CF-36). [REF] items 34–36 created then DENIED. Active items: 26–30, 32.
     </summary>
-    <done-since-last-fulltest>6</done-since-last-fulltest>
+    <done-since-last-fulltest>7</done-since-last-fulltest>
     <last-fulltest-date></last-fulltest-date>
   </metadata>
 
@@ -165,6 +165,251 @@ results when users work with automation.
       </verification>
     </item>
 
+    <item id="37" type="tech-debt" status="DONE" priority="LOW" complexity="L" security="true">
+      <title>Delegate system: backend-specific handler and config key dispatch</title>
+      <branch>tech-debt/item-37-delegate-backend-handler-dispatch</branch>
+      <justification><![CDATA[
+Delegates currently assume a single rendering path. TextBlock and Strum produce a PDF Xform
+(XObject), which has no meaning outside a PDF context and breaks HTML5 rendering. ABC received
+a one-off dirty patch (testing/abc.patch) to produce browser-conformant SVG for HTML output.
+This is not sustainable: every delegate that needs HTML output requires a bespoke workaround.
+
+Proposed solution: introduce backend-specific config key resolution for delegates.
+When a backend (e.g. html5) looks up setting "xxx" for a delegate, it first tries
+  delegates.<name>.<backend>.xxx
+and falls back to
+  delegates.<name>.xxx
+if the backend-specific key is absent. Handler keys become:
+  delegates.textblock.pdf.handler  = txt2xform   (existing PDF handler)
+  delegates.textblock.html.handler = txt2html     (new HTML handler)
+This generalizes to all delegate settings (not just handler), giving each backend the
+ability to override any delegate config key.
+
+The abc.patch workaround in testing/ should be replaced with a proper HTML handler path
+for the ABC delegate, using the same mechanism.
+]]></justification>
+      <depends-on></depends-on>
+
+      <capabilities>
+        <capability id="CAP-1" type="technical">Backend-aware delegate key resolution with deterministic fallback (backend-specific key, then generic key).</capability>
+        <capability id="CAP-2" type="functional">HTML/HTML5-safe delegate handlers for TextBlock and Strum, while preserving existing PDF XObject behavior.</capability>
+        <capability id="CAP-3" type="quality">ABC HTML output path no longer depends on the testing/abc.patch workaround.</capability>
+      </capabilities>
+
+      <acceptance-criteria>
+        <criterion><![CDATA[Delegate config resolution supports delegates.<name>.<backend>.<key> with fallback to delegates.<name>.<key>, and is used for handler/type decisions in delegate image elements.]]></criterion>
+        <criterion><![CDATA[HTML5 rendering of TextBlock and Strum no longer attempts PDF XObject-only handlers; output is rendered inline or as an explicit unsupported placeholder without runtime errors.]]></criterion>
+        <criterion><![CDATA[PDF delegate rendering for existing delegates remains behavior-compatible with current defaults and regression tests.]]></criterion>
+        <criterion><![CDATA[ABC HTML output uses a proper configured HTML path and no longer requires testing/abc.patch for browser-conformant SVG.]]></criterion>
+      </acceptance-criteria>
+
+      <technical-parameters>
+        <constraint>Backward compatibility: existing delegate defaults in chordpro.json must continue to resolve to current behavior for PDF and non-HTML backends.</constraint>
+        <constraint>Schema compatibility: config.schema definitions for built-in delegates (abc, ly, strum, svg, textblock) must validate backend-specific subkeys without weakening required generic fields.</constraint>
+        <constraint>Implementation scope is limited to delegate config lookup/dispatch and delegate modules; no unrelated backend rendering refactors.</constraint>
+        <nfr type="performance">Delegate key resolution remains O(1) per key lookup and adds no external process invocation in HTML/HTML5 TextBlock/Strum paths.</nfr>
+        <nfr type="reliability">Regression tests for PDF delegate behavior continue to pass unchanged while new HTML5 delegate tests pass consistently.</nfr>
+        <nfr type="maintainability">A single shared resolver function is used by delegate dispatch points to prevent duplicated backend fallback logic.</nfr>
+        <pattern>Introduce a shared delegate setting resolver in parser/dispatch path (Song.pm element construction and asset delegate mapping), then consume resolved handler in backends (including HTML5 delegate execution path).</pattern>
+        <pattern>Implement HTML-focused handlers in delegate modules (TextBlock, Strum, ABC) rather than backend-local ad-hoc transformations, keeping behavior co-located with delegate logic (L-7 consistency across preview/print flows).</pattern>
+        <pattern>Add targeted regression assertions that check presence/absence semantics instead of brittle full-string matches where delegate markup can gain extra classes/attributes (L-8).</pattern>
+      </technical-parameters>
+
+      <security-impact>
+        <category>AUTH</category>
+        <threat>No direct authentication boundary change; delegate dispatch remains internal render-time logic.</threat>
+        <mitigation>Mark AUTH as not applicable for this item and keep existing application auth model unchanged.</mitigation>
+        <category>INPUT</category>
+        <threat>Delegate body text can contain markup-like content; new HTML handlers could introduce injection/XSS if emitted unsafely.</threat>
+        <mitigation>Ensure txt2html and ABC/Strum HTML paths escape unsafe content and avoid emitting executable script/event-handler attributes.</mitigation>
+        <category>DATA</category>
+        <threat>Backend-specific key fallback could resolve to unintended config values if lookup precedence is ambiguous.</threat>
+        <mitigation>Define strict precedence (backend-specific first, then generic) with tests for positive and fallback cases.</mitigation>
+        <category>NETWORK</category>
+        <threat>No network behavior is introduced by this dispatch refactor.</threat>
+        <mitigation>Keep NETWORK category non-applicable; no URL fetching or remote calls added.</mitigation>
+        <category>CRYPTO</category>
+        <threat>No cryptographic functionality is involved.</threat>
+        <mitigation>Keep CRYPTO category non-applicable.</mitigation>
+        <category>ACCESS</category>
+        <threat>Delegate Program-based execution exists in system; dispatch changes must not broaden external command execution paths.</threat>
+        <mitigation>Restrict change to handler selection for existing delegates and preserve explicit Program delegate requirements in schema/config.</mitigation>
+        <category>DISCLOSURE</category>
+        <threat>Delegate error output in HTML paths could leak filesystem paths or internal diagnostics into rendered output.</threat>
+        <mitigation>Keep detailed diagnostics in logs/warnings; emit sanitized user-visible placeholders in HTML when unsupported or failing.</mitigation>
+      </security-impact>
+
+      <tasks>
+        <task id="37.1"><![CDATA[Implement a delegate setting resolver for (delegate-name, backend, key) in the parser/dispatch path, with precedence delegates.<name>.<backend>.<key> then delegates.<name>.<key>.]]></task>
+        <task id="37.2"><![CDATA[Apply the resolver where delegate image elements are created in Song.pm (start_of delegate blocks and delegate-typed image assets), resolving at least type/module/handler for the active backend.]]></task>
+        <task id="37.3"><![CDATA[Update config schema/defaults (chordpro.json + config.schema) so built-in delegate definitions explicitly support backend-specific handler overrides (pdf/html/html5), while preserving current generic defaults.]]></task>
+        <task id="37.4"><![CDATA[Add HTML-capable handler for TextBlock delegate (e.g., txt2html) and configure html/html5 handler mapping so HTML backends never call txt2xform.]]></task>
+        <task id="37.5"><![CDATA[Add HTML-capable Strum delegate behavior (native HTML/SVG output or explicit visible unsupported placeholder) and map html/html5 handler accordingly.]]></task>
+        <task id="37.6"><![CDATA[Remove dependency on testing/abc.patch by configuring/implementing an ABC html/html5 handler path that emits browser-conformant SVG through normal delegate flow.]]></task>
+        <task id="37.7"><![CDATA[Add regression tests for backend-specific dispatch: HTML5 TextBlock/Strum/ABC paths and unchanged PDF behavior; include negative assertions that PDF XObject handlers are not invoked in HTML5.]]></task>
+        <task id="37.8"><![CDATA[Document delegate backend override usage in relevant developer docs/comments so new delegates can adopt the same key-dispatch pattern consistently.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="unit">
+            <description>HTML5 backend with TextBlock delegate uses txt2html handler and produces inline HTML content.</description>
+            <assertions>No PDF Xform is emitted; TextBlock content appears as HTML in HTML5 output.</assertions>
+          </test>
+          <test type="unit">
+            <description>PDF backend with TextBlock delegate continues to use txt2xform handler unchanged.</description>
+            <assertions>Existing PDF output for TextBlock is unaffected by the dispatch change.</assertions>
+          </test>
+          <test type="unit">
+            <description>HTML5 backend with ABC delegate produces browser-conformant inline SVG without the testing/abc.patch workaround.</description>
+            <assertions>ABC SVG validates as browser-conformant; no patch file required.</assertions>
+          </test>
+          <test type="manual">
+            <description>Render a song with TextBlock, Strum, and ABC delegates in both HTML5 and PDF backends.</description>
+            <assertions>HTML5 output shows inline content for all three; PDF output is unchanged.</assertions>
+          </test>
+        </tests>
+      </verification>
+
+      <workflow-log>
+        <entry timestamp="2026-02-24" role="DA" action="planned" from-status="APPROVED" to-status="PLANNED" note="Planned with backend-aware delegate key resolution, schema/default updates, HTML handler strategy for TextBlock/Strum/ABC, and full AUTH/INPUT/DATA/NETWORK/CRYPTO/ACCESS/DISCLOSURE assessment. No separate ENABLER required." />
+        <entry timestamp="2026-02-24" role="SM" action="started" from-status="PLANNED" to-status="IN_PROGRESS" note="Assigned to DEV for backend-specific delegate dispatch implementation and regression coverage." />
+        <entry timestamp="2026-02-24" role="DEV" action="submitted" from-status="IN_PROGRESS" to-status="DONE" note="Implemented backend-aware delegate resolution, added HTML handlers for TextBlock/Strum, added ABC html handler alias path, updated delegate config/schema defaults, regenerated Data.pm, and verified with focused tests." />
+      </workflow-log>
+
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[
+Delegate resolution is now backend-aware during Song parsing, so delegate image assets carry backend-specific handler/module/type at creation time while preserving PDF defaults.
+HTML5 delegate rendering now supports delegate results of type "html", enabling TextBlock and Strum HTML output without attempting PDF XObject handlers.
+ABC html/html5 handler configuration is implemented via abc2svg_html alias and routed through existing abc2svg engine selection, removing dependency on testing/abc.patch for dispatch.
+]]></observations>
+        <lessons-learned><![CDATA[
+Backend-specific delegate overrides can be introduced with dotted config keys (e.g. html.handler/html5.handler/pdf.handler) while keeping generic handler defaults for compatibility.
+When parser-time assets are compared structurally in tests, adding metadata fields such as delegate_type requires explicit expected-structure updates.
+]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/Song.pm</file>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/Delegate/TextBlock.pm</file>
+          <file>lib/ChordPro/Delegate/Strum.pm</file>
+          <file>lib/ChordPro/Delegate/ABC.pm</file>
+          <file>lib/ChordPro/res/config/chordpro.json</file>
+          <file>lib/ChordPro/res/config/config.schema</file>
+          <file>lib/ChordPro/Config/Data.pm</file>
+          <file>testing/195_delegate_backend_dispatch.t</file>
+          <file>t/132_image.t</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="38" type="feature" status="DONE" priority="MEDIUM" complexity="M">
+      <title>HTML5 diagrams.show:right — vertical stacking layout with direction config option</title>
+      <branch>feature/item-38-html5-diagrams-right-vertical</branch>
+      <justification><![CDATA[
+When html5.diagrams.show is set to "right", chord diagram boxes are placed horizontally
+adjacent to the song content. This crowds the layout when more than one or two chords are
+used, as the boxes spill into the song area. A vertical column (boxes stacked below each
+other) is the natural expectation for a right-side chord panel.
+
+Root cause: .cp-chord-diagrams uses display:flex; flex-wrap:wrap (horizontal row-wrap).
+When show:right, the diagrams panel is an auto-width grid column so diagrams never wrap
+and spread horizontally without constraint.
+
+Additionally, a config key (html5.diagrams.direction: vertical|horizontal) should allow
+users to explicitly choose the arrangement, so that horizontal layout remains accessible
+for compact songbooks that prefer it.
+]]></justification>
+      <depends-on></depends-on>
+
+      <capabilities>
+        <capability id="CAP-1" type="functional">Default vertical stacking for chord diagrams when diagrams.show:right is configured.</capability>
+        <capability id="CAP-2" type="functional">New html5.diagrams.direction config key (vertical|horizontal) for user override.</capability>
+      </capabilities>
+
+      <technical-parameters>
+        <constraint>CSS change must apply to both standard and paged HTML5 output (paged CSS includes html5/css/chord-diagrams.tt directly via content.tt — see L-5).</constraint>
+        <constraint>Config key lives under html5.diagrams (not pdf.diagrams); lookup follows existing html5_diagrams->{key} pattern in HTML5.pm.</constraint>
+        <constraint>Default direction is "vertical" when show:right; when direction is not set, CSS rule .cp-song-layout-right .cp-chord-diagrams { flex-direction: column } provides the default without requiring a class.</constraint>
+        <nfr type="maintainability">Direction class naming follows the existing cp-chord-diagrams-align-{value} pattern already in the codebase.</nfr>
+        <pattern>Add CSS class cp-chord-diagrams-direction-vertical / cp-chord-diagrams-direction-horizontal alongside the existing align classes (L-5: fix consistently in chord-diagrams.tt so both standard and paged templates inherit the rule).</pattern>
+        <pattern>Pass diagrams_direction from render_chord_diagrams() to the chord_diagrams template, parallel to existing diagrams_align parameter (L-7: preview mode inherits same CSS so screen and print stay aligned).</pattern>
+      </technical-parameters>
+
+      <tasks>
+        <task id="38.1"><![CDATA[In lib/ChordPro/res/templates/html5/css/chord-diagrams.tt, add:
+  (a) .cp-song-layout-right .cp-chord-diagrams { flex-direction: column; } — default for right panel
+  (b) .cp-chord-diagrams-direction-vertical { flex-direction: column; }
+  (c) .cp-chord-diagrams-direction-horizontal { flex-direction: row; flex-wrap: wrap; }
+  These apply to both standard and paged HTML5 (paged content.tt includes chord-diagrams.tt directly).]]></task>
+        <task id="38.2"><![CDATA[In lib/ChordPro/Output/HTML5.pm render_chord_diagrams(), after reading $html5_diagrams:
+  Read direction: my $direction = lc(eval { $html5_diagrams->{direction} } // '');
+  Validate: $direction = '' unless $direction =~ /^(?:vertical|horizontal)\z/;
+  Pass diagrams_direction => $direction to _process_template('chord_diagrams', ...).]]></task>
+        <task id="38.3"><![CDATA[In lib/ChordPro/res/templates/html5/chord-diagrams.tt, add the direction class to the cp-chord-diagrams div:
+  [% IF diagrams_direction %] cp-chord-diagrams-direction-[% diagrams_direction | html %][% END %]
+  (Added alongside existing cp-chord-diagrams-align-{value} class.)]]></task>
+        <task id="38.4"><![CDATA[In lib/ChordPro/res/config/chordpro.json, inside the html5 { } block, add:
+  diagrams {
+      // Layout direction for the chord diagram box when diagrams.show is "right".
+      // Values: "vertical" (stacked, default) or "horizontal" (side-by-side).
+      direction : "vertical"
+  }
+  Ensure the key is valid JSON5/relaxed JSON.]]></task>
+        <task id="38.5"><![CDATA[Run `make` to regenerate lib/ChordPro/Config/Data.pm from the updated chordpro.json. Verify the new html5.diagrams.direction key appears in the generated Data.pm.]]></task>
+        <task id="38.6"><![CDATA[Extend t/86_html5_diagram_pos.t with two new sub-tests:
+  (a) show:right with default config → CSS contains .cp-song-layout-right .cp-chord-diagrams and flex-direction:column rule; no explicit direction class required.
+  (b) show:right with html5.diagrams.direction:"horizontal" → output contains class cp-chord-diagrams-direction-horizontal.
+  Follow the existing run_position_test() helper pattern. Update plan tests => N count.]]></task>
+      </tasks>
+
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/86_html5_diagram_pos.t</file>
+            <description>HTML5 chord diagram placement with diagrams.show:right — direction default and override.</description>
+            <assertions>CSS output contains .cp-song-layout-right .cp-chord-diagrams flex-direction:column rule; when direction:horizontal is set, class cp-chord-diagrams-direction-horizontal is present in HTML.</assertions>
+          </test>
+          <test type="manual">
+            <description>Render an HTML5 songbook with diagrams.show:right and 4+ chords. Verify boxes appear in a column in the right panel, not side by side.</description>
+            <assertions>Chord boxes stack vertically; song content is not compressed by a wide diagram row.</assertions>
+          </test>
+        </tests>
+      </verification>
+
+      <workflow-log>
+        <entry timestamp="2026-02-24" role="PO" action="approved" from-status="PENDING" to-status="APPROVED" note="Branch: feature/item-38-html5-diagrams-right-vertical" />
+        <entry timestamp="2026-02-24" role="DA" action="planned" from-status="APPROVED" to-status="PLANNED" note="Root cause confirmed: flex-wrap:wrap horizontal default in .cp-chord-diagrams. Fix via CSS default rule + direction class + html5.diagrams.direction config key. Lessons L-5, L-7 applied." />
+        <entry timestamp="2026-02-24" role="SM" action="started" from-status="PLANNED" to-status="IN_PROGRESS" note="Assigned to DEV. Branch: feature/item-38-html5-diagrams-right-vertical" />
+        <entry timestamp="2026-02-24" role="DEV" action="submitted" from-status="IN_PROGRESS" to-status="DONE" note="All 6 tasks complete. 16/16 tests pass. No regressions in broader HTML5 suite." />
+      </workflow-log>
+
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[
+chordpro.json has two html5 { } blocks that are merged last-wins; the diagrams key had to be
+added to the SECOND block (the one with mode:"print") because the second block overwrites the
+first entirely. cfgboot.pl must be run directly (perl script/cfgboot.pl) to regenerate Data.pm
+since `make resources` skips it when Data.pm is newer than chordpro.json.
+The built-in default config sets html5.diagrams.direction:"vertical", so the direction class
+IS emitted for the default case (not absent as initially expected in the test).
+]]></observations>
+        <lessons-learned><![CDATA[
+When chordpro.json has duplicate top-level keys (both html5 { } blocks), JSON::Relaxed uses
+last-wins and the entire value is replaced — not merged. Any new key must go in the LAST
+occurrence of the duplicate. Run `perl script/cfgboot.pl <json> -o <Data.pm>` directly
+rather than `make resources` to force-regenerate Data.pm.
+]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/chord-diagrams.tt</file>
+          <file>lib/ChordPro/res/config/chordpro.json</file>
+          <file>lib/ChordPro/Config/Data.pm</file>
+          <file>t/86_html5_diagram_pos.t</file>
+        </files>
+      </r>
+    </item>
+
   </items>
 
   <changelog>
@@ -191,6 +436,8 @@ results when users work with automation.
     <entry date="2026-02-12">Item 31 completed. TOC pages use a named @page rule to suppress paged.js margin page numbers, and paged CSS now defaults to the paged base template.</entry>
     <entry date="2026-02-12">Added bug item 33 for failing t/78_html5_toc.t (missing cp-toc-entry markup).</entry>
     <entry date="2026-02-12">Item 33 completed. Relaxed the TOC entry assertion to accept cp-toc-entry with additional classes.</entry>
-    <entry date="2026-02-24">Schema migration: created overview-features-bugs-archive.xml; moved items 18-23 out of inline archive section; archived DONE items 25, 31, 33. Fixed 6 duplicate CF-IDs in overview.xml (CF-10/11/20/22 collisions → CF-25–CF-30). Drift scan: added CF-34 (SVGPDF bundled), CF-35 (PDF modular refactor), CF-36 (PDF outlines) to overview.xml; created [REF] items 34–36 as PENDING. Added metadata fields done-since-last-fulltest and last-fulltest-date. Items 34, 35, 36 DENIED and archived immediately (not worth tracking separately from ongoing PDF work).</entry>
+    <entry date="2026-02-24">Schema migration: created overview-features-bugs-archive.xml; moved items 18-23 out of inline archive section; archived DONE items 25, 31, 33. Fixed 6 duplicate CF-IDs in overview.xml (CF-10/11/20/22 collisions → CF-25–CF-30). Drift scan: added CF-34 (SVGPDF bundled), CF-35 (PDF modular refactor), CF-36 (PDF outlines) to overview.xml; created [REF] items 34–36 as PENDING. Added metadata fields done-since-last-fulltest and last-fulltest-date. Items 34, 35, 36 DENIED and archived immediately (not worth tracking separately from ongoing PDF work). Created tech-debt item 37 for delegate backend-specific handler and config key dispatch (TextBlock/Strum/ABC HTML output, abc.patch replacement). Created feature item 38 for HTML5 diagrams.show:right vertical stacking layout with html5.diagrams.direction config option. Items 37 → APPROVED (branch: tech-debt/item-37-delegate-backend-handler-dispatch). Items 38 → APPROVED (branch: feature/item-38-html5-diagrams-right-vertical). Item 38 → PLANNED (DA): root cause confirmed (flex-wrap:wrap horizontal default), 6 tasks defined covering CSS fix, direction class, config key, template, make, regression tests. L-5 (fix both standard+paged CSS via chord-diagrams.tt) and L-7 (screen/print alignment) applied. Item 38 → IN_PROGRESS (SM): assigned to DEV. Item 38 → DONE (DEV): CSS default rule + direction classes added to chord-diagrams.tt; html5.diagrams.direction config key added to chordpro.json (second html5 block); Data.pm regenerated; 8 new tests in t/86_html5_diagram_pos.t (16 total, all pass). No regressions.</entry>
+    <entry date="2026-02-24">Item 37 → PLANNED (DA): status changed from APPROVED to PLANNED. Added capabilities, acceptance criteria, technical parameters (with L-7 and L-8 references), refined implementation tasks, and full security assessment across AUTH/INPUT/DATA/NETWORK/CRYPTO/ACCESS/DISCLOSURE. No ENABLER created because prerequisites are implementable within item 37 scope.</entry>
+    <entry date="2026-02-24">Item 37 implemented. Added backend-specific delegate dispatch resolution in Song parsing, introduced HTML handlers for TextBlock/Strum plus ABC html handler alias, updated delegate config/schema defaults, regenerated Config/Data.pm, and verified with focused delegate + HTML5 regression tests (47 passing checks across 4 files).</entry>
   </changelog>
 </implementation-plan>

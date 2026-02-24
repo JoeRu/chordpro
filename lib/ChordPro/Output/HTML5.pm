@@ -705,7 +705,13 @@ class ChordPro::Output::HTML5
 
     method _render_delegate_result($res) {
         return '' unless ref($res) eq 'HASH';
-        return '' unless ($res->{type} // '') eq 'image';
+
+        my $type = $res->{type} // '';
+        if ($type eq 'html') {
+            return $res->{data} // '';
+        }
+
+        return '' unless $type eq 'image';
 
         my $subtype = $res->{subtype} // '';
         if ($subtype eq 'svg') {
@@ -1485,9 +1491,13 @@ class ChordPro::Output::HTML5
                     // 'left' );
                 $align = 'left' unless $align =~ /^(?:left|right|center|spread)\z/;
 
+                my $direction = lc( eval { $html5_diagrams->{direction} } // '' );
+                $direction = '' unless $direction =~ /^(?:vertical|horizontal)\z/;
+
                 return $self->_process_template('chord_diagrams', {
                         diagrams => \@diagrams,
                         diagrams_align => $align,
+                        diagrams_direction => $direction,
                 });
     }
 

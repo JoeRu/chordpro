@@ -448,6 +448,9 @@
     
             // Obsolete. Please use `parser.preprocess.env-...` instead.
             preprocess.abc : []
+    
+            html.handler  : abc2svg_html
+            html5.handler : abc2svg_html
         }
     
         // Embedding Lilypond.
@@ -478,21 +481,14 @@
     
         // Embedding Strums. EXPERIMENTAL
         strum {
+            type     : image
+            module   : Strum
+            handler  : strum2xo
+            preamble : []
     
-            // The result produced by the delegate handler.
-            type : none
-    
-            // The module's method to call.
-            handler : none
-    
-            // Specific settings for the PDF backend.
-            pdf {
-                handler : strum2xo
-                type    : image
-            }
-    
-            // The name of the (perl) module that implements the delegate.
-            module : Strum
+            pdf.handler   : strum2xo
+            html.handler  : strum2html
+            html5.handler : strum2html
         }
     
         // Embedding SVG.
@@ -510,27 +506,13 @@
     
         // Embedding textblock.
         textblock {
+            type    : image
+            module  : TextBlock
+            handler : txt2xform
     
-            // The result produced by the delegate handler.
-            type : none
-    
-            // The module's method to call.
-            handler : none
-    
-            // The name of the (perl) module that implements the delegate.
-            module : TextBlock
-    
-            // Specific settings for the PDF backend.
-            pdf {
-                handler : txt2xform
-                type    : image
-            }
-    
-            // Specific settings for the HTML backend.
-            html {
-                handler : txt2html
-                type    : html
-            }
+            pdf.handler   : txt2xform
+            html.handler  : txt2html
+            html5.handler : txt2html
         }
     }
     
@@ -1299,7 +1281,7 @@
         templates {
             // CSS template.
             css : "html5/css/base.tt"
-            
+    
             // HTML templates.
             songbook : "html5/songbook.tt"
             song : "html5/song.tt"
@@ -1315,6 +1297,13 @@
             fonts : {}
             sizes : {}
             spacing : {}
+        }
+    
+        // Chord diagram layout overrides for HTML5 output.
+        diagrams {
+            // Layout direction for the chord diagram box when diagrams.show is "right".
+            // Values: "vertical" (stacked, default) or "horizontal" (side-by-side).
+            direction : "vertical"
         }
     
         // Settings for paged output (with paged.js pagination).
@@ -1508,6 +1497,13 @@
                 sizes : {}
                 spacing : {}
             }
+        }
+    
+        // Chord diagram layout overrides for HTML5 output.
+        diagrams {
+            // Layout direction for the chord diagram box when diagrams.show is "right".
+            // Values: "vertical" (stacked, default) or "horizontal" (side-by-side).
+            direction : "vertical"
         }
     }
     

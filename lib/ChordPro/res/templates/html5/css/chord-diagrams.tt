@@ -42,6 +42,19 @@
     align-self: start;
 }
 
+.cp-song-layout-right .cp-chord-diagrams {
+    flex-direction: column;
+}
+
+.cp-chord-diagrams-direction-vertical {
+    flex-direction: column;
+}
+
+.cp-chord-diagrams-direction-horizontal {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
 .cp-chord-diagram {
     display: inline-block;
     margin: 0;

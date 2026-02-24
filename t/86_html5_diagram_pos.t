@@ -7,7 +7,7 @@ use utf8;
 use File::Path qw(make_path);
 use ChordPro::Testing;
 
-plan tests => 8;
+plan tests => 16;
 
 make_path('out');
 
@@ -71,5 +71,41 @@ run_position_test(
         my ($content) = @_;
         like($content, qr/cp-song-layout-right/, 'Right placement applies layout class');
         like($content, qr/class="cp-song-body"/, 'Right placement wraps body content');
+    },
+);
+
+run_position_test(
+    'right-default-vertical',
+    '{"diagrams":{"show":"all"},"pdf":{"diagrams":{"show":"right"}}}',
+    sub {
+        my ($content) = @_;
+        like(
+            $content,
+            qr/\.cp-song-layout-right\s+\.cp-chord-diagrams\s*\{[^}]*flex-direction:\s*column/s,
+            'Default right layout: CSS rule stacks chord diagrams vertically'
+        );
+        like(
+            $content,
+            qr/cp-chord-diagrams-direction-vertical/,
+            'Default right layout: vertical direction class emitted from built-in default'
+        );
+    },
+);
+
+run_position_test(
+    'right-horizontal',
+    '{"diagrams":{"show":"all"},"pdf":{"diagrams":{"show":"right"}},"html5":{"diagrams":{"direction":"horizontal"}}}',
+    sub {
+        my ($content) = @_;
+        like(
+            $content,
+            qr/cp-chord-diagrams-direction-horizontal/,
+            'Explicit horizontal direction: direction class emitted in HTML'
+        );
+        like(
+            $content,
+            qr/\.cp-chord-diagrams-direction-horizontal\s*\{[^}]*flex-direction:\s*row/s,
+            'Explicit horizontal direction: CSS rule overrides flex-direction to row'
+        );
     },
 );

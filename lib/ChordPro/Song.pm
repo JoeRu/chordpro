@@ -289,8 +289,13 @@ sub parse_song {
 
     # Remove inactive delegates.
     while ( my ($k,$v) = each %{ $config->{delegates} } ) {
+	my $type = "";
+	if ( $v ) {
+	    my $d = $self->_delegate_config($k) || $v;
+	    $type = $d->{type} // "";
+	}
 	delete( $config->{delegates}->{$k} )
-	  if !$v || (beo( $v, 'type')//'none') eq 'none';
+	  if !$v || $type eq 'none';
     }
 
     # Handle transpose (needs parsing unless cli).
@@ -556,14 +561,16 @@ sub parse_song {
 		    shift(@$lines);
 		}
 
+		my $d = $self->_delegate_config($type) || $config->{delegates}->{$type};
+
 		# Store in assets.
 		$self->{assets} //= {};
 		$self->{assets}->{$id} =
 		  { data => \@data,
 		    type    => "image",
 		    subtype => $type,
-		    module  => beo( $config->{delegates}->{$type}, 'module' ),
-		    handler => beo( $config->{delegates}->{$type}, 'handler' ),
+		    module  => $d->{module},
+		    handler => $d->{handler},
 		    opts    => $kv,
 		  };
 		if ( $config->{debug}->{images} ) {
@@ -633,10 +640,10 @@ sub parse_song {
 		$grid_type = 0;
 		# A subsequent {start_of_XXX} will open a new item
 
-		my $d = $config->{delegates}->{$in_context};
-		if ( beo( $d, 'type' ) eq "image" ) {
+		my $d = $self->_delegate_config($in_context) || $config->{delegates}->{$in_context};
+		my $a = pop( @{ $self->{body} } );
+		if ( ($a->{delegate_type} // $d->{type} // "") eq "image" ) {
 		    local $_;
-		    my $a = pop( @{ $self->{body} } );
 		    my $id = $a->{id};
 		    my $opts = {};
 		    unless ( $id ) {
@@ -1412,7 +1419,7 @@ sub parse_directive {
 
     if ( $dir =~ /^start_of_(.*)/
 	 && exists $config->{delegates}->{$1}
-	 && beo( $config->{delegates}->{$1}, 'type' ) eq 'omit' ) {
+	 && (($self->_delegate_config($1)||{})->{type}//"") eq 'omit' ) {
 	return { name => $dir, arg => $arg, omit => 2 };
     }
 
@@ -1432,6 +1439,32 @@ sub selected {
       );
     $sel = !$sel if $negate;
     return $sel;
+}
+
+sub _delegate_backends {
+	my ( $backend ) = @_;
+	$backend = lc($backend // "");
+	return () unless $backend ne "";
+	return ( "html5", "html" ) if $backend eq "html5";
+	return ( "html" ) if $backend eq "html";
+	return ( $backend );
+}
+
+sub _delegate_config {
+	my ( $self, $name ) = @_;
+	my $delegate = eval { $config->{delegates}->{$name} };
+	return unless $delegate;
+
+	my %merged = %$delegate;
+	for my $backend ( _delegate_backends( $self->{generate} ) ) {
+		my $override = eval { $delegate->{$backend} };
+		next unless is_hashref($override);
+		while ( my ( $key, $value ) = each %$override ) {
+			$merged{$key} = $value if defined $value;
+		}
+	}
+
+	return \%merged;
 }
 
 sub directive {
@@ -1526,7 +1559,7 @@ sub directive {
 	    return 1;
 	}
 	elsif ( exists $config->{delegates}->{$in_context} ) {
-	    my $d = $config->{delegates}->{$in_context};
+	    my $d = $self->_delegate_config($in_context) || $config->{delegates}->{$in_context};
 	    my %opts;
 	    my $xp = transpose_print();
 	    if ( $xp->xp ) {
@@ -1536,8 +1569,9 @@ sub directive {
 	    delete $kv->{label} if ($kv->{label}//"") eq "";
 	    $self->add( type     => beo( $d, 'type' ),
 			subtype  => "delegate",
-			delegate => beo( $d, 'module' ),
-			handler  => beo( $d, 'handler' ),
+			delegate_type => $d->{type},
+			delegate => $d->{module},
+			handler  => $d->{handler},
 			data     => [ ],
 			opts     => { %opts, %$kv },
 			exists($kv->{id}) ? ( id => $kv->{id} ) : (),
@@ -2009,11 +2043,12 @@ sub dir_image {
 	$self->{assets} //= {};
 	my $a;
 	if ( $uri =~ /\.(\w+)$/ && exists $config->{delegates}->{$1} ) {
-	    my $d = $config->{delegates}->{$1};
+	    my $d = $self->_delegate_config($1) || $config->{delegates}->{$1};
 	    $a = { type      => "image",
 		   subtype   => "delegate",
-		   delegate  => beo( $d, 'module' ),
-		   handler   => beo( $d, 'handler' ),
+		   delegate  => $d->{module},
+		   delegate_type => $d->{type},
+		   handler   => $d->{handler},
 		   uri       => $uri,
 		 };
 	}

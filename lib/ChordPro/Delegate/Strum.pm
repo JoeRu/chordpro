@@ -103,6 +103,31 @@ sub strum2xo( $song, %args ) {
 		    } };
 }
 
+sub _esc( $text ) {
+		return "" unless defined $text;
+		$text =~ s/&/&amp;/g;
+		$text =~ s/</&lt;/g;
+		$text =~ s/>/&gt;/g;
+		$text =~ s/"/&quot;/g;
+		$text =~ s/'/&#39;/g;
+		$text;
+}
+
+sub strum2html( $song, %args ) {
+		my $elt = $args{elt};
+		my @data = @{ $elt->{data} // [] };
+		my $payload = join( "\n", map { _esc($_) } @data );
+		my $body = qq{<div class="cp-delegate cp-delegate-strum cp-delegate-strum-unsupported"><span>Strum delegate is not available for HTML output.</span>};
+		$body .= qq{<pre>$payload</pre>} if $payload ne "";
+		$body .= "</div>\n";
+
+		return
+			{ type => "html",
+	line => $elt->{line},
+	data => $body,
+			};
+}
+
 # Pre-scan.
 sub options( $data ) { {} }
 
