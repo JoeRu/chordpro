@@ -4,7 +4,7 @@
     <title>ChordPro</title>
     <version>6.090_040</version>
     <analyzed>2026-02-08</analyzed>
-    <updated>2026-02-11</updated>
+    <updated>2026-02-24</updated>
     <repository>https://github.com/ChordPro/chordpro</repository>
   </metadata>
 
@@ -16,7 +16,12 @@
       script/wxchordpro.pl (wxWidgets).
 
       Two backend styles coexist: modern Object::Pad classes (HTML5, Markdown, Meta) and legacy
-      procedural backends (PDF, HTML, Text, LaTeX, MMA, ChordPro, JSON, Debug).
+      procedural backends (PDF, HTML, Text, LaTeX, MMA, ChordPro, JSON, Debug). The PDF backend has
+      been refactored: the monolithic PDF.pm delegates song rendering to a subdirectory of modules
+      (Output/PDF/Song.pm, Writer.pm, Configurator.pm, Grid.pm, KeyboardDiagram.pm, StringDiagram.pm).
+
+      A bundled SVG-to-PDF converter (lib/ChordPro/lib/SVGPDF.pm) replaces the former CPAN SVGPDF
+      dependency, enabling inline SVG rendering inside PDF output without external dependencies.
 
       Configuration is JSON-based with hierarchical merging: builtin -> sysconfig -> userconfig
       -> CLI --define. Config/Data.pm is generated from lib/ChordPro/res/config/chordpro.json via
@@ -32,6 +37,8 @@
       <pattern>JSON config with hierarchical merge and restricted hashes</pattern>
       <pattern>Delegate pattern for external notation systems</pattern>
       <pattern>Resource resolution via Paths.pm</pattern>
+      <pattern>PDF backend decomposed into Output/PDF/ subdirectory modules</pattern>
+      <pattern>Bundled SVGPDF library for inline SVG-in-PDF rendering</pattern>
     </patterns>
     <system-requirements>
       <requirement>Perl 5.26+</requirement>
@@ -56,6 +63,7 @@
       <dependency>Optional: LilyPond binary (delegate)</dependency>
       <dependency>Windows only: Win32::LongPath 2.0</dependency>
       <dependency>Bundled: paged.js for HTML5 print mode</dependency>
+      <dependency>Bundled: SVGPDF (lib/ChordPro/lib/SVGPDF/) for SVG-to-PDF rendering (replaces CPAN SVGPDF)</dependency>
       <dependency>Docs: Hugo (uses Go 1.18 module for search indexing)</dependency>
     </external-dependencies>
     <interfaces>
@@ -166,6 +174,11 @@
         <file>t/html5/</file>
         <file>t/html5paged/</file>
         <file>t/190_html5_bugfixes.t</file>
+        <file>t/190_html5_bug6_lyrics_only.t</file>
+        <file>t/191_html5_image_scale.t</file>
+        <file>t/78_html5_bug2_chord_empty.t</file>
+        <file>t/78_html5_toc.t</file>
+        <file>t/192_html5_chord_only_align.t</file>
       </test-files>
     </feature>
 
@@ -174,6 +187,12 @@
       <description>PDF, HTML, Text, LaTeX, JSON, MMA, ChordPro, Debug, and Meta output formats.</description>
       <files>
         <file>lib/ChordPro/Output/PDF.pm</file>
+        <file>lib/ChordPro/Output/PDF/Song.pm</file>
+        <file>lib/ChordPro/Output/PDF/Writer.pm</file>
+        <file>lib/ChordPro/Output/PDF/Configurator.pm</file>
+        <file>lib/ChordPro/Output/PDF/Grid.pm</file>
+        <file>lib/ChordPro/Output/PDF/KeyboardDiagram.pm</file>
+        <file>lib/ChordPro/Output/PDF/StringDiagram.pm</file>
         <file>lib/ChordPro/Output/HTML.pm</file>
         <file>lib/ChordPro/Output/Text.pm</file>
         <file>lib/ChordPro/Output/LaTeX.pm</file>
@@ -272,7 +291,7 @@
         <gap>Doc coverage for advanced configuration and backend-specific behavior is partial.</gap>
       </gaps>
     </feature>
-    <feature id="CF-11" completed="2026-02-09" source-item="11">
+    <feature id="CF-25" completed="2026-02-09" source-item="11">
       <title>HTML5 image alignment regression in t/85_html5_image_align.t</title>
       <description>Image scaling now preserves explicit width/height attributes when scale is set, which restores the expected HTML5 output.</description>
       <files>
@@ -289,7 +308,7 @@
         <file>ai-docs/overview-features-bugs.xml</file>
       </files>
     </feature>
-    <feature id="CF-10" completed="2026-02-10" source-item="10">
+    <feature id="CF-26" completed="2026-02-10" source-item="10">
       <title>[REF] Documentation coverage mapping</title>
       <description>Added backend selection and HTML5 print-mode guidance to configuration overview and HTML5 configuration docs, and the docs build now completes successfully.</description>
       <files>
@@ -337,7 +356,7 @@
         <file>ai-docs/overview-features-bugs.xml</file>
       </files>
     </feature>
-    <feature id="CF-20" completed="2026-02-10" source-item="20">
+    <feature id="CF-27" completed="2026-02-10" source-item="20">
       <title>HTML5 paged newpage uses legacy page-break-only CSS</title>
       <description>Newpage directives now emit paged break classes and CSS rules use break-before/break-after with page-break fallbacks.</description>
       <files>
@@ -346,7 +365,7 @@
         <file>t/95_html5_paged_newpage.t</file>
       </files>
     </feature>
-    <feature id="CF-22" completed="2026-02-10" source-item="22">
+    <feature id="CF-28" completed="2026-02-10" source-item="22">
       <title>HTML5 paged cover/front/back matter omit named page rules</title>
       <description>Cover/front/back matter wrappers now assign named pages that map to @page rules.</description>
       <files>
@@ -393,7 +412,7 @@
         <file>ai-docs/overview-features-bugs.xml</file>
       </files>
     </feature>
-    <feature id="CF-20" completed="2026-02-11" source-item="20">
+    <feature id="CF-29" completed="2026-02-11" source-item="20">
       <title>HTML5 minimal paged output bundle with externalized CSS</title>
       <description>Added a minimal paged bundle mode that writes a folder with HTML plus split layout/content CSS, and introduced a minimal paged songbook template that omits TOC. Implemented a focused regression test; running make refreshed Config/Data.pm and Config.pod after the config changes.</description>
       <files>
@@ -418,7 +437,7 @@
         <file>ai-docs/overview-features-bugs.xml</file>
       </files>
     </feature>
-    <feature id="CF-22" completed="2026-02-11" source-item="22">
+    <feature id="CF-30" completed="2026-02-11" source-item="22">
       <title>Remove gray background from HTML5 paged output</title>
       <description>Paged screen preview styles now use a white background and the regression test validates the change.</description>
       <files>
@@ -446,6 +465,79 @@
         <file>testing/templates/html5/paged/css/content-minimal.tt</file>
         <file>ai-docs/overview-features-bugs.xml</file>
       </files>
+    </feature>
+    <feature id="CF-31" completed="2026-02-12" source-item="25">
+      <title>HTML5 paged newpage CSS missing break-before rule</title>
+      <description>Updated paged CSS layout template so cp-page-break-before-right emits break-before: right; test assertion aligned to match.</description>
+      <files>
+        <file>t/95_html5_paged_newpage.t</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+      </files>
+    </feature>
+    <feature id="CF-32" completed="2026-02-12" source-item="31">
+      <title>HTML5 TOC shows duplicate page number on right</title>
+      <description>TOC pages use a named @page rule to suppress paged.js margin page numbers; paged CSS defaults to paged base template.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/paged/toc.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/css/page-setup.tt</file>
+        <file>t/98_html5_paged_toc_page_numbers.t</file>
+      </files>
+    </feature>
+    <feature id="CF-33" completed="2026-02-12" source-item="33">
+      <title>HTML5 TOC output missing expected entry markup in t/78_html5_toc.t</title>
+      <description>Relaxed the TOC entry assertion to accept cp-toc-entry with additional classes.</description>
+      <files>
+        <file>t/78_html5_toc.t</file>
+      </files>
+    </feature>
+    <!-- NEW: Drift-detected features (2026-02-24) -->
+    <feature id="CF-34" completed="2026-02-24" completeness="PARTIAL" test-coverage="UNKNOWN">
+      <title>Bundled SVGPDF SVG-to-PDF converter</title>
+      <description>lib/ChordPro/lib/SVGPDF.pm and its Object::Pad module tree replaces the former CPAN SVGPDF dependency. Used by Output/PDF/Song.pm to render inline SVG content inside PDF output.</description>
+      <files>
+        <file>lib/ChordPro/lib/SVGPDF.pm</file>
+        <file>lib/ChordPro/lib/SVGPDF/</file>
+        <file>lib/ChordPro/Output/PDF/Song.pm</file>
+      </files>
+      <gaps>
+        <gap>Full rendering capability and edge-case behavior of bundled SVGPDF not yet mapped.</gap>
+      </gaps>
+    </feature>
+    <feature id="CF-35" completed="2026-02-24" completeness="PARTIAL" test-coverage="PARTIAL">
+      <title>PDF backend modular refactoring</title>
+      <description>PDF.pm delegates song rendering, configuration, grid, and diagram drawing to Output/PDF/ subdirectory modules (Song.pm, Writer.pm, Configurator.pm, Grid.pm, KeyboardDiagram.pm, StringDiagram.pm).</description>
+      <files>
+        <file>lib/ChordPro/Output/PDF.pm</file>
+        <file>lib/ChordPro/Output/PDF/Song.pm</file>
+        <file>lib/ChordPro/Output/PDF/Writer.pm</file>
+        <file>lib/ChordPro/Output/PDF/Configurator.pm</file>
+        <file>lib/ChordPro/Output/PDF/Grid.pm</file>
+        <file>lib/ChordPro/Output/PDF/KeyboardDiagram.pm</file>
+        <file>lib/ChordPro/Output/PDF/StringDiagram.pm</file>
+      </files>
+      <gaps>
+        <gap>Module responsibility boundaries and interactions not fully documented.</gap>
+      </gaps>
+    </feature>
+    <feature id="CF-36" completed="2026-02-24" completeness="PARTIAL" test-coverage="PARTIAL">
+      <title>PDF outlines support</title>
+      <description>New test suite (t/190_outlines.t through t/194_outlines.t) exercises PDF outline/bookmark generation. Feature discovered via test corpus scan.</description>
+      <files>
+        <file>lib/ChordPro/Output/PDF/Song.pm</file>
+      </files>
+      <test-files>
+        <file>t/190_outlines.t</file>
+        <file>t/191_outlines.t</file>
+        <file>t/192_outlines.t</file>
+        <file>t/193_outlines.t</file>
+        <file>t/194_outlines.t</file>
+      </test-files>
+      <gaps>
+        <gap>Implementation files for outline generation not fully identified.</gap>
+      </gaps>
     </feature>
   </completed-features>
 </project-overview>
