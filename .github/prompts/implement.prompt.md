@@ -4,6 +4,10 @@ name: 'Implement items'
 argument-hint: 'Optional item IDs, comma or space-separated. Leave empty for all approved.'
 agent: 'agent'
 ---
+<!-- GENERATED FILE — do not edit directly.
+     Source:   .claude/commands/implement.md
+     Metadata: scripts/copilot-headers.json
+     Regenerate: python3 scripts/generate-copilot-prompts.py -->
 
 **Implement** one or more items from the implementation plan end-to-end.
 
@@ -17,9 +21,10 @@ This command takes items through the full lifecycle: analyze → approve (if nee
 
 ### 1. Read Context
 
-- **Read** `ai-docs/overview.xml` (project context, architecture, completed features)
-- **Read** `ai-docs/overview-features-bugs.xml` (all items)
-- **Read** `CLAUDE.md` for project conventions and development workflow
+Read the following files in parallel before taking any action:
+- `ai-docs/overview.xml` (project context, architecture, completed features)
+- `ai-docs/overview-features-bugs.xml` (all items)
+- `CLAUDE.md` for project conventions and development workflow
 
 ### 2. Determine Items to Implement
 
@@ -27,6 +32,14 @@ This command takes items through the full lifecycle: analyze → approve (if nee
 - **If `$ARGUMENTS` is empty or not provided**: collect ALL items with `status="APPROVED"` from the XML. If none found, inform the user that there are no APPROVED items to implement and suggest using `/list approved` or `/approve`.
 - Reject items that are already `DONE`, `DENIED`, or archived
 - Respect the 5-item limit per interaction. If more than 5 items to process, process the first 5 and ask to continue.
+
+### 2b. Sprint Auto-Grouping (when no arguments and ≥ 2 APPROVED items)
+
+If `$ARGUMENTS` is empty and there are **2 or more** APPROVED items AND no active SPRINT exists:
+- Check if a SPRINT (`status="ACTIVE"`) already exists — if yes, skip this step.
+- **2–5 items**: automatically create a SPRINT grouping before starting work. Use the SM agent's `/sprint create` logic: assign next SPR-N ID, set `status="ACTIVE"`, list all items in `<scope>`.
+- **> 5 items**: process only the first 5 (per the limit above); do not create a sprint automatically for oversized batches — suggest the user use `/sprint create` or `/release` explicitly.
+- Inform the user: *"Created Sprint SPR-N grouping N items. Proceeding with implementation."*
 
 ### 3. Auto-Approve if Needed
 
@@ -44,11 +57,12 @@ For each item that is NOT yet `APPROVED` or `IN_PROGRESS`:
 ### 5. Analyze Each Item
 
 For each item, before writing any code:
-1. **Read the item's tasks** and verification/test plan from the XML
-2. **Read all files** referenced in the item and related features
+1. **Read the item's `<tasks>`** and `<verification>` block from the XML
+2. **Read all files** referenced in the item and related features in parallel — read before forming any opinion about what to change
 3. **Understand the current state** of the code that will be modified or tested
-4. **Identify the approach**: what exactly needs to be built, changed, or tested
-5. **Check feature completeness**: if changes touch features with `completeness != FULL` or `test-coverage == NONE`, note the risk (the [REF] items themselves are expected to address this)
+4. **Check `<technical-parameters>`** for constraints, NFRs, and patterns set by DA — implement within those bounds
+5. **Check `<security-impact>`** if `security="true"` — implement each `<mitigation>` explicitly
+6. **Check feature completeness**: if changes touch features with `completeness != FULL` or `test-coverage == NONE`, note the risk (the [REF] items themselves are expected to address this)
 
 ### 6. Implement
 
@@ -85,7 +99,7 @@ For each completed item, fill the `<r>` block:
 </r>
 ```
 
-- Set `outcome` to `DONE` if verification passed, `PROBLEM` if issues remain, if type is "bug" ask user to confirm if the bug is fixed - or set it to `HUMAN_REVIEW` if unsure
+- Set `outcome` to `DONE` if verification passed, `PROBLEM` if issues remain
 - List ALL files that were created or modified
 - Record observations about unexpected findings or decisions made
 - Record lessons learned for future reference
