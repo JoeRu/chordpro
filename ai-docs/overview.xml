@@ -4,7 +4,7 @@
     <title>ChordPro</title>
     <version>6.090_040</version>
     <analyzed>2026-02-08</analyzed>
-    <updated>2026-02-24</updated>
+    <updated>2026-02-25</updated>
     <repository>https://github.com/ChordPro/chordpro</repository>
   </metadata>
 
@@ -106,6 +106,12 @@
       <risk>MEDIUM</risk>
       <vulnerability>Config/resource fetching via LWP::Protocol::https may allow outbound requests to internal hosts.</vulnerability>
       <mitigation>Restrict allowed URL schemes/hosts or require local-only resources by default.</mitigation>
+    </concern>
+    <concern>
+      <threat>Backend-specific delegate dispatch in HTML5 could have enabled unsafe handler selection or unescaped delegate HTML/SVG output.</threat>
+      <risk>LOW</risk>
+      <vulnerability>Delegate rendering previously relied on backend-agnostic handlers and ad-hoc ABC patching for HTML compatibility.</vulnerability>
+      <mitigation>Item 37 implemented backend-specific key fallback and dedicated HTML handlers (TextBlock/Strum/ABC) with regression coverage; concern considered mitigated for current supported delegate paths.</mitigation>
     </concern>
   </security>
 
@@ -538,6 +544,69 @@
       <gaps>
         <gap>Implementation files for outline generation not fully identified.</gap>
       </gaps>
+    </feature>
+    <feature id="CF-37" completed="2026-02-25" source-item="37">
+      <title>Delegate system: backend-specific handler and config key dispatch</title>
+      <description>Delegate resolution is now backend-aware during Song parsing; HTML5 uses dedicated HTML handler paths for TextBlock/Strum/ABC while preserving PDF defaults and removing dependency on testing/abc.patch.</description>
+      <files>
+        <file>lib/ChordPro/Song.pm</file>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/Delegate/TextBlock.pm</file>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>lib/ChordPro/Delegate/ABC.pm</file>
+        <file>lib/ChordPro/res/config/chordpro.json</file>
+        <file>lib/ChordPro/res/config/config.schema</file>
+        <file>lib/ChordPro/Config/Data.pm</file>
+        <file>testing/195_delegate_backend_dispatch.t</file>
+        <file>t/132_image.t</file>
+      </files>
+    </feature>
+    <feature id="CF-39" completed="2026-02-25" source-item="39">
+      <title>HTML5 delegate SVG rendering: prefer &lt;img&gt; over inline &lt;svg&gt;</title>
+      <description>HTML5 delegate subtype=svg rendering now routes through the image path and avoids direct inline SVG insertion in generated HTML.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/83_html5_delegate.t</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-40" completed="2026-02-25" source-item="40">
+      <title>Full-test failure: xt/01_config.t cannot find chordpro.prp</title>
+      <description>xt/01_config.t now handles missing legacy PRP artifacts safely by using path-robust lookup and SKIP behavior, allowing full test runs to pass.</description>
+      <files>
+        <file>xt/01_config.t</file>
+      </files>
+    </feature>
+    <feature id="CF-41" completed="2026-02-25" source-item="41">
+      <title>HTML5 generation aborts on wide-char SVG delegate base64 encoding</title>
+      <description>Fixed UTF-8 character-to-octet boundary before Base64 encoding in HTML5 delegate SVG rendering to prevent wide-character runtime aborts.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-42" completed="2026-02-25" source-item="42">
+      <title>HTML5 SVG img data URI contains wrapper HTML and uses oversized base64 payload</title>
+      <description>HTML5 SVG delegate image payloads now extract pure SVG and serialize as URL-encoded UTF-8 `data:image/svg+xml;charset=utf-8,...` URIs.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/83_html5_delegate.t</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-43" completed="2026-02-25" source-item="43">
+      <title>HTML5 SVG normalization: encapsulate all SVG outputs as &lt;img&gt; payloads</title>
+      <description>Chord diagrams and delegate SVG outputs in HTML5 now share an img/data-URI SVG serialization path with wrapper stripping and UTF-8 URL encoding.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/chord-diagrams.tt</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+        <file>t/86_html5_diagram_pos.t</file>
+      </files>
     </feature>
   </completed-features>
 </project-overview>

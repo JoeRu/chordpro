@@ -19,8 +19,18 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 
 - **L-9** (2026-02-24, item-38): `chordpro.json` has two `html5 { }` top-level blocks. JSON::Relaxed uses last-wins (not deep merge), so the second block completely replaces the first. New html5 config keys must be added to the SECOND block.
 - **L-10** (2026-02-24, item-38): `make resources` skips Data.pm regeneration when it is newer than `chordpro.json`. Run `perl script/cfgboot.pl lib/ChordPro/res/config/chordpro.json -o lib/ChordPro/Config/Data.pm` directly to force-regenerate.
+- **L-11** (2026-02-25, item-37): Backend-specific delegate overrides can be introduced with dotted config keys (e.g. html.handler/html5.handler/pdf.handler) while keeping generic handler defaults for compatibility.
+- **L-12** (2026-02-25, item-37): When parser-time assets are compared structurally in tests, adding metadata fields such as delegate_type requires explicit expected-structure updates.
 
 ## Testing
 
 - **L-7** (2026-02-11, item-22): Keeping preview styles (screen mode) aligned with print defaults avoids visual surprises during development and review.
 - **L-8** (2026-02-12, item-33): TOC entry class assertions should allow additional classes introduced by pagination features; assert on presence of the expected class rather than exact class-string equality.
+- **L-13** (2026-02-25, item-39): When assertion intent changes from structural embedding to rendering semantics, update test plans and assertions together to avoid false failure from stale planned test counts.
+- **L-14** (2026-02-25, item-39): Using the existing render_image/data-URI path for SVG keeps behavior consistent with non-SVG image handling and minimizes maintenance surface.
+- **L-15** (2026-02-25, item-40): Extended tests that validate optional/legacy artifacts should gate on artifact presence and report SKIP rather than hard-fail.
+- **L-16** (2026-02-25, item-40): Using FindBin/File::Spec for absolute path derivation in tests avoids cwd-dependent behavior caused by helper modules that chdir during import.
+- **L-17** (2026-02-25, item-41): When converting text payloads to binary transport encodings (Base64), enforce explicit character-to-octet conversion at the boundary.
+- **L-18** (2026-02-25, item-41): Mirrored regression suites (`t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`) should both include new edge-case assertions to keep duplicate test tracks aligned.
+- **L-19** (2026-02-25, item-42): Delegate payload normalization should enforce format contracts at backend boundaries (e.g., `<img>` with image/svg+xml requires SVG document payload, not arbitrary HTML wrapper markup).
+- **L-20** (2026-02-25, item-42): For textual SVG payloads, URL-encoded UTF-8 data URIs provide a clear, standards-friendly representation and avoid unnecessary base64 inflation.

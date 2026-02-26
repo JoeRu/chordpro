@@ -32,6 +32,14 @@
     margin: 0.2em 0;
 }
 
+.cp-gridline-strum {
+    align-items: center;
+}
+
+.cp-gridline-strum .cp-grid-strum {
+    letter-spacing: 0.05em;
+}
+
 .cp-grid-chord {
     font-family: var(--cp-font-chord);
     color: var(--cp-color-chord);

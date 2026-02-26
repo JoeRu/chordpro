@@ -17,6 +17,7 @@ use Ref::Util qw(is_ref is_hashref);
 use Text::Layout;
 use Template;
 use MIME::Base64 qw(encode_base64);
+use URI::Escape qw(uri_escape_utf8);
 use Unicode::Collate;
 use File::Basename qw(fileparse);
 use File::Path qw(make_path);
@@ -327,10 +328,13 @@ class ChordPro::Output::HTML5
         });
     }
 
-    method render_gridline($element) {
+    method render_gridline($element, $opts = undef) {
+        $opts //= {};
         my $tokens = $element->{tokens} // [];
         my $margin = $element->{margin};
         my $comment = $element->{comment};
+        my $is_strumline = !!($opts->{strumline});
+        my $show_bars = exists $opts->{show_bars} ? !!$opts->{show_bars} : 1;
 
         my $display_chord = sub {
             my ($chord) = @_;
@@ -349,7 +353,12 @@ class ChordPro::Output::HTML5
             return $text;
         };
 
-        my $html = '<div class="cp-gridline">';
+        my @line_classes = ('cp-gridline');
+        if ($is_strumline) {
+            push @line_classes, 'cp-gridline-strum';
+            push @line_classes, 'cp-gridline-strum-cellbars' if $show_bars;
+        }
+        my $html = '<div class="' . join(' ', @line_classes) . '">';
         
         # Render margin if present
         if ($margin) {
@@ -366,6 +375,7 @@ class ChordPro::Output::HTML5
         $html .= '<span class="cp-grid-tokens">';
         foreach my $token (@$tokens) {
             my $class = $token->{class} // '';
+            next if $is_strumline && !$show_bars && $class eq 'bar';
             my $text = '';
             my @classes;
             my $data_attrs = '';
@@ -373,6 +383,7 @@ class ChordPro::Output::HTML5
             if ($class eq 'chord') {
                 $text = $display_chord->($token->{chord});
                 push @classes, 'cp-grid-chord';
+                push @classes, 'cp-grid-strum' if $is_strumline;
             } elsif ($class eq 'chords') {
                 my $chords = $token->{chords} // [];
                 my @parts;
@@ -385,8 +396,11 @@ class ChordPro::Output::HTML5
                         push @parts, $display_chord->($chord);
                     }
                 }
-                $text = join('~', @parts);
+                $text = $is_strumline
+                    ? join(' ', grep { defined($_) && $_ ne '' } @parts)
+                    : join('~', @parts);
                 push @classes, 'cp-grid-chord';
+                push @classes, 'cp-grid-strum' if $is_strumline;
             } else {
                 $text = $token->{symbol} // '';
                 push @classes, 'cp-grid-symbol';
@@ -603,6 +617,13 @@ class ChordPro::Output::HTML5
             elsif ($type eq 'gridline') {
                 $html .= $self->render_gridline($element);
             }
+            elsif ($type eq 'strumline') {
+                my $show_bars = (($element->{subtype} // '') eq 'cellbars') ? 1 : 0;
+                $html .= $self->render_gridline($element, {
+                    strumline => 1,
+                    show_bars => $show_bars,
+                });
+            }
             elsif ($type eq 'comment_box') {
                 $html .= $self->render_section_begin('comment_box');
                 $html .= $self->render_text($element->{text} // '');
@@ -668,6 +689,17 @@ class ChordPro::Output::HTML5
         return $element;
     }
 
+    method _svg_to_data_uri($svg) {
+        return '' unless defined($svg) && $svg ne '';
+
+        if ( $svg =~ m{(<svg\b.*?</svg>)}is ) {
+            $svg = $1;
+        }
+
+        my $escaped = uri_escape_utf8($svg);
+        return "data:image/svg+xml;charset=utf-8,$escaped";
+    }
+
     method _render_delegate_element($element, $song = undef) {
         my $delegate = $element->{delegate} // '';
         my $handler = $element->{handler} // '';
@@ -714,28 +746,28 @@ class ChordPro::Output::HTML5
         return '' unless $type eq 'image';
 
         my $subtype = $res->{subtype} // '';
+        my $opts = { %{ $res->{opts} // {} }, class => 'cp-delegate' };
         if ($subtype eq 'svg') {
-            my $svg = '';
-            if ($res->{data}) {
-                if (ref($res->{data}) eq 'ARRAY') {
-                    $svg = join("\n", @{$res->{data}});
-                } else {
-                    $svg = $res->{data};
-                }
-            } elsif ($res->{uri}) {
-                my $lines = fs_load($res->{uri});
-                if ($lines && ref($lines) eq 'ARRAY') {
-                    $svg = join("\n", @$lines);
-                } elsif (defined $lines) {
-                    $svg = $lines;
-                }
+            $opts->{class} = 'cp-delegate cp-delegate-svg';
+
+            if ($res->{uri}) {
+                my $resolved = $self->_resolve_image_to_data_uri({ uri => $res->{uri} });
+                return $self->render_image($resolved->{uri}, $opts);
             }
 
-            return '' unless $svg ne '';
-            return qq{<div class="cp-delegate cp-delegate-svg">\n$svg\n</div>\n};
+            if (defined $res->{data}) {
+                my $svg = ref($res->{data}) eq 'ARRAY'
+                    ? join("\n", @{$res->{data}})
+                    : $res->{data};
+                return '' unless defined($svg) && $svg ne '';
+
+                my $uri = $self->_svg_to_data_uri($svg);
+                return $self->render_image($uri, $opts);
+            }
+
+            return '';
         }
 
-        my $opts = { %{ $res->{opts} // {} }, class => 'cp-delegate' };
         if ($res->{uri}) {
             # Convert file URI to data URI for portability (Bug 4 fix)
             my $resolved = $self->_resolve_image_to_data_uri({ uri => $res->{uri} });
@@ -1478,7 +1510,13 @@ class ChordPro::Output::HTML5
         my @diagrams;
         foreach my $chord (@chords_to_display) {
             my $svg = $svg_generator->generate_diagram($chord->{name}, $chord->{info});
-            push @diagrams, $svg if $svg;
+            next unless $svg;
+            my $uri = $self->_svg_to_data_uri($svg);
+            next unless $uri;
+            push @diagrams, $self->render_image($uri, {
+                class => 'cp-diagram-svg',
+                alt   => $chord->{name},
+            });
         }
         
         return '' unless @diagrams;

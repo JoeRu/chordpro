@@ -4,7 +4,7 @@
     <title>ChordPro Feature and Bug Plan – Archive</title>
     <version>3.1</version>
     <created>2026-02-24</created>
-    <updated>2026-02-24</updated>
+    <updated>2026-02-25</updated>
   </metadata>
 
   <archive>
@@ -405,9 +405,168 @@ already provide regression coverage; deeper mapping is not worth a separate trac
         <files></files>
       </r>
     </item>
+
+    <!-- DONE items 37, 39, 40, 41, 42, 43 archived from active plan (2026-02-25) -->
+    <item id="37" type="tech-debt" status="DONE" priority="LOW" complexity="L" security="true" archived="2026-02-25">
+      <title>Delegate system: backend-specific handler and config key dispatch</title>
+      <branch>tech-debt/item-37-delegate-backend-handler-dispatch</branch>
+      <depends-on></depends-on>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[
+Delegate resolution is now backend-aware during Song parsing, so delegate image assets carry backend-specific handler/module/type at creation time while preserving PDF defaults.
+HTML5 delegate rendering now supports delegate results of type "html", enabling TextBlock and Strum HTML output without attempting PDF XObject handlers.
+ABC html/html5 handler configuration is implemented via abc2svg_html alias and routed through existing abc2svg engine selection, removing dependency on testing/abc.patch for dispatch.
+]]></observations>
+        <lessons-learned><![CDATA[
+Backend-specific delegate overrides can be introduced with dotted config keys (e.g. html.handler/html5.handler/pdf.handler) while keeping generic handler defaults for compatibility.
+When parser-time assets are compared structurally in tests, adding metadata fields such as delegate_type requires explicit expected-structure updates.
+]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/Song.pm</file>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/Delegate/TextBlock.pm</file>
+          <file>lib/ChordPro/Delegate/Strum.pm</file>
+          <file>lib/ChordPro/Delegate/ABC.pm</file>
+          <file>lib/ChordPro/res/config/chordpro.json</file>
+          <file>lib/ChordPro/res/config/config.schema</file>
+          <file>lib/ChordPro/Config/Data.pm</file>
+          <file>testing/195_delegate_backend_dispatch.t</file>
+          <file>t/132_image.t</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="39" type="tech-debt" status="DONE" priority="LOW" complexity="M" planned-files="lib/ChordPro/Output/HTML5.pm" archived="2026-02-25">
+      <title>HTML5 delegate SVG rendering: prefer &lt;img&gt; over inline &lt;svg&gt;</title>
+      <branch>tech-debt/item-39-html5-delegate-svg-img-rendering</branch>
+      <depends-on></depends-on>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[
+`_render_delegate_result()` for subtype=svg now routes through the HTML5 image pipeline and emits `<img class="cp-delegate cp-delegate-svg" ...>`.
+SVG delegate payloads are converted to `data:image/svg+xml;base64,...` when provided as inline data, and uri-based SVG still uses the existing `_resolve_image_to_data_uri()` path.
+No raw delegate `<svg>` markup is injected by this renderer path anymore, reducing style bleed and inline SVG injection exposure in generated HTML.
+]]></observations>
+        <lessons-learned><![CDATA[
+When assertion intent changes from structural embedding to rendering semantics, update test plans and assertions together to avoid false failure from stale planned test counts.
+Using the existing render_image/data-URI path for SVG keeps behavior consistent with non-SVG image handling and minimizes maintenance surface.
+]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>t/83_html5_delegate.t</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="40" type="bug" status="DONE" priority="MEDIUM" complexity="S" ref-feature="CF-10" archived="2026-02-25">
+      <title>Full-test failure: xt/01_config.t cannot find chordpro.prp</title>
+      <branch>bug/item-40-xt-config-prp-path</branch>
+      <depends-on></depends-on>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[
+Root cause was a stale assumption in xt/01_config.t that legacy PRP config (chordpro.prp) is always present.
+Current repository only ships chordpro.json, so the test aborted before producing TAP.
+Fix computes config paths from the test file location and skips cleanly when PRP is absent, preserving the parity check when legacy PRP exists.
+Full-suite verification now passes: standard tests PASS and xt/01_config.t reports SKIP (NOTESTS) without failing make tests.
+]]></observations>
+        <lessons-learned><![CDATA[
+Extended tests that validate optional/legacy artifacts should gate on artifact presence and report SKIP rather than hard-fail.
+Using FindBin/File::Spec for absolute path derivation in tests avoids cwd-dependent behavior caused by helper modules that chdir during import.
+]]></lessons-learned>
+        <files>
+          <file>xt/01_config.t</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="41" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4" planned-files="lib/ChordPro/Output/HTML5.pm" archived="2026-02-25">
+      <title>HTML5 generation aborts on wide-char SVG delegate base64 encoding</title>
+      <branch>bug/item-41-html5-widechar-svg-base64</branch>
+      <depends-on></depends-on>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[
+Crash root cause was passing UTF-8 flagged SVG text directly to `encode_base64()` in HTML5 delegate SVG rendering.
+Fix applies an explicit UTF-8 octet boundary (`encode_utf8` when scalar is UTF-8 flagged) before Base64 encoding.
+User reproduction command now exits successfully (`__EXIT:0`); unknown metadata warnings remain non-fatal parser diagnostics.
+]]></observations>
+        <lessons-learned><![CDATA[
+When converting text payloads to binary transport encodings (Base64), enforce explicit character-to-octet conversion at the boundary.
+Mirrored regression suites (`t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`) should both include new edge-case assertions to keep duplicate test tracks aligned.
+]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="42" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4" planned-files="lib/ChordPro/Output/HTML5.pm" archived="2026-02-25">
+      <title>HTML5 SVG img data URI contains wrapper HTML and uses oversized base64 payload</title>
+      <branch>bug/item-42-svg-data-uri-wrapper-and-encoding</branch>
+      <depends-on></depends-on>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[
+Reproduction confirmed original payload defect: decoded SVG data URI began with `<div><svg...`.
+After fix, generated payloads use `data:image/svg+xml;charset=utf-8,` and decode to `<svg...` directly.
+Reported command now completes successfully and focused regression suites pass.
+]]></observations>
+        <lessons-learned><![CDATA[
+Delegate payload normalization should enforce format contracts at backend boundaries (e.g., `<img>` with image/svg+xml requires SVG document payload, not arbitrary HTML wrapper markup).
+For textual SVG payloads, URL-encoded UTF-8 data URIs provide a clear, standards-friendly representation and avoid unnecessary base64 inflation.
+]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>t/83_html5_delegate.t</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="43" type="tech-debt" status="DONE" priority="LOW" complexity="M" planned-files="lib/ChordPro/Output/HTML5.pm lib/ChordPro/res/templates/html5/chord-diagrams.tt" archived="2026-02-25">
+      <title>HTML5 SVG normalization: encapsulate all SVG outputs as &lt;img&gt; payloads</title>
+      <branch>tech-debt/item-43-html5-svg-normalization-img-encapsulation</branch>
+      <depends-on></depends-on>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[
+HTML5 chord diagrams now render as `<img class="cp-diagram-svg" src="data:image/svg+xml;charset=utf-8,...">` instead of inline `<svg>` blocks.
+Delegate SVG and diagram SVG now share a single serializer path (`_svg_to_data_uri`) that enforces wrapper stripping to `<svg>...</svg>` and URL-encoded UTF-8 payloads.
+Focused regression suites passed after migration, including delegate behavior and diagram positioning checks.
+]]></observations>
+        <files>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/chord-diagrams.tt</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+          <file>t/86_html5_diagram_pos.t</file>
+        </files>
+      </r>
+    </item>
   </archive>  <!-- end archive -->
 
   <changelog-history>
     <entry date="2026-02-24">Archive file created. Migrated items 18-23 from inline archive section in overview-features-bugs.xml. Archived DONE items 25, 31, 33 from active plan. DENIED items 34, 35, 36 archived immediately after creation.</entry>
+    <entry date="2026-02-08">Initial code analysis; generated overview.xml and created 10 [REF] items.</entry>
+    <entry date="2026-02-08">Added bug item for HTML5 image alignment regression (t/85_html5_image_align.t).</entry>
+    <entry date="2026-02-08">Item 11 implemented. HTML5 image scaling preserves explicit width/height when scale is provided.</entry>
+    <entry date="2026-02-08">Added refactoring item to align HTML5 image scale behavior and tests.</entry>
+    <entry date="2026-02-08">Item 12 implemented. Aligned HTML5 image scaling logic and tests for scale-only vs width+scale behavior.</entry>
+    <entry date="2026-02-09">Archived items 11 and 12.</entry>
+    <entry date="2026-02-11">Added feature item 20 for minimal HTML5 paged bundle output with externalized CSS.</entry>
+    <entry date="2026-02-11">Item 20 implemented. Added minimal paged HTML5 bundle output with externalized CSS and a regression test.</entry>
+    <entry date="2026-02-11">Added bug item 21 for condensing HTML5 output empty lines.</entry>
+    <entry date="2026-02-11">Added refactoring item 22 to remove gray background from HTML5 paged output.</entry>
+    <entry date="2026-02-11">Added refactoring item 23 to consolidate HTML5 paged templates and external CSS split.</entry>
+    <entry date="2026-02-11">Items 19, 21, 22, 23 implemented. Updated HTML5 paged page breaks, condensed HTML output, removed gray screen background, and consolidated paged templates with external CSS.</entry>
+    <entry date="2026-02-11">Update verification pass: refreshed overview.xml metadata and external dependencies; verified active items and feature file references.</entry>
+    <entry date="2026-02-25">Archive run completed: moved DONE items 37, 39, 40, 41, 42, 43 from active plan; imported oldest 13 main changelog entries to preserve &lt;=30 entries in main changelog.</entry>
   </changelog-history>
 </implementation-plan-archive>

@@ -1,6 +1,6 @@
 [%# ChordPro HTML5 Chord Diagrams Template
     Variables:
-      - diagrams: Array of SVG strings
+      - diagrams: Array of diagram HTML snippets (typically <img>)
       - diagrams_align: alignment class suffix (left/center/right/spread)
       - diagrams_direction: direction class suffix (vertical/horizontal), empty = CSS default
 %]

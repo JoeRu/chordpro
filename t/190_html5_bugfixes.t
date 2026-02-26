@@ -16,7 +16,7 @@ use ChordPro::Songbook;
 use File::Temp qw(tempdir);
 use MIME::Base64 qw(encode_base64);
 
-plan tests => 26;
+plan tests => 35;
 
 use_ok('ChordPro::Output::HTML5');
 
@@ -132,11 +132,13 @@ diag("--- Bug 4: Delegate element handling ---");
         data    => $svg_data,
     });
 
-    ok($result, "Bug 4: SVG delegate result rendered");
-    like($result, qr/cp-delegate.*cp-delegate-svg/,
-         "Bug 4: SVG wrapped in delegate container");
-    like($result, qr/<svg.*<\/svg>/s,
-         "Bug 4: SVG content preserved");
+        ok($result, "Bug 4: SVG delegate result rendered");
+        like($result, qr/<img\b[^>]*cp-delegate[^>]*cp-delegate-svg[^>]*>/,
+            "Bug 4: SVG rendered as delegate image");
+            like($result, qr/src="data:image\/svg\+xml;charset=utf-8,(?![^"]*%3Cdiv%3E)/i,
+                "Bug 4: SVG data embedded as URL-encoded image URI without wrapped div payload");
+        unlike($result, qr/<svg.*<\/svg>/s,
+            "Bug 4: Inline SVG markup is not emitted");
 }
 
 {
@@ -153,9 +155,11 @@ diag("--- Bug 4: Delegate element handling ---");
         data    => \@svg_lines,
     });
 
-    ok($result, "Bug 4: SVG delegate with array data rendered");
-    like($result, qr/<circle/,
-         "Bug 4: Array SVG content preserved");
+        ok($result, "Bug 4: SVG delegate with array data rendered");
+            like($result, qr/src="data:image\/svg\+xml;charset=utf-8,(?![^"]*%3Cdiv%3E)/i,
+                "Bug 4: Array SVG content embedded as URL-encoded image URI");
+        unlike($result, qr/<circle/,
+            "Bug 4: Inline SVG element content is not emitted");
 }
 
 {
@@ -177,6 +181,67 @@ diag("--- Bug 4: Delegate element handling ---");
     ok($result, "Bug 4: PNG delegate result rendered");
     like($result, qr/src="data:image\/png;base64,/,
          "Bug 4: PNG data embedded as base64");
+}
+
+{
+    # Regression: Unicode text in SVG should not trigger wide-character fatal errors
+    my $svg_data = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="30"><text x="2" y="20">heart’s</text></svg>';
+
+    my $result = eval {
+        $html5->_render_delegate_result({
+            type    => 'image',
+            subtype => 'svg',
+            data    => $svg_data,
+        });
+    };
+
+    is($@, '', "Bug 4: Unicode SVG delegate data does not throw wide-character fatal");
+        like($result // '', qr/src="data:image\/svg\+xml;charset=utf-8,(?![^"]*%3Cdiv%3E)/i,
+            "Bug 4: Unicode SVG payload encoded as URL-encoded image data URI");
+}
+
+{
+    # Regression: chord diagrams should be emitted as <img> data URIs, not inline <svg>
+    my $song_data = <<'EOD';
+{title: Diagram Encapsulation}
+{define: C base-fret 1 frets x 3 2 0 1 0 fingers 0 3 2 0 1 0}
+[C]Line with chord
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+
+    my $output = $html5->generate_song($song);
+        like($output, qr/<img\b[^>]*class="cp-diagram-svg"/,
+            "Bug 4/43: Chord diagram image class emitted");
+        like($output, qr/src="data:image\/svg\+xml;charset=utf-8,/,
+            "Bug 4/43: Chord diagram rendered via SVG data URI");
+    unlike($output, qr/<svg\b[^>]*class="cp-diagram-svg"/,
+           "Bug 4/43: Inline diagram SVG is not emitted");
+}
+
+{
+    # Regression: strum gridline should render with strum glyphs in HTML5
+    my $song_data = <<'EOD';
+{title: Strum Grid}
+{start_of_grid shape="0+2x4+0"}
+| C . . . | C . . . |
+|s dn~up dn~up ~up dn~up | dn~up dn~up ~up dn~up |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+
+    my $output = $html5->generate_song($song);
+    my $gridline_count = () = ($output =~ /class="cp-gridline(?:\s|"|$)/g);
+
+    cmp_ok($gridline_count, '>=', 2,
+           "Bug 44: Strum gridline is rendered (not dropped)");
+    like($output, qr/class="cp-gridline\s+cp-gridline-strum/,
+         "Bug 44: Strum gridline class emitted");
 }
 
 # =========================================================================

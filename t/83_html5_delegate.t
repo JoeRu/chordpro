@@ -6,7 +6,7 @@ use utf8;
 
 use ChordPro::Testing;
 
-plan tests => 3;
+plan tests => 4;
 
 my $input = "html5_delegate_svg.cho";
 my $out = "out/html5_delegate_svg.html";
@@ -24,7 +24,8 @@ open my $out_fh, '<:utf8', $out or die "Cannot open $out: $!";
 my $content = do { local $/; <$out_fh> };
 close $out_fh;
 
-like( $content, qr/cp-delegate/, "Delegate container present" );
-like( $content, qr/<svg\b[^>]*>/, "SVG delegate output embedded" );
+like( $content, qr/class="[^"]*cp-delegate[^"]*"/, "Delegate image class present" );
+like( $content, qr/<img\b[^>]*src="data:image\/svg\+xml;charset=utf-8,/, "SVG delegate rendered via URL-encoded SVG data URI" );
+unlike( $content, qr/<div\b[^>]*cp-delegate-svg[^>]*>\s*<svg\b/s, "No inline SVG delegate container emitted" );
 
 unlink $out;
