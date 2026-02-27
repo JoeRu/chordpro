@@ -29,6 +29,10 @@
         "/^xmllint --noout ai-docs/overview-features-bugs\\.xml$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^python3 - <<'PY'\nimport xml\\.etree\\.ElementTree as ET\nET\\.parse\\('ai-docs/overview-features-bugs\\.xml'\\)\nprint\\('OK'\\)\nPY$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     },
     "github.copilot.chat.codeGeneration.useInstructionFiles": true

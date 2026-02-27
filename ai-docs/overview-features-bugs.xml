@@ -4,7 +4,7 @@
     <title>ChordPro Feature and Bug Plan</title>
     <version>3.1</version>
     <date>2026-02-08</date>
-    <updated>2026-02-26</updated>
+    <updated>2026-02-27</updated>
     <status>Update pass (2026-02-24) – schema migration + drift detection</status>
     <summary>
       Migrated from inline &lt;archive&gt; to separate overview-features-bugs-archive.xml.
@@ -165,6 +165,206 @@ results when users work with automation.
       </verification>
     </item>
 
+    <item id="52" type="refactoring" status="DONE" priority="MEDIUM" complexity="M" ref-feature="CF-4" planned-files="lib/ChordPro/res/templates/html5/css/chord-diagrams.tt lib/ChordPro/res/templates/html5/song.tt lib/ChordPro/res/templates/html5/paged/song.tt">
+      <title>Refactor HTML5 chord-diagram panel sizing and float behavior for right/top placement</title>
+      <branch>refactoring/item-52-html5-diagram-panel-sizing-flow</branch>
+      <justification><![CDATA[
+Current HTML5 chord-diagram panel rendering still has coupled layout behaviors across right and top placements: in vertical mode the panel can occupy full available width instead of single-diagram width, and top placement does not consistently let body content flow around the diagram box.
+
+This refactoring isolates panel sizing and placement semantics so layout intent is explicit and behavior-preserving for existing modes:
+- right + vertical: panel width tracks one chord diagram and remains right-aligned
+- top: panel participates as a float-like box so song content wraps around it where supported
+
+Related historical fixes (items 38 and 46) addressed stacking direction and wrapper scope; this item focuses on structural CSS/template cleanup to make these rules deterministic and maintainable.
+]]></justification>
+      <depends-on></depends-on>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
+        <file role="modify">lib/ChordPro/res/templates/html5/song.tt</file>
+        <file role="modify">lib/ChordPro/res/templates/html5/paged/song.tt</file>
+        <file role="read">lib/ChordPro/Output/HTML5.pm</file>
+        <file role="create" test="true">t/86_html5_diagram_pos.t</file>
+      </affected-files>
+      <tasks>
+        <task id="52.1"><![CDATA[Audit current right/top diagram placement structure in standard and paged song templates and identify where width/stretch behavior is inherited from container rules instead of panel-local rules.]]></task>
+        <task id="52.2"><![CDATA[Refactor chord-diagram panel CSS to separate panel sizing from content flow: enforce fit-content/max-content behavior for vertical right placement and explicit right alignment without relying on parent-wide grid stretching.]]></task>
+        <task id="52.3"><![CDATA[Refactor top-placement layout so the diagram panel uses float-compatible semantics (or equivalent deterministic flow rule) that allows adjacent song content wrapping while preserving readability and avoiding overlap.]]></task>
+        <task id="52.4"><![CDATA[Mirror structural/template changes across standard and paged HTML5 templates to prevent mode drift.]]></task>
+        <task id="52.5"><![CDATA[Add/extend regression tests for right+vertical single-diagram-width behavior, right alignment, and top placement content-flow wrapping expectations.]]></task>
+        <task id="52.6"><![CDATA[Run focused HTML5 diagram regression suite and confirm no behavior regressions in existing diagram placement cases.]]></task>
+      </tasks>
+      <technical-parameters>
+        <constraint>Behavior-preserving refactor: no directive/config surface changes and no alteration of diagram SVG payload generation.</constraint>
+        <constraint>Keep compatibility with existing `html5.diagrams.show` and `html5.diagrams.direction` values.</constraint>
+        <constraint>Apply the same structural rules to standard and paged templates.</constraint>
+        <pattern>Extract and isolate panel-layout responsibilities from parent wrappers.</pattern>
+        <pattern>Use deterministic width constraints (`fit-content`/equivalent) for vertical right panel sizing.</pattern>
+        <pattern>Prefer CSS-flow semantics over ad-hoc spacing hacks for top placement wrapping.</pattern>
+        <lessons>
+          <lesson id="L-5">Fixes touching diagram layout must be mirrored across standard+paged templates.</lesson>
+          <lesson id="L-7">Screen and print outputs should remain visually aligned.</lesson>
+          <lesson id="L-23">Right-panel stability improves when layout scope is isolated to dedicated wrappers.</lesson>
+        </lessons>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="integration">
+            <file>t/86_html5_diagram_pos.t</file>
+            <description>Validate right-position vertical diagram panel width and alignment semantics.</description>
+            <assertions>For `diagrams.show:right` + vertical direction, the panel width is bounded to one diagram column and remains right-aligned; no full-row stretch class/behavior reappears.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/86_html5_diagram_pos.t</file>
+            <description>Validate top-position content flow behavior around the diagram box.</description>
+            <assertions>With top placement, song body content wraps/flows around the panel per template/CSS contract, with no overlap and stable reading order.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Ensure existing HTML5 diagram bugfix expectations remain intact.</description>
+            <assertions>No regressions in previously fixed diagram positioning/containment scenarios.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-assessment>
+        <category name="AUTH">
+          <impact>NONE</impact>
+          <notes>No authentication paths are touched.</notes>
+        </category>
+        <category name="INPUT">
+          <impact>LOW</impact>
+          <notes>Template/CSS refactor must preserve existing escaping and avoid introducing unsafe style/script interpolation from song metadata.</notes>
+        </category>
+        <category name="DATA">
+          <impact>NONE</impact>
+          <notes>No persistent data model changes.</notes>
+        </category>
+        <category name="NETWORK">
+          <impact>NONE</impact>
+          <notes>No network interactions are modified.</notes>
+        </category>
+        <category name="CRYPTO">
+          <impact>NONE</impact>
+          <notes>No cryptographic behavior involved.</notes>
+        </category>
+        <category name="ACCESS">
+          <impact>NONE</impact>
+          <notes>No privilege or access-control boundaries are changed.</notes>
+        </category>
+        <category name="DISCLOSURE">
+          <impact>LOW</impact>
+          <notes>Layout changes must not expose hidden metadata blocks through unintended flow/visibility changes; verify rendered DOM visibility classes remain intact.</notes>
+        </category>
+      </security-assessment>
+      <impact-check>
+        <summary>Primary shared feature: CF-4 (HTML5 output backend), completeness=FULL, test-coverage=TESTED.</summary>
+        <warning>None. No impacted shared feature with completeness != FULL or test-coverage == NONE was identified for planned modify/delete files.</warning>
+      </impact-check>
+      <collision-analysis>
+        <summary>Checked APPROVED/IN_PROGRESS planned-files overlap in active plan: no active overlaps found for non-test modify/delete files.</summary>
+        <result>No hard conflict detected; depends-on unchanged.</result>
+      </collision-analysis>
+      <workflow-log>
+        <entry timestamp="2026-02-27" role="PO" action="approved" from-status="PENDING" to-status="APPROVED" note="Auto-approved via /implement 52" />
+        <entry timestamp="2026-02-27" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS" />
+        <entry timestamp="2026-02-27" role="DEV" action="submitted" from-status="IN_PROGRESS" to-status="REVIEW" />
+        <entry timestamp="2026-02-27" role="TST" action="passed" from-status="REVIEW" to-status="DONE" />
+      </workflow-log>
+      <r>
+        <outcome>DONE</outcome>
+        <observations><![CDATA[
+Right-placement stability is improved by forcing the panel to be content-sized at the diagram-container layer (`.cp-chord-diagrams`), not only at the outer wrapper.
+Top placement now uses a dedicated wrapper with float-based panel flow so body content can wrap beside the diagram box while preserving DOM reading order.
+Template parity was maintained: both standard and paged song templates now share the same top-wrapper and top-layout class behavior.
+]]></observations>
+        <lessons-learned><![CDATA[
+Panel sizing constraints must be applied on the element that owns background/border (`.cp-chord-diagrams`), otherwise wrapper-level fit-content rules can still yield full-width visual boxes.
+When adding a flow-specific layout (top wrap), introducing a dedicated structural wrapper keeps right/top variants isolated and easier to reason about.
+]]></lessons-learned>
+        <files>
+          <file>lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
+          <file>lib/ChordPro/res/templates/html5/song.tt</file>
+          <file>lib/ChordPro/res/templates/html5/paged/song.tt</file>
+          <file>t/86_html5_diagram_pos.t</file>
+        </files>
+      </r>
+    </item>
+
+    <item id="53" type="bug" status="PENDING" priority="HIGH" complexity="M" ref-feature="CF-4" planned-files="lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm lib/ChordPro/Output/HTML5.pm lib/ChordPro/res/templates/html5/paged/css/layout.tt">
+      <title>HTML5 print mode emits "page 1" even without TOC</title>
+      <steps-to-reproduce>
+        <step order="1"><![CDATA[Use config `testing/myconfig_html5.json` with `html5.mode : "print"` and run: `perl script/chordpro.pl testing/lowlands.cho --generate=HTML5 --config=testing/myconfig_html5.json --output=testing/lowlands-debug.html`.]]></step>
+        <step order="2"><![CDATA[Open `testing/lowlands-debug.html` and inspect generated CSS @page rules.]]></step>
+        <step order="3"><![CDATA[Observe `@bottom-right { content: counter(page); }` and visible page-number output (e.g. page 1), even when no TOC section is present.]]></step>
+      </steps-to-reproduce>
+      <expected-result><![CDATA[
+When TOC is not involved, page-number rendering should be controllable and not appear unexpectedly; users should be able to disable footer page numbers in HTML5 print mode without custom CSS surgery.
+]]></expected-result>
+      <analysis>
+        <hypothesis id="H1" status="CONFIRMED"><![CDATA[
+The output is generated in paged mode (`body.chordpro-paged`) because `html5.mode` is set to `print` in the active config. In paged mode, @page margin boxes are always generated from PDF format rules.
+]]></hypothesis>
+        <hypothesis id="H2" status="CONFIRMED"><![CDATA[
+`lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm` translates `%{page}` to `counter(page)` for footer slots. The effective default PDF format includes a footer page marker, producing `@bottom-right { content: counter(page); }` in generated CSS.
+]]></hypothesis>
+        <hypothesis id="H3" status="CONFIRMED"><![CDATA[
+The page number is not TOC-driven in this reproduction. TOC-specific selectors only suppress page numbers on `@page toc`, but no TOC block is required for default page footer counters to appear on song pages.
+]]></hypothesis>
+        <root-cause><![CDATA[
+HTML5 print mode unconditionally inherits PDF format footer semantics for page margin boxes. Because default/effective PDF format contains `%{page}`, the generated CSS includes `counter(page)` and renders page numbers even in no-TOC songbooks.
+]]></root-cause>
+        <affected-files>
+          <file>lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm</file>
+          <file>lib/ChordPro/Output/HTML5.pm</file>
+          <file>lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+          <file>testing/myconfig_html5.json</file>
+          <file>testing/lowlands-debug.html</file>
+        </affected-files>
+      </analysis>
+      <depends-on></depends-on>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Output/HTML5Helper/FormatGenerator.pm</file>
+        <file role="modify">lib/ChordPro/Output/HTML5.pm</file>
+        <file role="modify">lib/ChordPro/res/templates/html5/paged/css/layout.tt</file>
+        <file role="read">testing/myconfig_html5.json</file>
+        <file role="read">testing/lowlands-debug.html</file>
+        <file role="create" test="true">t/html5/09_bugfixes.t</file>
+        <file role="create" test="true">t/190_html5_bugfixes.t</file>
+      </affected-files>
+      <tasks>
+        <task id="53.1"><![CDATA[Add explicit HTML5 print config switch to disable page counters independent of TOC (e.g., `html5.paged.page-numbers: false` or equivalent) and thread it into CSS generation.]]></task>
+        <task id="53.2"><![CDATA[Implement conditional suppression in FormatGenerator/layout pipeline so default footer page counters are omitted when the new switch is false.]]></task>
+        <task id="53.3"><![CDATA[Verify TOC-specific behavior remains intact (`@page toc` suppression and TOC target-counter rendering unaffected).]]></task>
+        <task id="53.4"><![CDATA[Alternative implementation path: document and support a config-only override via `pdf.formats.default.footer` with empty page slot for HTML5 print, without code changes; evaluate if sufficient UX-wise.]]></task>
+        <task id="53.5"><![CDATA[Add mirrored regression assertions for generated CSS (`counter(page)` present/absent according to switch or format override) in both HTML5 bugfix suites.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Generate HTML5 print output with page numbers disabled and verify no default footer `counter(page)` appears for song pages.</description>
+            <assertions>No `@bottom-right { content: counter(page); }` rule is emitted when disable switch/override is active.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirror the page-number suppression assertion and ensure TOC page targeting still works when TOC exists.</description>
+            <assertions>TOC counters remain functional; only unwanted default page footer counter is suppressed.</assertions>
+          </test>
+          <test type="manual">
+            <description>Run `perl script/chordpro.pl testing/lowlands.cho --generate=HTML5 --config=testing/myconfig_html5.json --output=testing/lowlands-debug.html` with the chosen option and inspect output in browser.</description>
+            <assertions>"page 1" no longer appears unexpectedly when disabled; behavior is explicit and documented.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <impact-check>
+        <summary>Primary impacted feature: CF-4 (HTML5 output backend), completeness=FULL, test-coverage=TESTED.</summary>
+        <warning>None. No impacted feature with completeness != FULL or test-coverage == NONE for planned modify/delete files.</warning>
+      </impact-check>
+      <collision-analysis>
+        <summary>Checked active APPROVED/IN_PROGRESS items for planned-files overlap: no active overlap found.</summary>
+        <result>No hard conflict detected; depends-on unchanged.</result>
+      </collision-analysis>
+    </item>
+
     
 
     
@@ -218,6 +418,9 @@ results when users work with automation.
   </sprints>
 
   <changelog>
+    <entry date="2026-02-27">Added bug item 53 (PENDING): HTML5 print mode emits "page 1" without TOC due to inherited PDF footer `%{page}` translated to `counter(page)` in generated @page rules. Included confirmed root-cause analysis from lowlands reproduction, affected-files planning, verification scope, and implementation options (new explicit page-number toggle vs config-only footer override).</entry>
+    <entry date="2026-02-27">Item 52 implemented via `/implement 52`. Auto-approved and completed refactoring for HTML5 chord-diagram layout: right+vertical panel now keeps content-sized width with right alignment, top placement now uses a dedicated wrapper with float-based content flow, and template parity was applied to standard+paged song templates. Verification PASS: `prove -bv t/86_html5_diagram_pos.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=3, Tests=116).</entry>
+    <entry date="2026-02-27">Added refactoring item 52 (PENDING): refactor HTML5 chord-diagram panel sizing/flow for right and top placements so right+vertical keeps single-diagram width and right alignment, and top placement supports content wrap around the panel. Included DA enrichment (tasks, technical parameters with L-5/L-7/L-23), seven-category security assessment, impact check (CF-4 fully mapped/tested), affected-files planning, and collision analysis (no active APPROVED/IN_PROGRESS file conflicts).</entry>
     <entry date="2026-02-12">Added bug item 33 for failing t/78_html5_toc.t (missing cp-toc-entry markup).</entry>
     <entry date="2026-02-12">Item 33 completed. Relaxed the TOC entry assertion to accept cp-toc-entry with additional classes.</entry>
     <entry date="2026-02-24">Schema migration: created overview-features-bugs-archive.xml; moved items 18-23 out of inline archive section; archived DONE items 25, 31, 33. Fixed 6 duplicate CF-IDs in overview.xml (CF-10/11/20/22 collisions → CF-25–CF-30). Drift scan: added CF-34 (SVGPDF bundled), CF-35 (PDF modular refactor), CF-36 (PDF outlines) to overview.xml; created [REF] items 34–36 as PENDING. Added metadata fields done-since-last-fulltest and last-fulltest-date. Items 34, 35, 36 DENIED and archived immediately (not worth tracking separately from ongoing PDF work). Created tech-debt item 37 for delegate backend-specific handler and config key dispatch (TextBlock/Strum/ABC HTML output, abc.patch replacement). Created feature item 38 for HTML5 diagrams.show:right vertical stacking layout with html5.diagrams.direction config option. Items 37 → APPROVED (branch: tech-debt/item-37-delegate-backend-handler-dispatch). Items 38 → APPROVED (branch: feature/item-38-html5-diagrams-right-vertical). Item 38 → PLANNED (DA): root cause confirmed (flex-wrap:wrap horizontal default), 6 tasks defined covering CSS fix, direction class, config key, template, make, regression tests. L-5 (fix both standard+paged CSS via chord-diagrams.tt) and L-7 (screen/print alignment) applied. Item 38 → IN_PROGRESS (SM): assigned to DEV. Item 38 → DONE (DEV): CSS default rule + direction classes added to chord-diagrams.tt; html5.diagrams.direction config key added to chordpro.json (second html5 block); Data.pm regenerated; 8 new tests in t/86_html5_diagram_pos.t (16 total, all pass). No regressions.</entry>
@@ -244,8 +447,8 @@ results when users work with automation.
     <entry date="2026-02-26">Items 45, 46, and 47 approved. Status changed PENDING → APPROVED. Branches assigned: bug/item-45-html5-paired-chord-strum-grid, bug/item-46-html5-diagrams-show-right-breaks, and tech-debt/item-47-retire-deprecated-abc-handler-alias. Dependency check passed: 45→44 DONE, 46→38 DONE, 47→37 DONE (archived). Security impact recorded for item 47 (security=true, LOW).</entry>
     <entry date="2026-02-26">Items 45, 46, and 47 implemented. Item 45 adds deterministic shared grid columns and hidden bar placeholders for chord/strum alignment parity; item 46 scopes right-side diagram layout to a dedicated body+diagram wrapper with stronger panel containment/alignment rules; item 47 canonicalizes legacy ABC handler alias and hardens page/delegate tests with explicit config isolation. Verification PASS: `prove -bv` on 13 focused files (Tests=151, Failed=0). Sprint SPR-2 closed as COMPLETED with both gates PASSED.</entry>
     <entry date="2026-02-26">Added feature item 48 via `!run` and auto-approved it (branch: feature/item-48-html5-delegate-pagewidth). Implemented HTML5 delegate pagewidth forwarding for ABC/LilyPond in `lib/ChordPro/Output/HTML5.pm` (numeric/px width parsing + fallback 680), added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt with `make`, and verified PASS with focused suites (Files=2, Tests=80).</entry>
-    <entry date="2026-02-26">Added bug item 49 via `!run` and auto-approved it (branch: bug/item-49-html5-abc-multi-svg-pagewidth). Root cause: HTML5 delegate SVG path collapsed multi-SVG payloads to the first `<svg>` block, making ABC multi-system output incomplete and masking pagewidth effects. Implemented multi-SVG rendering in `lib/ChordPro/Output/HTML5.pm` (one IMG per SVG), added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt with `make`, and verified PASS with focused suites (Files=2, Tests=84).</entry>
-    <entry date="2026-02-26">Added bug item 50 via `!run` and auto-approved it (branch: bug/item-50-html5-abc-split-style-propagation). Root cause: split SVG fragments rendered as separate images do not share first-fragment `<style>` definitions, causing fallback fonts in later ABC fragments. Implemented style propagation in `lib/ChordPro/Output/HTML5.pm` (inject shared style into style-less split fragments), added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt with `make`, and verified PASS with focused suites (Files=2, Tests=88). PNG intermediary path was evaluated and rejected as higher complexity with vector quality trade-offs.</entry>
+    <entry date="2026-02-26">Added bug item 49 via `!run` and auto-approved it (branch: bug/item-49-html5-abc-multi-svg-pagewidth). Root cause: HTML5 delegate SVG path collapsed multi-SVG payloads to the first `&lt;svg&gt;` block, making ABC multi-system output incomplete and masking pagewidth effects. Implemented multi-SVG rendering in `lib/ChordPro/Output/HTML5.pm` (one IMG per SVG), added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt with `make`, and verified PASS with focused suites (Files=2, Tests=84).</entry>
+    <entry date="2026-02-26">Added bug item 50 via `!run` and auto-approved it (branch: bug/item-50-html5-abc-split-style-propagation). Root cause: split SVG fragments rendered as separate images do not share first-fragment `&lt;style&gt;` definitions, causing fallback fonts in later ABC fragments. Implemented style propagation in `lib/ChordPro/Output/HTML5.pm` (inject shared style into style-less split fragments), added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt with `make`, and verified PASS with focused suites (Files=2, Tests=88). PNG intermediary path was evaluated and rejected as higher complexity with vector quality trade-offs.</entry>
     <entry date="2026-02-26">Added bug item 51 via `!run` and auto-approved it (branch: bug/item-51-html5-abc-partial-style-merge). Root cause: partial-style split fragments (with local `.f3`) were skipped by prior propagation logic and still missed shared class/font styles (`.slW/.sW`). Implemented shared-style merge for all later split fragments while preserving local style in `lib/ChordPro/Output/HTML5.pm`, added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt and verified focused PASS (Files=2, Tests=92), and confirmed on `testing/lowlands-debug.html` that candidate fragment now contains shared style definitions. PNG intermediary path remained rejected due to complexity/fidelity trade-offs.</entry>
     <entry date="2026-02-26">Archive run executed: moved DONE items 38, 44, 45, 46, 47, 48, 49, 50, 51 to overview-features-bugs-archive.xml; updated overview.xml completed-features/security and lessons; rotated oldest changelog entries to archive history; done-since-last-fulltest set to 15.</entry>
   </changelog>

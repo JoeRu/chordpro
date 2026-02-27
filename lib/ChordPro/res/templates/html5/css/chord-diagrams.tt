@@ -45,15 +45,36 @@
 .cp-song-layout-right .cp-song-diagrams {
     justify-self: end;
     align-self: start;
+    display: flex;
+    justify-content: flex-end;
     width: fit-content;
     max-width: 100%;
 }
 
 .cp-song-layout-right .cp-chord-diagrams {
     flex-direction: column;
+    width: fit-content;
     box-sizing: border-box;
     max-width: 100%;
     overflow: hidden;
+}
+
+.cp-song-layout-right .cp-chord-diagrams.cp-chord-diagrams-direction-vertical {
+    max-width: max-content;
+}
+
+.cp-song-layout-top .cp-song-main-top::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+.cp-song-layout-top .cp-song-main-top > .cp-song-diagrams {
+    margin-bottom: 0.75em;
+}
+
+.cp-song-layout-top .cp-song-main-top > .cp-song-body {
+    min-width: 0;
 }
 
 .cp-chord-diagrams-direction-vertical {

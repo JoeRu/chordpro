@@ -9,7 +9,7 @@ use utf8;
 use File::Path qw(make_path);
 use ChordPro::Testing;
 
-plan tests => 5;
+plan tests => 6;
 
 make_path('out');
 
@@ -81,5 +81,6 @@ like($content, qr/class="cp-toc"/, 'TOC container present');
 like($content, qr/<a[^>]*class=["'][^"']*cp-toc-entry\b/, 'TOC entry elements present');
 like($content, qr/href="#cp-song-1"/, 'TOC entry references first song');
 like($content, qr/target-counter\(attr\(href\), page\)/, 'TOC uses target-counter for page numbers');
+like($content, qr/class="page-counter-reset"/, 'Page counter reset marker present when TOC exists');
 
 unlink $cho_file, $cfg_file, $out_file;

@@ -7,7 +7,7 @@ use utf8;
 use File::Path qw(make_path);
 use ChordPro::Testing;
 
-plan tests => 18;
+plan tests => 24;
 
 make_path('out');
 
@@ -91,6 +91,26 @@ run_position_test(
             $content,
             qr/cp-chord-diagrams-direction-vertical/,
             'Default right layout: vertical direction class emitted from built-in default'
+        );
+        like(
+            $content,
+            qr/\.cp-song-layout-right\s+\.cp-chord-diagrams\s*\{[^}]*width:\s*fit-content/s,
+            'Default right layout: chord-diagrams box shrinks to content width'
+        );
+    },
+);
+
+run_position_test(
+    'top',
+    '{"diagrams":{"show":"all"},"pdf":{"diagrams":{"show":"top","align":"right"}}}',
+    sub {
+        my ($content) = @_;
+        like($content, qr/cp-song-layout-top/, 'Top placement applies top layout class');
+        like($content, qr/class="cp-song-main-top"/, 'Top placement uses dedicated top wrapper');
+        like(
+            $content,
+            qr/\.cp-song-layout-top\s+\.cp-song-main-top\s*>\s*\.cp-song-diagrams\s*\{[^}]*margin-bottom:\s*0\.75em/s,
+            'Top placement CSS applies spacing rule for diagram panel'
         );
     },
 );
