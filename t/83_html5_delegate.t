@@ -6,16 +6,21 @@ use utf8;
 
 use ChordPro::Testing;
 
-plan tests => 4;
+plan tests => 5;
 
 my $input = "html5_delegate_svg.cho";
 my $out = "out/html5_delegate_svg.html";
 
 @ARGV = (
+    "--no-default-configs",
+    "--no-userconfig",
+    "--no-sysconfig",
     "--generate", "HTML5",
     "--output", $out,
     $input,
 );
+my $warn = '';
+local $SIG{__WARN__} = sub { $warn .= join('', @_); warn @_ };
 ::run();
 
 ok( -f $out, "Generated delegate HTML5 output" );
@@ -27,5 +32,6 @@ close $out_fh;
 like( $content, qr/class="[^"]*cp-delegate[^"]*"/, "Delegate image class present" );
 like( $content, qr/<img\b[^>]*src="data:image\/svg\+xml;charset=utf-8,/, "SVG delegate rendered via URL-encoded SVG data URI" );
 unlike( $content, qr/<div\b[^>]*cp-delegate-svg[^>]*>\s*<svg\b/s, "No inline SVG delegate container emitted" );
+unlike( $warn, qr/Please remove handler "ChordPro::Delegate::ABC"/, "No deprecated ABC handler warning" );
 
 unlink $out;

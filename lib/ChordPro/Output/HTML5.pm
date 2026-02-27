@@ -372,12 +372,13 @@ class ChordPro::Output::HTML5
         }
         
         # Render tokens
-        $html .= '<span class="cp-grid-tokens">';
+        my @token_html;
+        my $rendered_columns = 0;
         foreach my $token (@$tokens) {
             my $class = $token->{class} // '';
-            next if $is_strumline && !$show_bars && $class eq 'bar';
+            my $hide_bar = $is_strumline && !$show_bars && $class eq 'bar';
             my $text = '';
-            my @classes;
+            my @classes = ('cp-grid-token');
             my $data_attrs = '';
             
             if ($class eq 'chord') {
@@ -396,11 +397,19 @@ class ChordPro::Output::HTML5
                         push @parts, $display_chord->($chord);
                     }
                 }
-                $text = $is_strumline
-                    ? join(' ', grep { defined($_) && $_ ne '' } @parts)
-                    : join('~', @parts);
-                push @classes, 'cp-grid-chord';
-                push @classes, 'cp-grid-strum' if $is_strumline;
+                my @part_classes = (@classes, 'cp-grid-chord', 'cp-grid-chord-part');
+                push @part_classes, 'cp-grid-strum' if $is_strumline;
+                if ($class && !grep { $_ eq "cp-grid-$class" } @part_classes) {
+                    push @part_classes, "cp-grid-$class";
+                }
+                for my $part (@parts) {
+                    my $part_text = defined($part) ? $part : '';
+                    my $class_attr = join(' ', @part_classes);
+                    push @token_html,
+                      '<span class="' . $class_attr . '">' . $self->escape_text($part_text) . '</span>';
+                    $rendered_columns++;
+                }
+                next;
             } else {
                 $text = $token->{symbol} // '';
                 push @classes, 'cp-grid-symbol';
@@ -437,14 +446,26 @@ class ChordPro::Output::HTML5
                 }
             }
 
+            if ($hide_bar) {
+                push @classes, 'cp-grid-bar-hidden';
+            }
+
             if ($class && !grep { $_ eq "cp-grid-$class" } @classes) {
                 push @classes, "cp-grid-$class";
             }
 
             my $class_attr = @classes ? join(' ', @classes) : '';
             my $class_str = $class_attr ? qq{ class="$class_attr"} : '';
-            $html .= '<span' . $class_str . $data_attrs . '>' . $self->escape_text($text) . '</span>';
+            push @token_html,
+              '<span' . $class_str . $data_attrs . '>' . $self->escape_text($text) . '</span>';
+            $rendered_columns++;
         }
+
+        my $grid_columns = $opts->{grid_columns};
+        $grid_columns = $rendered_columns unless defined $grid_columns && $grid_columns > 0;
+        $grid_columns = 1 if !$grid_columns;
+        $html .= '<span class="cp-grid-tokens" style="--cp-grid-cols:' . $grid_columns . '">';
+        $html .= join('', @token_html);
         $html .= '</span>';
         
         # Render comment if present
@@ -460,6 +481,25 @@ class ChordPro::Output::HTML5
         
         $html .= '</div>';
         return $html;
+    }
+
+    method _gridline_columns($element, $opts = undef) {
+        $opts //= {};
+        my $tokens = $element->{tokens} // [];
+        my $count = 0;
+        foreach my $token (@$tokens) {
+            my $class = $token->{class} // '';
+            if ($class eq 'chords') {
+                my $parts = $token->{chords} // [];
+                my $n = scalar(@$parts);
+                $n = 1 if $n < 1;
+                $count += $n;
+            }
+            else {
+                $count++;
+            }
+        }
+        return $count;
     }
 
     method _process_song_body($body, $song = undef) {
@@ -596,6 +636,16 @@ class ChordPro::Output::HTML5
             }
             elsif ($type eq 'grid') {
                 my $body = $element->{body} // [];
+                my $grid_columns = 0;
+                foreach my $line (@$body) {
+                    my $line_type = $line->{type} // '';
+                    next unless $line_type eq 'gridline' || $line_type eq 'strumline';
+                    my $line_cols = $self->_gridline_columns($line, {
+                        strumline => ($line_type eq 'strumline') ? 1 : 0,
+                        show_bars => (($line->{subtype} // '') eq 'cellbars') ? 1 : 0,
+                    });
+                    $grid_columns = $line_cols if $line_cols > $grid_columns;
+                }
                 my $label = $element->{label};
                 if ((!defined $label || $label eq '') && @$body) {
                     my $maybe_label = $body->[0];
@@ -611,17 +661,30 @@ class ChordPro::Output::HTML5
                     $label_attr = qq{ data-label="$escaped"};
                 }
                 $html .= qq{<div class="cp-grid"$label_attr>\n};
-                $html .= $self->_process_song_body($body, $song);
+                my @grid_body = map {
+                    my %copy = %$_;
+                    if (($copy{type} // '') eq 'gridline') {
+                        $copy{_html5_grid_columns} = $grid_columns;
+                    }
+                    elsif (($copy{type} // '') eq 'strumline') {
+                        $copy{_html5_grid_columns} = $grid_columns;
+                    }
+                    \%copy;
+                } @$body;
+                $html .= $self->_process_song_body(\@grid_body, $song);
                 $html .= qq{</div>\n};
             }
             elsif ($type eq 'gridline') {
-                $html .= $self->render_gridline($element);
+                $html .= $self->render_gridline($element, {
+                    grid_columns => $element->{_html5_grid_columns},
+                });
             }
             elsif ($type eq 'strumline') {
                 my $show_bars = (($element->{subtype} // '') eq 'cellbars') ? 1 : 0;
                 $html .= $self->render_gridline($element, {
                     strumline => 1,
                     show_bars => $show_bars,
+                    grid_columns => $element->{_html5_grid_columns},
                 });
             }
             elsif ($type eq 'comment_box') {
@@ -700,6 +763,41 @@ class ChordPro::Output::HTML5
         return "data:image/svg+xml;charset=utf-8,$escaped";
     }
 
+    method _delegate_pagewidth($element, $delegate) {
+        return undef unless defined $delegate && $delegate =~ /\A(?:abc|lilypond|ly)\z/i;
+
+        my $width = eval { $element->{opts}->{width} };
+        if (defined $width && !ref($width)) {
+            if ($width =~ /^\s*(\d+(?:\.\d+)?)\s*(?:px)?\s*$/i) {
+                return int($1 + 0.5);
+            }
+        }
+
+        return 680;
+    }
+
+    method _normalize_split_svg_styles($svg_payload) {
+        my @svgs = ($svg_payload =~ m{(<svg\b.*?</svg>)}gis);
+        return @svgs unless @svgs > 1;
+
+        my $shared_style;
+        if ($svgs[0] =~ m{(<style\b[^>]*>.*?</style>)}is) {
+            $shared_style = $1;
+        }
+        return @svgs unless defined $shared_style && $shared_style ne '';
+
+        for my $idx (1 .. $#svgs) {
+            if ($svgs[$idx] =~ m{<style\b}i) {
+                $svgs[$idx] =~ s{(<style\b[^>]*>)}{$1\n$shared_style\n}is;
+            }
+            else {
+                $svgs[$idx] =~ s{</svg>}{${shared_style}</svg>}i;
+            }
+        }
+
+        return @svgs;
+    }
+
     method _render_delegate_element($element, $song = undef) {
         my $delegate = $element->{delegate} // '';
         my $handler = $element->{handler} // '';
@@ -725,7 +823,8 @@ class ChordPro::Output::HTML5
             $elt->{data} = $loaded if $loaded;
         }
 
-        my $res = $hd->( $song, elt => $elt, pagewidth => undef );
+        my $delegate_width = $self->_delegate_pagewidth($elt, $delegate);
+        my $res = $hd->( $song, elt => $elt, pagewidth => $delegate_width );
         return '' unless $res;
 
         if (ref($res) eq 'ARRAY') {
@@ -760,6 +859,14 @@ class ChordPro::Output::HTML5
                     ? join("\n", @{$res->{data}})
                     : $res->{data};
                 return '' unless defined($svg) && $svg ne '';
+
+                my @svgs = $self->_normalize_split_svg_styles($svg);
+                if (@svgs > 1) {
+                    return join('', map {
+                        my $uri = $self->_svg_to_data_uri($_);
+                        $self->render_image($uri, { %$opts });
+                    } @svgs);
+                }
 
                 my $uri = $self->_svg_to_data_uri($svg);
                 return $self->render_image($uri, $opts);

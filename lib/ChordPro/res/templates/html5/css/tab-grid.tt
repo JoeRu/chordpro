@@ -27,9 +27,24 @@
 }
 
 .cp-gridline {
-    display: flex;
-    gap: 0.5em;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 0.5em;
+    align-items: center;
     margin: 0.2em 0;
+}
+
+.cp-grid-tokens {
+    display: grid;
+    grid-template-columns: repeat(var(--cp-grid-cols, 1), minmax(0, 1fr));
+    column-gap: 0.35em;
+    align-items: center;
+}
+
+.cp-grid-token {
+    min-width: 0;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .cp-gridline-strum {
@@ -44,7 +59,11 @@
     font-family: var(--cp-font-chord);
     color: var(--cp-color-chord);
     font-weight: bold;
-    min-width: 3em;
+    min-width: 0;
+}
+
+.cp-grid-bar-hidden {
+    visibility: hidden;
 }
 
 /* Phase 4: Grid symbols use pdf.grids.symbols.color */

@@ -71,11 +71,13 @@
 [% END %]
 
 [% IF diagrams_position == 'right' %]
+<div class="cp-song-main-right">
 <div class="cp-song-body">
 [% body_html %]
 </div>
 <div class="cp-song-diagrams">
 [% chord_diagrams_html %]
+</div>
 </div>
 [% ELSE %]
 [% body_html %]

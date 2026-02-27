@@ -10,6 +10,10 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 - **L-1** (2026-02-11, item-20): Bundle output should be written directly by the backend to avoid the standard single-file output path; delegating to the normal writer loses control of file placement.
 - **L-2** (2026-02-11, item-23): Shared layout/content templates keep bundled and inline paged output consistent with fewer moving parts than separate template trees.
 - **L-3** (2026-02-11, item-21): Normalize HTML output before line splitting to prevent writer joins from reintroducing extra whitespace that was trimmed earlier.
+- **L-25** (2026-02-26, item-48): Centralize delegate width resolution to keep pagewidth forwarding deterministic across handlers.
+- **L-26** (2026-02-26, item-49): Delegate payload handling must support multiple SVG documents rather than assuming a single root graphic.
+- **L-27** (2026-02-26, item-50): Split SVG fragments are separate documents, so shared CSS/font rules must be replicated per fragment.
+- **L-28** (2026-02-26, item-51): A local style block can be partial; merge shared and local styles to prevent class/font regressions.
 
 ## Architektur
 
@@ -21,6 +25,9 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 - **L-10** (2026-02-24, item-38): `make resources` skips Data.pm regeneration when it is newer than `chordpro.json`. Run `perl script/cfgboot.pl lib/ChordPro/res/config/chordpro.json -o lib/ChordPro/Config/Data.pm` directly to force-regenerate.
 - **L-11** (2026-02-25, item-37): Backend-specific delegate overrides can be introduced with dotted config keys (e.g. html.handler/html5.handler/pdf.handler) while keeping generic handler defaults for compatibility.
 - **L-12** (2026-02-25, item-37): When parser-time assets are compared structurally in tests, adding metadata fields such as delegate_type requires explicit expected-structure updates.
+- **L-21** (2026-02-26, item-38): When config documents permit duplicate top-level keys, treat them as last-wins replacements and add new keys to the final occurrence.
+- **L-22** (2026-02-26, item-45): Row-to-row layout parity requires shared geometry; hidden placeholders preserve alignment better than dropping structural nodes.
+- **L-23** (2026-02-26, item-46): Scope two-column right-panel layout to a dedicated wrapper to avoid title/metadata interactions with grid sizing.
 
 ## Testing
 
@@ -34,3 +41,4 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 - **L-18** (2026-02-25, item-41): Mirrored regression suites (`t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`) should both include new edge-case assertions to keep duplicate test tracks aligned.
 - **L-19** (2026-02-25, item-42): Delegate payload normalization should enforce format contracts at backend boundaries (e.g., `<img>` with image/svg+xml requires SVG document payload, not arbitrary HTML wrapper markup).
 - **L-20** (2026-02-25, item-42): For textual SVG payloads, URL-encoded UTF-8 data URIs provide a clear, standards-friendly representation and avoid unnecessary base64 inflation.
+- **L-24** (2026-02-26, item-47): Warning-cleanup fixes should include explicit no-warning assertions to keep diagnostic signal quality stable.

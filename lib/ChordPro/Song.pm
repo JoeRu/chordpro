@@ -989,16 +989,16 @@ sub chord {
 	else {
 	    do_warn("Invalid markup in chord: \"$markup\"\n");
 	}
-	$ap->format = $markup;
+	$ap->set_format($markup);
     }
     elsif ( (my $m = $orig) =~ s/\Q$c\E/%{formatted}/ ) {
-	$ap->format = $m unless $m eq "%{formatted}";
+	$ap->set_format($m) unless $m eq "%{formatted}";
     }
 
     # After parsing, the chord can be changed by transpose/code.
     # info->name is the new key.
-    $ap->key = $self->add_chord( $info, $c = $info->name );
-    $ap->info = $info;
+	$ap->set_key( $self->add_chord( $info, $c = $info->name ) );
+	$ap->set_info($info);
 
     unless ( $info->is_nc || $info->is_note ) {
 #	if ( $info->is_keyboard ) {

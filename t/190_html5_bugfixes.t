@@ -16,7 +16,7 @@ use ChordPro::Songbook;
 use File::Temp qw(tempdir);
 use MIME::Base64 qw(encode_base64);
 
-plan tests => 35;
+plan tests => 46;
 
 use_ok('ChordPro::Output::HTML5');
 
@@ -201,6 +201,99 @@ diag("--- Bug 4: Delegate element handling ---");
 }
 
 {
+    # Regression: HTML5 should always pass pagewidth to ABC and Lilypond delegates
+    require ChordPro::Delegate::ABC;
+    require ChordPro::Delegate::Lilypond;
+
+    my @calls;
+    {
+        no warnings 'once';
+        no warnings 'redefine';
+
+        local *ChordPro::Delegate::ABC::abc2svg_html = sub {
+            my ( $song, %args ) = @_;
+            push @calls, { delegate => 'ABC', pagewidth => $args{pagewidth} };
+            return { type => 'html', data => '' };
+        };
+
+        local *ChordPro::Delegate::Lilypond::ly2svg = sub {
+            my ( $song, %args ) = @_;
+            push @calls, { delegate => 'Lilypond', pagewidth => $args{pagewidth} };
+            return { type => 'html', data => '' };
+        };
+
+        $html5->_render_delegate_element({
+            type     => 'image',
+            subtype  => 'delegate',
+            delegate => 'ABC',
+            handler  => 'abc2svg_html',
+            data     => [ 'X:1', 'K:C', 'C' ],
+        });
+
+        $html5->_render_delegate_element({
+            type     => 'image',
+            subtype  => 'delegate',
+            delegate => 'Lilypond',
+            handler  => 'ly2svg',
+            opts     => { width => 512 },
+            data     => [ q{\relative { c'4 }} ],
+        });
+    }
+
+    is( scalar(@calls), 2, "Bug 4/48: Both delegate handlers were called" );
+    is( $calls[0]->{pagewidth}, 680, "Bug 4/48: ABC delegate receives default pagewidth" );
+    is( $calls[1]->{pagewidth}, 512, "Bug 4/48: Lilypond delegate receives explicit width" );
+}
+
+{
+    # Regression: Multi-SVG delegate payload should render one image per <svg>
+    my $multi_svg = '<div><svg xmlns="http://www.w3.org/2000/svg" id="abc-1" width="100" height="20"></svg><svg xmlns="http://www.w3.org/2000/svg" id="abc-2" width="100" height="20"></svg></div>';
+
+    my $result = $html5->_render_delegate_result({
+        type    => 'image',
+        subtype => 'svg',
+        data    => $multi_svg,
+    });
+
+    my $img_count = () = ($result =~ /<img\b/g);
+    my $uri_count = () = ($result =~ /data:image\/svg\+xml;charset=utf-8,/g);
+
+    is($img_count, 2, "Bug 4/49: Multi-SVG payload renders two IMG elements");
+    is($uri_count, 2, "Bug 4/49: Multi-SVG payload produces two SVG data URIs");
+}
+
+{
+    # Regression: split SVG payload should carry shared style to later fragments
+    my $multi_svg_with_style = '<div><svg xmlns="http://www.w3.org/2000/svg" width="100" height="20"><style>.abc{font-family:SharedFont}</style><text class="abc">A</text></svg><svg xmlns="http://www.w3.org/2000/svg" width="100" height="20"><text class="abc">B</text></svg></div>';
+
+    my $result = $html5->_render_delegate_result({
+        type    => 'image',
+        subtype => 'svg',
+        data    => $multi_svg_with_style,
+    });
+
+    my $style_count = () = ($result =~ /SharedFont/g);
+    is($style_count, 2, "Bug 4/50: Shared SVG style is present in all split SVG image payloads");
+    unlike($result, qr/<svg\b[^>]*><text class="abc">B<\/text><\/svg>/,
+           "Bug 4/50: Second split SVG is not emitted without injected style");
+}
+
+{
+    # Regression: split fragment with partial local style still inherits shared style
+    my $partial_style_split = '<div><svg xmlns="http://www.w3.org/2000/svg"><style>.slW{stroke:#000}.sW{stroke:#111}</style><path class="slW" d="m0 0h1"/></svg><svg xmlns="http://www.w3.org/2000/svg"><style>.f3{font:italic 10px text,serif}</style><path class="slW" d="m0 0h1"/></svg></div>';
+
+    my $result = $html5->_render_delegate_result({
+        type    => 'image',
+        subtype => 'svg',
+        data    => $partial_style_split,
+    });
+
+    my $shared_class_count = () = ($result =~ /\.slW%7B/g);
+    ok($shared_class_count >= 2, "Bug 4/51: Shared style classes are present in both split SVG payloads");
+    like($result, qr/\.f3%7Bfont%3Aitalic%2010px%20text%2Cserif%7D/, "Bug 4/51: Local style in later fragment is preserved");
+}
+
+{
     # Regression: chord diagrams should be emitted as <img> data URIs, not inline <svg>
     my $song_data = <<'EOD';
 {title: Diagram Encapsulation}
@@ -242,6 +335,10 @@ EOD
            "Bug 44: Strum gridline is rendered (not dropped)");
     like($output, qr/class="cp-gridline\s+cp-gridline-strum/,
          "Bug 44: Strum gridline class emitted");
+        like($output, qr/class="cp-grid-tokens"\s+style="--cp-grid-cols:\d+"/,
+            "Bug 45: Grid rows include deterministic shared column count");
+        like($output, qr/cp-grid-bar-hidden/,
+            "Bug 45: Strum rows keep hidden bar placeholders for cell alignment");
 }
 
 # =========================================================================

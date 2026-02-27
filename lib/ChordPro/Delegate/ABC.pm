@@ -435,7 +435,8 @@ sub info {
     state $info = { handler => "" };
     my $ctl = $::config->{delegates}->{abc};
 	my $handler = $requested_handler // $ctl->{handler} // "abc2svg";
-	$handler = "abc2svg" if $handler eq "abc2svg_html";
+	$handler = "abc2svg" if $handler eq "abc2svg_html"
+	                      || $handler eq "ChordPro::Delegate::ABC";
 
     # Use cached info, but allow handler change between songs.
     return $info if $handler eq $info->{handler};

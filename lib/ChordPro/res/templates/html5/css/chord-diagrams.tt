@@ -28,8 +28,12 @@
 }
 
 .cp-song-layout-right {
+    display: block;
+}
+
+.cp-song-layout-right .cp-song-main-right {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) max-content;
     gap: 1em;
     align-items: start;
 }
@@ -39,11 +43,17 @@
 }
 
 .cp-song-layout-right .cp-song-diagrams {
+    justify-self: end;
     align-self: start;
+    width: fit-content;
+    max-width: 100%;
 }
 
 .cp-song-layout-right .cp-chord-diagrams {
     flex-direction: column;
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .cp-chord-diagrams-direction-vertical {

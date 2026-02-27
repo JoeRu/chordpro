@@ -7,7 +7,7 @@ use utf8;
 use File::Path qw(make_path);
 use ChordPro::Testing;
 
-plan tests => 16;
+plan tests => 18;
 
 make_path('out');
 
@@ -70,7 +70,10 @@ run_position_test(
     sub {
         my ($content) = @_;
         like($content, qr/cp-song-layout-right/, 'Right placement applies layout class');
+        like($content, qr/class="cp-song-main-right"/, 'Right placement uses dedicated body+diagram wrapper');
         like($content, qr/class="cp-song-body"/, 'Right placement wraps body content');
+        like($content, qr/\.cp-song-layout-right\s+\.cp-song-diagrams\s*\{[^}]*justify-self:\s*end[^}]*width:\s*fit-content/s,
+             'Right placement CSS enforces right alignment and fit-content panel width');
     },
 );
 

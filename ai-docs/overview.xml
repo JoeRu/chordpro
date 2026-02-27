@@ -4,7 +4,7 @@
     <title>ChordPro</title>
     <version>6.090_040</version>
     <analyzed>2026-02-08</analyzed>
-    <updated>2026-02-25</updated>
+    <updated>2026-02-26</updated>
     <repository>https://github.com/ChordPro/chordpro</repository>
   </metadata>
 
@@ -112,6 +112,12 @@
       <risk>LOW</risk>
       <vulnerability>Delegate rendering previously relied on backend-agnostic handlers and ad-hoc ABC patching for HTML compatibility.</vulnerability>
       <mitigation>Item 37 implemented backend-specific key fallback and dedicated HTML handlers (TextBlock/Strum/ABC) with regression coverage; concern considered mitigated for current supported delegate paths.</mitigation>
+    </concern>
+    <concern>
+      <threat>Deprecated delegate-handler aliases and ambient config coupling can hide meaningful warnings in CI/local runs.</threat>
+      <risk>LOW</risk>
+      <vulnerability>ABC handler alias fallback previously emitted repeated warning noise and reduced signal quality for detecting regressions.</vulnerability>
+      <mitigation>Item 47 canonicalized deprecated ABC handler aliases early and hardened test invocations with explicit config isolation; concern considered mitigated.</mitigation>
     </concern>
   </security>
 
@@ -606,6 +612,102 @@
         <file>t/html5/09_bugfixes.t</file>
         <file>t/190_html5_bugfixes.t</file>
         <file>t/86_html5_diagram_pos.t</file>
+      </files>
+    </feature>
+
+    <feature id="CF-38" completed="2026-02-26" source-item="38">
+      <title>HTML5 diagrams.show:right — vertical stacking layout with direction config option</title>
+      <description>chordpro.json has two html5 { } blocks that are merged last-wins; the diagrams key had to be added to the SECOND block (the one with mode:"print") because the second block overwrites the first entirely. cfgboot.pl must be run directly (perl script/cfgboot.pl) to regenerate Data.pm since `make resources` skips it when Data.pm is newer than chordpro.json. The built-in default config sets html5.diagrams.direction:"vertical", so the direction class IS emitted for the default case (not absent as initially expected in the test).</description>
+      <files>
+        <file>lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/chord-diagrams.tt</file>
+        <file>lib/ChordPro/res/config/chordpro.json</file>
+        <file>lib/ChordPro/Config/Data.pm</file>
+        <file>t/86_html5_diagram_pos.t</file>
+      </files>
+    </feature>
+    <feature id="CF-44" completed="2026-02-26" source-item="44">
+      <title>HTML5 grid strum lines are not rendered as arrow rows</title>
+      <description>`strumline` elements are now rendered by the HTML5 backend instead of being skipped by gridline-only dispatch. Lowercase `|s` strum rows render without bar symbols, while uppercase `|S` (`subtype=cellbars`) keeps bars visible, aligning with documented semantics. Regression tests confirm strum row presence/class and no breakage in existing delegate/diagram behavior.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/css/tab-grid.tt</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-45" completed="2026-02-26" source-item="45">
+      <title>HTML5 paired chord/strum grid lines drift out of cell alignment vs PDF</title>
+      <description>HTML5 grid rows now emit deterministic token columns with a shared per-grid `--cp-grid-cols` value, so paired chord/strum rows keep stable horizontal alignment independent of token text width. `chords` tokens are split into per-part rendered cells in HTML5 to align with PDF-style fixed-step progression semantics. Strum rows with lowercase `|s` preserve hidden bar placeholders (`cp-grid-bar-hidden`) so geometry remains synchronized while visual bar suppression behavior is retained.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/css/tab-grid.tt</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-46" completed="2026-02-26" source-item="46">
+      <title>HTML5 diagrams show:right breaks right-panel box sizing and alignment</title>
+      <description>Right-side diagram layout now uses a dedicated body+diagram wrapper (`cp-song-main-right`) so grid behavior applies only to intended content and no longer entangles title/metadata flow. Right panel containment/alignment is hardened with `justify-self:end`, `width:fit-content`, and bounded diagram container sizing/overflow rules. Template parity was applied to both standard and paged HTML5 song templates, and diagram position regressions now assert the new wrapper and containment rules.</description>
+      <files>
+        <file>lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
+        <file>lib/ChordPro/res/templates/html5/song.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/song.tt</file>
+        <file>t/86_html5_diagram_pos.t</file>
+      </files>
+    </feature>
+    <feature id="CF-47" completed="2026-02-26" source-item="47">
+      <title>Retire deprecated ABC handler alias usage in test paths and stabilize warning-free runs</title>
+      <description>Deprecated module-name ABC handler alias is now canonicalized early (`ChordPro::Delegate::ABC` → `abc2svg`) to preserve backward compatibility without emitting repeated deprecation warnings in normal runs. Page test sequence `t/80_pages.t` through `t/88_pages.t` now explicitly disables user/system config loading (`--no-userconfig --no-sysconfig`) in addition to `--no-default-configs`, removing ambient host-config coupling. `t/83_html5_delegate.t` now asserts that the deprecated ABC warning string is absent, providing regression coverage for warning-free behavior.</description>
+      <files>
+        <file>lib/ChordPro/Delegate/ABC.pm</file>
+        <file>t/80_pages.t</file>
+        <file>t/81_pages.t</file>
+        <file>t/82_pages.t</file>
+        <file>t/83_pages.t</file>
+        <file>t/84_pages.t</file>
+        <file>t/85_pages.t</file>
+        <file>t/86_pages.t</file>
+        <file>t/87_pages.t</file>
+        <file>t/88_pages.t</file>
+        <file>t/83_html5_delegate.t</file>
+      </files>
+    </feature>
+    <feature id="CF-48" completed="2026-02-26" source-item="48">
+      <title>HTML5 always passes delegate width for ABC and LilyPond</title>
+      <description>HTML5 delegate dispatch now computes and forwards `pagewidth` for ABC/LilyPond delegates instead of passing undef. Numeric `opts.width` values (including `Npx`) are propagated; otherwise HTML5 uses fallback width 680. Mirrored HTML5 bugfix suites now assert delegate pagewidth forwarding behavior and remain synchronized.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-49" completed="2026-02-26" source-item="49">
+      <title>HTML5 ABC multi-image SVG payload collapses to one image and appears to ignore pagewidth</title>
+      <description>HTML5 delegate SVG rendering now detects multi-SVG payloads and emits one `<img>` per SVG block rather than collapsing to the first SVG. This restores full ABC multi-system rendering in HTML5 and removes the false impression that pagewidth is ignored due to dropped systems. Mirrored regression suites now include explicit multi-SVG payload assertions and both pass.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-50" completed="2026-02-26" source-item="50">
+      <title>HTML5 split ABC SVG fragments lose shared style and fallback fonts appear</title>
+      <description>HTML5 now propagates first-fragment SVG style definitions to later split fragments that lack a `<style>` block, preserving class/font rendering consistency. The existing multi-SVG rendering path from item 49 is retained; only style normalization is added before per-fragment image emission. PNG intermediary was considered but intentionally not used due to higher implementation/runtime complexity and vector fidelity loss.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-51" completed="2026-02-26" source-item="51">
+      <title>HTML5 ABC split fragments with local style still miss shared symbol/font classes</title>
+      <description>Split SVG style normalization now merges shared first-fragment style into all later fragments, including fragments with partial local style blocks. Lowlands verification confirms candidate fragment with local `.f3` plus `slW/sW` usage now contains shared `.slW/.sW` style definitions and notation font-face rules. PNG intermediary was not adopted due to complexity and fidelity/performance trade-offs.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
       </files>
     </feature>
   </completed-features>

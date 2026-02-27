@@ -4,7 +4,7 @@
     <title>ChordPro Feature and Bug Plan</title>
     <version>3.1</version>
     <date>2026-02-08</date>
-    <updated>2026-02-25</updated>
+    <updated>2026-02-26</updated>
     <status>Update pass (2026-02-24) – schema migration + drift detection</status>
     <summary>
       Migrated from inline &lt;archive&gt; to separate overview-features-bugs-archive.xml.
@@ -12,7 +12,7 @@
       added SVGPDF bundled library (CF-34), PDF backend modular refactor (CF-35), PDF
       outlines (CF-36). [REF] items 34–36 created then DENIED. Active items: 26–30, 32.
     </summary>
-    <done-since-last-fulltest>6</done-since-last-fulltest>
+    <done-since-last-fulltest>15</done-since-last-fulltest>
     <last-fulltest-date>2026-02-25</last-fulltest-date>
   </metadata>
 
@@ -165,462 +165,23 @@ results when users work with automation.
       </verification>
     </item>
 
-    <item id="38" type="feature" status="DONE" priority="MEDIUM" complexity="M">
-      <title>HTML5 diagrams.show:right — vertical stacking layout with direction config option</title>
-      <branch>feature/item-38-html5-diagrams-right-vertical</branch>
-      <justification><![CDATA[
-When html5.diagrams.show is set to "right", chord diagram boxes are placed horizontally
-adjacent to the song content. This crowds the layout when more than one or two chords are
-used, as the boxes spill into the song area. A vertical column (boxes stacked below each
-other) is the natural expectation for a right-side chord panel.
+    
 
-Root cause: .cp-chord-diagrams uses display:flex; flex-wrap:wrap (horizontal row-wrap).
-When show:right, the diagrams panel is an auto-width grid column so diagrams never wrap
-and spread horizontally without constraint.
+    
 
-Additionally, a config key (html5.diagrams.direction: vertical|horizontal) should allow
-users to explicitly choose the arrangement, so that horizontal layout remains accessible
-for compact songbooks that prefer it.
-]]></justification>
-      <depends-on></depends-on>
+    
 
-      <capabilities>
-        <capability id="CAP-1" type="functional">Default vertical stacking for chord diagrams when diagrams.show:right is configured.</capability>
-        <capability id="CAP-2" type="functional">New html5.diagrams.direction config key (vertical|horizontal) for user override.</capability>
-      </capabilities>
+    
 
-      <technical-parameters>
-        <constraint>CSS change must apply to both standard and paged HTML5 output (paged CSS includes html5/css/chord-diagrams.tt directly via content.tt — see L-5).</constraint>
-        <constraint>Config key lives under html5.diagrams (not pdf.diagrams); lookup follows existing html5_diagrams->{key} pattern in HTML5.pm.</constraint>
-        <constraint>Default direction is "vertical" when show:right; when direction is not set, CSS rule .cp-song-layout-right .cp-chord-diagrams { flex-direction: column } provides the default without requiring a class.</constraint>
-        <nfr type="maintainability">Direction class naming follows the existing cp-chord-diagrams-align-{value} pattern already in the codebase.</nfr>
-        <pattern>Add CSS class cp-chord-diagrams-direction-vertical / cp-chord-diagrams-direction-horizontal alongside the existing align classes (L-5: fix consistently in chord-diagrams.tt so both standard and paged templates inherit the rule).</pattern>
-        <pattern>Pass diagrams_direction from render_chord_diagrams() to the chord_diagrams template, parallel to existing diagrams_align parameter (L-7: preview mode inherits same CSS so screen and print stay aligned).</pattern>
-      </technical-parameters>
+    
 
-      <tasks>
-        <task id="38.1"><![CDATA[In lib/ChordPro/res/templates/html5/css/chord-diagrams.tt, add:
-  (a) .cp-song-layout-right .cp-chord-diagrams { flex-direction: column; } — default for right panel
-  (b) .cp-chord-diagrams-direction-vertical { flex-direction: column; }
-  (c) .cp-chord-diagrams-direction-horizontal { flex-direction: row; flex-wrap: wrap; }
-  These apply to both standard and paged HTML5 (paged content.tt includes chord-diagrams.tt directly).]]></task>
-        <task id="38.2"><![CDATA[In lib/ChordPro/Output/HTML5.pm render_chord_diagrams(), after reading $html5_diagrams:
-  Read direction: my $direction = lc(eval { $html5_diagrams->{direction} } // '');
-  Validate: $direction = '' unless $direction =~ /^(?:vertical|horizontal)\z/;
-  Pass diagrams_direction => $direction to _process_template('chord_diagrams', ...).]]></task>
-        <task id="38.3"><![CDATA[In lib/ChordPro/res/templates/html5/chord-diagrams.tt, add the direction class to the cp-chord-diagrams div:
-  [% IF diagrams_direction %] cp-chord-diagrams-direction-[% diagrams_direction | html %][% END %]
-  (Added alongside existing cp-chord-diagrams-align-{value} class.)]]></task>
-        <task id="38.4"><![CDATA[In lib/ChordPro/res/config/chordpro.json, inside the html5 { } block, add:
-  diagrams {
-      // Layout direction for the chord diagram box when diagrams.show is "right".
-      // Values: "vertical" (stacked, default) or "horizontal" (side-by-side).
-      direction : "vertical"
-  }
-  Ensure the key is valid JSON5/relaxed JSON.]]></task>
-        <task id="38.5"><![CDATA[Run `make` to regenerate lib/ChordPro/Config/Data.pm from the updated chordpro.json. Verify the new html5.diagrams.direction key appears in the generated Data.pm.]]></task>
-        <task id="38.6"><![CDATA[Extend t/86_html5_diagram_pos.t with two new sub-tests:
-  (a) show:right with default config → CSS contains .cp-song-layout-right .cp-chord-diagrams and flex-direction:column rule; no explicit direction class required.
-  (b) show:right with html5.diagrams.direction:"horizontal" → output contains class cp-chord-diagrams-direction-horizontal.
-  Follow the existing run_position_test() helper pattern. Update plan tests => N count.]]></task>
-      </tasks>
+    
 
-      <verification>
-        <tests>
-          <test type="unit">
-            <file>t/86_html5_diagram_pos.t</file>
-            <description>HTML5 chord diagram placement with diagrams.show:right — direction default and override.</description>
-            <assertions>CSS output contains .cp-song-layout-right .cp-chord-diagrams flex-direction:column rule; when direction:horizontal is set, class cp-chord-diagrams-direction-horizontal is present in HTML.</assertions>
-          </test>
-          <test type="manual">
-            <description>Render an HTML5 songbook with diagrams.show:right and 4+ chords. Verify boxes appear in a column in the right panel, not side by side.</description>
-            <assertions>Chord boxes stack vertically; song content is not compressed by a wide diagram row.</assertions>
-          </test>
-        </tests>
-      </verification>
+    
 
-      <workflow-log>
-        <entry timestamp="2026-02-24" role="PO" action="approved" from-status="PENDING" to-status="APPROVED" note="Branch: feature/item-38-html5-diagrams-right-vertical" />
-        <entry timestamp="2026-02-24" role="DA" action="planned" from-status="APPROVED" to-status="PLANNED" note="Root cause confirmed: flex-wrap:wrap horizontal default in .cp-chord-diagrams. Fix via CSS default rule + direction class + html5.diagrams.direction config key. Lessons L-5, L-7 applied." />
-        <entry timestamp="2026-02-24" role="SM" action="started" from-status="PLANNED" to-status="IN_PROGRESS" note="Assigned to DEV. Branch: feature/item-38-html5-diagrams-right-vertical" />
-        <entry timestamp="2026-02-24" role="DEV" action="submitted" from-status="IN_PROGRESS" to-status="DONE" note="All 6 tasks complete. 16/16 tests pass. No regressions in broader HTML5 suite." />
-      </workflow-log>
+    
 
-      <r>
-        <outcome>DONE</outcome>
-        <observations><![CDATA[
-chordpro.json has two html5 { } blocks that are merged last-wins; the diagrams key had to be
-added to the SECOND block (the one with mode:"print") because the second block overwrites the
-first entirely. cfgboot.pl must be run directly (perl script/cfgboot.pl) to regenerate Data.pm
-since `make resources` skips it when Data.pm is newer than chordpro.json.
-The built-in default config sets html5.diagrams.direction:"vertical", so the direction class
-IS emitted for the default case (not absent as initially expected in the test).
-]]></observations>
-        <lessons-learned><![CDATA[
-When chordpro.json has duplicate top-level keys (both html5 { } blocks), JSON::Relaxed uses
-last-wins and the entire value is replaced — not merged. Any new key must go in the LAST
-occurrence of the duplicate. Run `perl script/cfgboot.pl <json> -o <Data.pm>` directly
-rather than `make resources` to force-regenerate Data.pm.
-]]></lessons-learned>
-        <files>
-          <file>lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
-          <file>lib/ChordPro/Output/HTML5.pm</file>
-          <file>lib/ChordPro/res/templates/html5/chord-diagrams.tt</file>
-          <file>lib/ChordPro/res/config/chordpro.json</file>
-          <file>lib/ChordPro/Config/Data.pm</file>
-          <file>t/86_html5_diagram_pos.t</file>
-        </files>
-      </r>
-    </item>
-
-    <item id="44" type="bug" status="DONE" priority="HIGH" complexity="M" ref-feature="CF-4" planned-files="lib/ChordPro/Output/HTML5.pm lib/ChordPro/res/templates/html5/css/tab-grid.tt">
-      <title>HTML5 grid strum lines are not rendered as arrow rows</title>
-      <branch>bug/item-44-html5-grid-strumline-arrow-rendering</branch>
-      <steps-to-reproduce><![CDATA[
-1. Create a song with a strum grid line as documented in docs/content/Directives-env_grid.md (`|s dn~up ...`).
-2. Run:
-   perl -Ilib script/chordpro.pl --generate=HTML5 testing/strum-repro.cho --output=testing/strum-repro.html
-3. Inspect generated HTML body.
-4. Observe only regular chord grid lines are rendered; the strum line is missing (or appears as plain pseudo-chord text in affected paths), and no up/down arrow symbols are shown.
-]]></steps-to-reproduce>
-      <expected-result><![CDATA[
-For `start_of_grid` strum rows, HTML5 output should render a visible strum row with strum symbols (up/down arrows and variants) per directive docs, not omit the row and not degrade to raw pseudo-chord codes.
-]]></expected-result>
-      <analysis><![CDATA[
-Code-based root cause:
-- Parser path (`lib/ChordPro/Song.pm`, `decompose_grid`) marks strum rows as `type => "strumline"` (with optional `subtype => "cellbars"` for uppercase `S`) while converting pseudo-chords to `ChordPro::Chord::Strum` chord objects.
-- HTML5 renderer (`lib/ChordPro/Output/HTML5.pm`, `_process_song_body`) handles `type eq 'gridline'` but has no handler for `type eq 'strumline'`.
-- As a result, strum rows are not rendered in HTML5 grid output, so expected strum glyphs never appear.
-
-Evidence:
-- Reproduction with `testing/strum-repro.cho` produces a `<div class="cp-grid">` with only the regular chord line in `testing/strum-repro.html`; the strum line is absent.
-- PDF grid renderer (`lib/ChordPro/Output/PDF/Grid.pm`) explicitly uses line type/subtype and grid-strum font handling, confirming intended behavior exists in another backend.
-]]></analysis>
-      <depends-on></depends-on>
-
-      <tasks>
-        <task id="44.1"><![CDATA[Add HTML5 handling for `type => strumline` in `lib/ChordPro/Output/HTML5.pm` so strum grid rows are rendered instead of skipped.]]></task>
-        <task id="44.2"><![CDATA[Implement strumline rendering semantics for lowercase/uppercase marker behavior (`|s` vs `|S`) using existing token metadata (`subtype => cellbars`) so bar/cell visibility aligns with directive docs.]]></task>
-        <task id="44.3"><![CDATA[Ensure strum tokens render using strum display glyphs (`ChordPro::Chord::Strum->chord_display`) rather than raw pseudo-chord codes in HTML5 output.]]></task>
-        <task id="44.4"><![CDATA[Adjust/add HTML5 CSS classes only as needed to preserve legibility of strum rows without regressing normal grid rendering.]]></task>
-        <task id="44.5"><![CDATA[Add regression tests for HTML5 strum grids (including `|s` and `|S` cases) and verify mirrored bugfix suites stay aligned where applicable.]]></task>
-      </tasks>
-
-      <verification>
-        <tests>
-          <test type="unit">
-            <file>t/html5/09_bugfixes.t</file>
-            <description>HTML5 grid with strum rows renders visible strum output.</description>
-            <assertions>Generated HTML contains a rendered strum grid row and includes strum glyph output rather than raw `dn`/`up` pseudo-chord text.</assertions>
-          </test>
-          <test type="unit">
-            <file>t/190_html5_bugfixes.t</file>
-            <description>Mirrored HTML5 bugfix suite stays consistent for strum-row behavior.</description>
-            <assertions>Equivalent strum-row rendering assertions pass in mirrored suite.</assertions>
-          </test>
-          <test type="manual">
-            <description>Render a documented strum example from Directives-env_grid and visually compare expected arrow-style output.</description>
-            <assertions>Strum row is present and arrows are shown; no silent row drop in HTML5 output.</assertions>
-          </test>
-        </tests>
-      </verification>
-
-      <workflow-log>
-        <entry timestamp="2026-02-25" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS" note="Assigned to DEV for HTML5 strumline rendering fix and regressions. Branch: bug/item-44-html5-grid-strumline-arrow-rendering" />
-        <entry timestamp="2026-02-25" role="DEV" action="submitted" from-status="IN_PROGRESS" to-status="DONE" note="Added HTML5 strumline dispatch/rendering path, strum-specific classes, lowercase/uppercase bar visibility handling, and mirrored regressions; focused suites PASS." />
-      </workflow-log>
-
-      <impact-check>
-        <shared-feature ref="CF-4">HTML5 backend is directly affected; completeness FULL/test-coverage TESTED limits blast radius to one renderer path.</shared-feature>
-        <shared-feature ref="CF-7">Chord diagrams and grids feature has completeness PARTIAL/test-coverage PARTIAL; changes in grid semantics should be regression-checked carefully.</shared-feature>
-      </impact-check>
-
-      <affected-files planned="true">
-        <file role="modify">lib/ChordPro/Output/HTML5.pm</file>
-        <file role="modify">lib/ChordPro/res/templates/html5/css/tab-grid.tt</file>
-        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
-        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
-        <file role="read">lib/ChordPro/Song.pm</file>
-        <file role="read">lib/ChordPro/Output/PDF/Grid.pm</file>
-        <file role="read">docs/content/Directives-env_grid.md</file>
-      </affected-files>
-
-      <r>
-        <outcome>DONE</outcome>
-        <observations><![CDATA[
-`strumline` elements are now rendered by the HTML5 backend instead of being skipped by gridline-only dispatch.
-Lowercase `|s` strum rows render without bar symbols, while uppercase `|S` (`subtype=cellbars`) keeps bars visible, aligning with documented semantics.
-Regression tests confirm strum row presence/class and no breakage in existing delegate/diagram behavior.
-]]></observations>
-        <files>
-          <file>lib/ChordPro/Output/HTML5.pm</file>
-          <file>lib/ChordPro/res/templates/html5/css/tab-grid.tt</file>
-          <file>t/html5/09_bugfixes.t</file>
-          <file>t/190_html5_bugfixes.t</file>
-        </files>
-      </r>
-    </item>
-
-    <item id="45" type="bug" status="PENDING" priority="HIGH" complexity="M" ref-feature="CF-4" planned-files="lib/ChordPro/Output/HTML5.pm lib/ChordPro/res/templates/html5/css/tab-grid.tt">
-      <title>HTML5 paired chord/strum grid lines drift out of cell alignment vs PDF</title>
-      <steps-to-reproduce><![CDATA[
-1. Create a grid that alternates chord rows and strum rows, e.g.:
-   {start_of_grid shape="0+2x4+0"}
-   | C ~Am . . | F . . . |
-   |s dn~up dn~up ~up dn~up | dn~up dn~up ~up dn~up |
-   | G/B . . . | C . . . |
-   |S d+~u+ ~up d+~u+ ~up | d+~u+ ~up d+~u+ ~ux |
-   {end_of_grid}
-2. Generate both outputs:
-   perl -Ilib script/chordpro.pl --generate=PDF testing/strum-sync-repro.cho --output=testing/strum-sync-repro.pdf
-   perl -Ilib script/chordpro.pl --generate=HTML5 testing/strum-sync-repro.cho --output=testing/strum-sync-repro.html
-3. Compare the same measures in PDF and HTML5 output.
-4. Observe in HTML5 that strum symbols/chords can shift horizontally relative to the chord row cell boundaries (especially with mixed token widths), while PDF keeps both rows cell-aligned.
-]]></steps-to-reproduce>
-      <expected-result><![CDATA[
-In HTML5, strum rows and chord rows within a grid should remain measure/cell synchronized like PDF output: each strum symbol aligns with the corresponding chord cell, with `|s`/`|S` bar visibility semantics preserved.
-]]></expected-result>
-      <analysis><![CDATA[
-Code-based root cause:
-- Item 44 fixed missing strumline rendering, but HTML5 still lays out each row as independent inline/flex content (`render_gridline` + `.cp-gridline`), not a shared cell geometry.
-- Current HTML5 CSS (`tab-grid.tt`) uses `display:flex` with token gap and content-driven widths (`.cp-grid-chord { min-width: 3em; }`), so token widths vary by text length and symbol class.
-- PDF grid rendering (`lib/ChordPro/Output/PDF/Grid.pm::gridline`) advances by fixed `cellwidth`/`barwidth`, ensuring deterministic x positions across paired chord/strum rows.
-- Because HTML5 lacks an explicit per-cell column model shared between adjacent `gridline` and `strumline`, rows with the same musical structure can visually desynchronize.
-
-Evidence:
-- `render_gridline` emits a linear `<span class="cp-grid-tokens">` stream without explicit cell index wrappers or shape-based columns.
-- Paired rows with mixed-width tokens (e.g., `G/B`, repeats, multi-strum tokens) produce visibly different token spacing in HTML5 compared to PDF.
-
-Security/privacy and vulnerability check:
-- AUTH/NETWORK/CRYPTO: not applicable for this rendering bug.
-- INPUT/DATA/DISCLOSURE: preserve existing `escape_text` behavior and avoid introducing raw HTML injection while restructuring grid markup.
-
-Collision check:
-- No current APPROVED or IN_PROGRESS items exist in `overview-features-bugs.xml`; planned file overlap risk is currently none.
-]]></analysis>
-      <depends-on>44</depends-on>
-
-      <tasks>
-        <task id="45.1"><![CDATA[Extract precise PDF parity rules for paired chord/strum grid alignment (cell boundaries, bar placement, and token progression) from `lib/ChordPro/Output/PDF/Grid.pm` and docs/content/Directives-env_grid.md.]]></task>
-        <task id="45.2"><![CDATA[Refactor HTML5 gridline/strumline markup emission in `lib/ChordPro/Output/HTML5.pm` to carry explicit per-cell structure (or equivalent deterministic column indexing) rather than pure content-width flow.]]></task>
-        <task id="45.3"><![CDATA[Update HTML5 grid CSS (`tab-grid.tt`) so paired grid rows share a stable column model and render aligned cell positions for both chord and strum rows.]]></task>
-        <task id="45.4"><![CDATA[Preserve existing `|s` vs `|S` behavior (bar/cell-line visibility) and existing glyph conversion for strum pseudo-chords while introducing alignment changes.]]></task>
-        <task id="45.5"><![CDATA[Add/extend regressions in mirrored HTML5 bugfix suites to assert paired-line structural alignment invariants, not just strum-row presence.]]></task>
-        <task id="45.6"><![CDATA[Perform manual PDF-vs-HTML5 visual comparison on a representative mixed-token strum grid to validate practical parity.]]></task>
-      </tasks>
-
-      <verification>
-        <tests>
-          <test type="unit">
-            <file>t/html5/09_bugfixes.t</file>
-            <description>Primary HTML5 bugfix suite validates paired chord/strum row alignment semantics.</description>
-            <assertions><![CDATA[Generated HTML includes deterministic per-cell (or equivalent column-indexed) structure for paired rows, and alignment-related class/structure checks pass for mixed-width token cases.]]></assertions>
-          </test>
-          <test type="unit">
-            <file>t/190_html5_bugfixes.t</file>
-            <description>Mirrored bugfix suite remains in sync for chord/strum alignment assertions.</description>
-            <assertions>Equivalent alignment invariants pass in mirrored suite without drift.</assertions>
-          </test>
-          <test type="manual">
-            <description>Render the same strum-grid sample to PDF and HTML5 and compare cell alignment across paired chord/strum rows.</description>
-            <assertions>HTML5 row alignment visually matches PDF semantics for corresponding measures/cells, including lowercase/uppercase strum-bar behavior.</assertions>
-          </test>
-        </tests>
-      </verification>
-
-      <impact-check>
-        <shared-feature ref="CF-4">HTML5 backend is directly impacted; renderer/layout changes must preserve existing HTML escaping and output stability.</shared-feature>
-        <shared-feature ref="CF-7">Chord/grid feature remains PARTIAL coverage, so this parity-focused fix should include robust regression additions for mixed-width token lines.</shared-feature>
-      </impact-check>
-
-      <affected-files planned="true">
-        <file role="modify">lib/ChordPro/Output/HTML5.pm</file>
-        <file role="modify">lib/ChordPro/res/templates/html5/css/tab-grid.tt</file>
-        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
-        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
-        <file role="read">lib/ChordPro/Output/PDF/Grid.pm</file>
-        <file role="read">docs/content/Directives-env_grid.md</file>
-      </affected-files>
-    </item>
-
-    <item id="46" type="bug" status="PENDING" priority="HIGH" complexity="M" ref-feature="CF-4" planned-files="lib/ChordPro/res/templates/html5/css/chord-diagrams.tt lib/ChordPro/res/templates/html5/song.tt lib/ChordPro/Output/HTML5.pm">
-      <title>HTML5 diagrams show:right breaks right-panel box sizing and alignment</title>
-      <steps-to-reproduce><![CDATA[
-1. Configure diagrams on the right (e.g. `pdf.diagrams.show: right`, optionally `html5.diagrams.direction: vertical`).
-2. Generate HTML5 output for a song with multiple chord diagrams and regular body content.
-3. Open the generated HTML and inspect the song layout and chord-diagram panel.
-4. Observe the right diagrams panel/box appears misaligned and/or visually smaller than contained chord images in affected songs; overall right-side layout can look broken.
-]]></steps-to-reproduce>
-      <expected-result><![CDATA[
-When diagrams are shown on the right, the right panel should stay consistently right-aligned and its surrounding box should fully contain diagram images without overflow/collapse artifacts.
-]]></expected-result>
-      <analysis><![CDATA[
-Code-based hypothesis with evidence:
-- Existing right-side mode is implemented by applying `cp-song-layout-right` to the whole song container (`song.tt`), with CSS grid declared in `css/chord-diagrams.tt`:
-  `grid-template-columns: minmax(0, 1fr) auto`.
-- Because the grid is on `.cp-song` (which also contains title/metadata/body/other blocks), right-layout sizing/alignment behavior is sensitive to all direct child content, not only the intended body+diagram pair.
-- Current right-panel rules (`.cp-song-layout-right .cp-song-diagrams { align-self: start; }`) do not explicitly enforce horizontal alignment strategy (`justify-self`) or panel width constraints for containment behavior.
-- Diagram rendering now uses `<img class="cp-diagram-svg" ...>` (item 43), while panel styling was originally tuned around prior behavior; right-panel containment/alignment regressions can surface when the panel is auto-sized next to wide content.
-
-Observed evidence from local reproduction:
-- Generated HTML shows `cp-song cp-song-layout-right` with `cp-song-body` and `cp-song-diagrams`, but visual right-panel alignment/box containment remains inconsistent in user-reported cases.
-- Existing regression `t/86_html5_diagram_pos.t` validates presence of right-layout classes and direction behavior, but does not assert panel-width containment or right-edge alignment invariants.
-
-Security/privacy and vulnerability assessment:
-- AUTH/NETWORK/CRYPTO: not applicable for this CSS/layout bug.
-- INPUT/DATA/DISCLOSURE: preserve current escaping and avoid introducing raw HTML/CSS injection paths while modifying templates/styles.
-
-Collision analysis:
-- `overview-features-bugs.xml` currently has no APPROVED or IN_PROGRESS item-refs; no hard resource conflicts detected for planned modified source files.
-]]></analysis>
-      <depends-on>38</depends-on>
-
-      <tasks>
-        <task id="46.1"><![CDATA[Reproduce the right-panel issue with a deterministic fixture and capture structural + visual evidence (container width, alignment, and image containment).]]></task>
-        <task id="46.2"><![CDATA[Refine right-layout structure/rules so only intended song-body+diagram sections participate in the two-column layout semantics (without disturbing title/metadata flow).]]></task>
-        <task id="46.3"><![CDATA[Update right-panel CSS in `css/chord-diagrams.tt` to enforce robust right alignment and containment (panel sizing constraints and child overflow behavior).]]></task>
-        <task id="46.4"><![CDATA[Verify `cp-diagram-svg` sizing behavior remains consistent for image-based diagrams and does not regress bottom/top diagram placements.]]></task>
-        <task id="46.5"><![CDATA[Extend `t/86_html5_diagram_pos.t` with assertions for right-panel containment/alignment invariants in addition to existing class checks.]]></task>
-        <task id="46.6"><![CDATA[Add mirrored regression coverage in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` only if layout invariant cannot be fully captured in `t/86_html5_diagram_pos.t` alone.]]></task>
-      </tasks>
-
-      <verification>
-        <tests>
-          <test type="unit">
-            <file>t/86_html5_diagram_pos.t</file>
-            <description>Right-layout diagram positioning, containment, and alignment.</description>
-            <assertions><![CDATA[HTML/CSS output proves right-panel uses stable alignment and containment rules (no panel/image mismatch) while preserving direction classes and existing placement behavior.]]></assertions>
-          </test>
-          <test type="unit">
-            <file>t/html5/09_bugfixes.t</file>
-            <description>Primary HTML5 bugfix suite for diagram layout regressions.</description>
-            <assertions>Added invariants for right-panel box behavior (if needed) pass without regressing existing SVG/image and strum tests.</assertions>
-          </test>
-          <test type="unit">
-            <file>t/190_html5_bugfixes.t</file>
-            <description>Mirrored bugfix suite remains in sync for diagram-right layout assertions.</description>
-            <assertions>Mirrored assertions pass and test-plan counts remain synchronized.</assertions>
-          </test>
-          <test type="manual">
-            <description>Render representative songs using right-side diagrams and visually confirm right alignment and box containment across screen and print modes.</description>
-            <assertions>No clipped/overflowing diagram box, no right-panel misalignment, and no collateral layout breakage in title/body flow.</assertions>
-          </test>
-        </tests>
-      </verification>
-
-      <impact-check>
-        <shared-feature ref="CF-4">HTML5 backend directly impacted; layout/template changes can affect all HTML5 song rendering flows.</shared-feature>
-        <shared-feature ref="CF-7">Diagrams/grids area has partial coverage; right-panel behavior needs stronger regression guardrails to prevent re-breakage.</shared-feature>
-      </impact-check>
-
-      <affected-files planned="true">
-        <file role="modify">lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
-        <file role="modify">lib/ChordPro/res/templates/html5/song.tt</file>
-        <file role="modify">lib/ChordPro/Output/HTML5.pm</file>
-        <file role="modify" test="true">t/86_html5_diagram_pos.t</file>
-        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
-        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
-      </affected-files>
-    </item>
-
-    <item id="47" type="tech-debt" status="PENDING" priority="LOW" complexity="M" ref-feature="CF-8" planned-files="lib/ChordPro/Delegate/ABC.pm">
-      <title>Retire deprecated ABC handler alias usage in test paths and stabilize warning-free runs</title>
-      <justification><![CDATA[
-The full-test run repeatedly emits:
-  ABC: Please remove handler "ChordPro::Delegate::ABC" from your ABC delegates config and use "abc2svg" instead.
-Although tests still pass, this warning noise indicates legacy handler values are still reachable in test execution paths. Leaving this unresolved has ongoing costs:
-- Warning spam obscures real failures in CI/local logs.
-- Test outcomes depend on ambient config state (e.g., user/system config), reducing reproducibility.
-- Delegate handler migration remains incomplete, increasing maintenance burden for future ABC changes.
-
-This debt item aligns runtime/test behavior with the current delegate contract (`abc2svg` / quickjs variants) and makes warning-free test output deterministic.
-]]></justification>
-      <depends-on>37</depends-on>
-
-      <technical-parameters>
-        <constraint>Preserve backward compatibility for real user configs while eliminating warning churn in repository test runs.</constraint>
-        <constraint>Do not change delegate rendering behavior for valid handlers (`abc2svg`, `quickjs`, `quickjs_xs`, `quickjs_qjs`).</constraint>
-        <constraint>Keep tests environment-independent: avoid reliance on host user/system config for expected output (L-15, L-16).</constraint>
-        <nfr type="maintainability">Reduce log noise so warnings become actionable signals rather than expected background output.</nfr>
-        <nfr type="reliability">Ensure repeated `make test`/`make tests` runs are deterministic across developer machines and CI.</nfr>
-        <pattern>Apply backend-aware delegate conventions introduced in item 37 and avoid reintroducing module-name handlers (L-11).</pattern>
-      </technical-parameters>
-
-      <analysis><![CDATA[
-Observed evidence:
-- Full-test log shows repeated warning lines near `t/80_pages.t`..`t/88_pages.t`, each warning referencing deprecated handler `ChordPro::Delegate::ABC`.
-- Warning is emitted by `lib/ChordPro/Delegate/ABC.pm::info()` when the resolved handler is not in the accepted set and is normalized to `abc2svg`.
-
-Likely debt surface:
-- Some test execution path still resolves an old handler value (module-name style), directly or via merged external config.
-- Page tests currently use `--no-default-configs` but may still be sensitive to user/system config state unless explicitly disabled.
-
-Scope of remediation:
-1) Identify the exact source(s) of deprecated handler value in test runs.
-2) Normalize test invocation/config so repository tests do not inherit legacy handler values from ambient environment.
-3) Keep compatibility behavior for external users while ensuring project tests are warning-clean by default.
-]]></analysis>
-
-      <tasks>
-        <task id="47.1"><![CDATA[Trace warning provenance end-to-end in test runs (which test invocation path resolves handler `ChordPro::Delegate::ABC`, and whether source is repository config, generated config, or host/user config merge).]]></task>
-        <task id="47.2"><![CDATA[Harden affected tests (notably page-sequence tests around t/80_pages.t..t/88_pages.t) to run with explicit config isolation (`--no-userconfig` and `--no-sysconfig` where appropriate) so host state cannot reintroduce deprecated handler warnings.]]></task>
-        <task id="47.3"><![CDATA[If warning source is internal fallback logic, update `lib/ChordPro/Delegate/ABC.pm` (and related delegate resolution code if needed) to canonicalize legacy handler aliases earlier while preserving compatibility and avoiding repeated warning emissions during a single run.]]></task>
-        <task id="47.4"><![CDATA[Add/extend regression coverage to assert warning-free behavior for the affected test path and to confirm ABC delegate output still works with supported handlers.]]></task>
-        <task id="47.5"><![CDATA[Update delegate configuration documentation/examples if any project-owned sample still advertises deprecated handler/module-name patterns.]]></task>
-      </tasks>
-
-      <verification>
-        <tests>
-          <test type="unit">
-            <file>t/80_pages.t</file>
-            <description>Representative page-test path executes without deprecated ABC handler warning under controlled config.</description>
-            <assertions>Test passes and output stream does not contain `Please remove handler "ChordPro::Delegate::ABC"`.</assertions>
-          </test>
-          <test type="unit">
-            <file>t/83_html5_delegate.t</file>
-            <description>HTML5 delegate path remains functional with supported ABC handler resolution.</description>
-            <assertions>Delegate rendering assertions pass and no deprecated-handler warning appears from repository-controlled config.</assertions>
-          </test>
-          <test type="integration">
-            <file>testing/full-test-2026-02-25.log</file>
-            <description>Re-run `make tests` and verify warning count for deprecated ABC handler is zero in the generated log.</description>
-            <assertions>Suite result remains PASS/expected skips and deprecated ABC warning string is absent.</assertions>
-          </test>
-        </tests>
-      </verification>
-
-      <security-assessment>
-        <category name="AUTH">No authentication boundary changes; risk unchanged.</category>
-        <category name="INPUT">Ensure handler canonicalization does not broaden accepted untrusted values beyond documented handlers.</category>
-        <category name="DATA">No persistent data model changes expected.</category>
-        <category name="NETWORK">No network behavior changes expected.</category>
-        <category name="CRYPTO">No cryptographic behavior changes expected.</category>
-        <category name="ACCESS">No privilege boundary changes; test isolation should reduce accidental host-config coupling.</category>
-        <category name="DISCLOSURE">Reducing warning noise lowers risk of missing important diagnostics, but no direct data disclosure changes.</category>
-      </security-assessment>
-
-      <impact-check>
-        <shared-feature ref="CF-8">External delegate integration is directly affected; handler canonicalization and config isolation must keep existing delegate behavior stable.</shared-feature>
-        <shared-feature ref="CF-4">HTML5 delegate tests are part of the warning surface, so regressions must be checked in HTML5-specific suites.</shared-feature>
-      </impact-check>
-
-      <affected-files planned="true">
-        <file role="modify">lib/ChordPro/Delegate/ABC.pm</file>
-        <file role="modify" test="true">t/80_pages.t</file>
-        <file role="modify" test="true">t/81_pages.t</file>
-        <file role="modify" test="true">t/82_pages.t</file>
-        <file role="modify" test="true">t/83_pages.t</file>
-        <file role="modify" test="true">t/84_pages.t</file>
-        <file role="modify" test="true">t/85_pages.t</file>
-        <file role="modify" test="true">t/86_pages.t</file>
-        <file role="modify" test="true">t/87_pages.t</file>
-        <file role="modify" test="true">t/88_pages.t</file>
-        <file role="modify" test="true">t/83_html5_delegate.t</file>
-        <file role="read">lib/ChordPro/Song.pm</file>
-        <file role="read">lib/ChordPro/res/config/chordpro.json</file>
-        <file role="read">ai-docs/lessons-learned.md</file>
-      </affected-files>
-    </item>
+    
 
   </items>
 
@@ -639,17 +200,24 @@ Scope of remediation:
         <run date="2026-02-25" result="PASS"><total>90</total><passed>90</passed><failed>0</failed></run>
       </release-test>
     </sprint>
+    <sprint id="SPR-2" status="COMPLETED" type="SPRINT" started="2026-02-26">
+      <title>Sprint 2 – HTML5 alignment and ABC warning cleanup</title>
+      <scope>
+        <item-ref id="45" type="bug" status="DONE">HTML5 paired chord/strum grid lines drift out of cell alignment vs PDF</item-ref>
+        <item-ref id="46" type="bug" status="DONE">HTML5 diagrams show:right breaks right-panel box sizing and alignment</item-ref>
+        <item-ref id="47" type="tech-debt" status="DONE">Retire deprecated ABC handler alias usage in test paths and stabilize warning-free runs</item-ref>
+      </scope>
+      <gates>
+        <gate name="code-complete" status="PASSED" date="2026-02-26" owner="SM" />
+        <gate name="full-test-pass" status="PASSED" date="2026-02-26" owner="TST" />
+      </gates>
+      <release-test>
+        <run date="2026-02-26" result="PASS"><total>151</total><passed>151</passed><failed>0</failed></run>
+      </release-test>
+    </sprint>
   </sprints>
 
   <changelog>
-    <entry date="2026-02-11">Archived items 18-23.</entry>
-    <entry date="2026-02-11">Added bug item 25 for HTML5 paged newpage CSS rule missing in t/95_html5_paged_newpage.t.</entry>
-    <entry date="2026-02-11">Item 25 completed. Updated t/95_html5_paged_newpage.t expectation to match break-before: right output; full test suite passes.</entry>
-    <entry date="2026-02-12">Added feature epic item 26 and sub-items 27-30 for a comprehensive feature-coverage test song and visual verification workflow.</entry>
-    <entry date="2026-02-12">Added bug item 31 for duplicate HTML5 TOC page numbers on the right side.</entry>
-    <entry date="2026-02-12">Added feature item 32 for an end-user HTML5 template starter directory with documentation and AI agent guidance.</entry>
-    <entry date="2026-02-12">Item 31 implemented. TOC page numbers now use a conditional target-counter class to avoid duplicates when line templates include %{page}; added a regression test update.</entry>
-    <entry date="2026-02-12">Item 31 completed. TOC pages use a named @page rule to suppress paged.js margin page numbers, and paged CSS now defaults to the paged base template.</entry>
     <entry date="2026-02-12">Added bug item 33 for failing t/78_html5_toc.t (missing cp-toc-entry markup).</entry>
     <entry date="2026-02-12">Item 33 completed. Relaxed the TOC entry assertion to accept cp-toc-entry with additional classes.</entry>
     <entry date="2026-02-24">Schema migration: created overview-features-bugs-archive.xml; moved items 18-23 out of inline archive section; archived DONE items 25, 31, 33. Fixed 6 duplicate CF-IDs in overview.xml (CF-10/11/20/22 collisions → CF-25–CF-30). Drift scan: added CF-34 (SVGPDF bundled), CF-35 (PDF modular refactor), CF-36 (PDF outlines) to overview.xml; created [REF] items 34–36 as PENDING. Added metadata fields done-since-last-fulltest and last-fulltest-date. Items 34, 35, 36 DENIED and archived immediately (not worth tracking separately from ongoing PDF work). Created tech-debt item 37 for delegate backend-specific handler and config key dispatch (TextBlock/Strum/ABC HTML output, abc.patch replacement). Created feature item 38 for HTML5 diagrams.show:right vertical stacking layout with html5.diagrams.direction config option. Items 37 → APPROVED (branch: tech-debt/item-37-delegate-backend-handler-dispatch). Items 38 → APPROVED (branch: feature/item-38-html5-diagrams-right-vertical). Item 38 → PLANNED (DA): root cause confirmed (flex-wrap:wrap horizontal default), 6 tasks defined covering CSS fix, direction class, config key, template, make, regression tests. L-5 (fix both standard+paged CSS via chord-diagrams.tt) and L-7 (screen/print alignment) applied. Item 38 → IN_PROGRESS (SM): assigned to DEV. Item 38 → DONE (DEV): CSS default rule + direction classes added to chord-diagrams.tt; html5.diagrams.direction config key added to chordpro.json (second html5 block); Data.pm regenerated; 8 new tests in t/86_html5_diagram_pos.t (16 total, all pass). No regressions.</entry>
@@ -673,5 +241,12 @@ Scope of remediation:
     <entry date="2026-02-25">Added bug item 46 (PENDING): right-side HTML5 diagram panel can misalign and show box/image containment issues with diagrams.show:right. Included code-based analysis from song/template/CSS paths, collision check (no active conflicts), planned affected files, and focused verification scope.</entry>
     <entry date="2026-02-25">Archive run executed: moved DONE items 37, 39, 40, 41, 42, 43 to overview-features-bugs-archive.xml; updated overview.xml completed-features/security and added lessons; rotated oldest changelog entries to archive history; done-since-last-fulltest set to 6.</entry>
     <entry date="2026-02-25">Added tech-debt item 47 (PENDING): retire deprecated ABC handler alias usage causing repeated warning `Please remove handler "ChordPro::Delegate::ABC"` in test runs. Included warning-source analysis, test-isolation remediation tasks, seven-category security assessment, collision check (no active APPROVED/IN_PROGRESS conflicts), and planned affected files.</entry>
+    <entry date="2026-02-26">Items 45, 46, and 47 approved. Status changed PENDING → APPROVED. Branches assigned: bug/item-45-html5-paired-chord-strum-grid, bug/item-46-html5-diagrams-show-right-breaks, and tech-debt/item-47-retire-deprecated-abc-handler-alias. Dependency check passed: 45→44 DONE, 46→38 DONE, 47→37 DONE (archived). Security impact recorded for item 47 (security=true, LOW).</entry>
+    <entry date="2026-02-26">Items 45, 46, and 47 implemented. Item 45 adds deterministic shared grid columns and hidden bar placeholders for chord/strum alignment parity; item 46 scopes right-side diagram layout to a dedicated body+diagram wrapper with stronger panel containment/alignment rules; item 47 canonicalizes legacy ABC handler alias and hardens page/delegate tests with explicit config isolation. Verification PASS: `prove -bv` on 13 focused files (Tests=151, Failed=0). Sprint SPR-2 closed as COMPLETED with both gates PASSED.</entry>
+    <entry date="2026-02-26">Added feature item 48 via `!run` and auto-approved it (branch: feature/item-48-html5-delegate-pagewidth). Implemented HTML5 delegate pagewidth forwarding for ABC/LilyPond in `lib/ChordPro/Output/HTML5.pm` (numeric/px width parsing + fallback 680), added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt with `make`, and verified PASS with focused suites (Files=2, Tests=80).</entry>
+    <entry date="2026-02-26">Added bug item 49 via `!run` and auto-approved it (branch: bug/item-49-html5-abc-multi-svg-pagewidth). Root cause: HTML5 delegate SVG path collapsed multi-SVG payloads to the first `<svg>` block, making ABC multi-system output incomplete and masking pagewidth effects. Implemented multi-SVG rendering in `lib/ChordPro/Output/HTML5.pm` (one IMG per SVG), added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt with `make`, and verified PASS with focused suites (Files=2, Tests=84).</entry>
+    <entry date="2026-02-26">Added bug item 50 via `!run` and auto-approved it (branch: bug/item-50-html5-abc-split-style-propagation). Root cause: split SVG fragments rendered as separate images do not share first-fragment `<style>` definitions, causing fallback fonts in later ABC fragments. Implemented style propagation in `lib/ChordPro/Output/HTML5.pm` (inject shared style into style-less split fragments), added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt with `make`, and verified PASS with focused suites (Files=2, Tests=88). PNG intermediary path was evaluated and rejected as higher complexity with vector quality trade-offs.</entry>
+    <entry date="2026-02-26">Added bug item 51 via `!run` and auto-approved it (branch: bug/item-51-html5-abc-partial-style-merge). Root cause: partial-style split fragments (with local `.f3`) were skipped by prior propagation logic and still missed shared class/font styles (`.slW/.sW`). Implemented shared-style merge for all later split fragments while preserving local style in `lib/ChordPro/Output/HTML5.pm`, added mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, rebuilt and verified focused PASS (Files=2, Tests=92), and confirmed on `testing/lowlands-debug.html` that candidate fragment now contains shared style definitions. PNG intermediary path remained rejected due to complexity/fidelity trade-offs.</entry>
+    <entry date="2026-02-26">Archive run executed: moved DONE items 38, 44, 45, 46, 47, 48, 49, 50, 51 to overview-features-bugs-archive.xml; updated overview.xml completed-features/security and lessons; rotated oldest changelog entries to archive history; done-since-last-fulltest set to 15.</entry>
   </changelog>
 </implementation-plan>

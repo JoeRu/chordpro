@@ -14,11 +14,39 @@
             "execArgs": [],
             "root": "${workspaceRoot}", 
             "inc": ["${workspaceFolder}/lib/", "/workspaces/chordpro/lib/"],
-            "args": ["${workspaceFolder}/test_lilypond.cho", "--output=${workspaceFolder}/test.tex"],
+            "args": ["${workspaceFolder}/testing/lowlands.cho","--generate=HTML5", "--output=${workspaceFolder}/testing/lowlands-2.html"],
             "env": {},
             "debugRaw": false,
             "debugLog": false,
             "stopOnEntry": true,
+            "sessions": "single"
+        },
+        {
+            "type": "perl",
+            "request": "launch",
+            "name": "Perl-Debug chordpro HTML5+ABC",
+            "console": "integratedTerminal",
+            "program": "${workspaceFolder}/script/chordpro.pl",
+            "exec": "perl",
+            "execArgs": [],
+            "root": "${workspaceRoot}",
+            "inc": ["${workspaceFolder}/lib"],
+            "args": [
+                "--no-default-configs",
+                "--no-userconfig",
+                "--no-sysconfig",
+                "--define",
+                "debug.abc=1",
+                "${workspaceFolder}/testing/lowlands.cho",
+                "--generate=HTML5",
+                "--output=${workspaceFolder}/testing/lowlands-debug.html"
+            ],
+            "env": {
+                "PERL5LIB": "${workspaceFolder}/lib"
+            },
+            "debugRaw": false,
+            "debugLog": false,
+            "stopOnEntry": false,
             "sessions": "single"
         },
         {

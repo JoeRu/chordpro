@@ -59,6 +59,26 @@ method raw {
     $key;
 }
 
+method set_key($value) {
+    $key = $value;
+    return $key;
+}
+
+method set_format($value) {
+    $format = $value;
+    return $format;
+}
+
+method set_info($value) {
+    $info = $value;
+    return $info;
+}
+
+method set_orig($value) {
+    $orig = $value;
+    return $orig;
+}
+
 method CARP_TRACE {
     "<<Appearance(\"$key\")>>";
 }
