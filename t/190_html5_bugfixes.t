@@ -15,8 +15,9 @@ use ChordPro::Testing;
 use ChordPro::Songbook;
 use File::Temp qw(tempdir);
 use MIME::Base64 qw(encode_base64);
+use URI::Escape qw(uri_unescape);
 
-plan tests => 46;
+plan tests => 64;
 
 use_ok('ChordPro::Output::HTML5');
 
@@ -318,9 +319,9 @@ EOD
     # Regression: strum gridline should render with strum glyphs in HTML5
     my $song_data = <<'EOD';
 {title: Strum Grid}
-{start_of_grid shape="0+2x4+0"}
-| C . . . | C . . . |
-|s dn~up dn~up ~up dn~up | dn~up dn~up ~up dn~up |
+{start_of_grid shape="0+4x8+0"}
+|: C . . . || G . . . :| C . . . |. G . . . |
+|S dn~up dn~~up ~ ~up | dn~up ~ dn~up ~up | dn~~up ~ dn~up ~ | dn~up ~ dn~~up ~ |
 {end_of_grid}
 EOD
 
@@ -329,16 +330,91 @@ EOD
     my $song = $s->{songs}[0];
 
     my $output = $html5->generate_song($song);
-    my $gridline_count = () = ($output =~ /class="cp-gridline(?:\s|"|$)/g);
+    like($output, qr/class="cp-gridline\s+cp-gridline-fullsvg"/,
+         "Bug 57: Grid with strum rows is rendered as unified full-grid SVG block");
+    unlike($output, qr/\bcp-grid-token\b/,
+           "Bug 57: Unified grid output avoids tokenized grid span pipeline");
 
-    cmp_ok($gridline_count, '>=', 2,
-           "Bug 44: Strum gridline is rendered (not dropped)");
-    like($output, qr/class="cp-gridline\s+cp-gridline-strum/,
-         "Bug 44: Strum gridline class emitted");
-        like($output, qr/class="cp-grid-tokens"\s+style="--cp-grid-cols:\d+"/,
-            "Bug 45: Grid rows include deterministic shared column count");
-        like($output, qr/cp-grid-bar-hidden/,
-            "Bug 45: Strum rows keep hidden bar placeholders for cell alignment");
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 57: Full-grid SVG data URI captured");
+    my $grid_svg = uri_unescape($grid_uri // '');
+        $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+        my $arrow_count = () = ($grid_svg =~ /<polygon\b[^>]*fill="currentColor"/g);
+        cmp_ok($arrow_count, '>=', 6,
+            "Bug 56/57: Full-grid SVG includes multiple strum arrow heads");
+        like($grid_svg, qr/<line\b[^>]*y1="3\.00"[^>]*stroke-width="1"/,
+         "Bug 56/57: Full-grid SVG includes barline strokes");
+
+        like($grid_svg, qr/text-anchor="middle"[^>]*font-size="6"/,
+            "Bug 56/57: Full-grid SVG contains bar marker text nodes");
+        like($grid_svg, qr/font-size="12"[^>]*>C<\/text>/,
+            "Bug 56/57: Full-grid SVG contains chord label text");
+        like($grid_svg, qr/font-size="12"[^>]*>G<\/text>/,
+            "Bug 56/57: Full-grid SVG contains second chord label text");
+        like($grid_svg, qr/viewBox="0 0 [0-9.]+ [0-9.]+"/,
+            "Bug 56/57: Full-grid SVG carries explicit viewBox geometry");
+        unlike($grid_svg, qr/Appearance=ARRAY\(/,
+            "Bug 59: Full-grid SVG does not leak Perl object stringification labels");
+
+        my @bars_row1 = ($grid_svg =~ /<line x1="([0-9.]+)" y1="3\.00" x2="\1" y2="23\.00" stroke="currentColor" stroke-width="1"\/>/g);
+        my @bars_row2 = ($grid_svg =~ /<line x1="([0-9.]+)" y1="35\.00" x2="\1" y2="55\.00" stroke="currentColor" stroke-width="1"\/>/g);
+        cmp_ok(scalar(@bars_row1), '>=', 2,
+            "Bug 60: Full-grid SVG top row includes barline anchors");
+        cmp_ok(scalar(@bars_row2), '>=', 2,
+            "Bug 60: Full-grid SVG strum row includes barline anchors");
+        is($bars_row1[0], $bars_row2[0],
+            "Bug 60: First barline anchor is aligned across chord and strum rows");
+
+        my @strum_stems = ($grid_svg =~ /<line x1="([0-9.]+)" y1="(?:36\.00|52\.00)" x2="\1" y2="(?:52\.00|36\.00)" stroke="currentColor" stroke-width="1\.6"\/>/g);
+        cmp_ok(scalar(@strum_stems), '>=', 2,
+            "Bug 60: Strum row emits arrow stems for paired symbols");
+        my $first_pair_gap = abs(($strum_stems[1] // 0) - ($strum_stems[0] // 0));
+        cmp_ok($first_pair_gap, '<', 16,
+            "Bug 60: Connected strum pairs render with tight arrow spacing");
+}
+
+{
+    # Feature 58: standalone strum sections should parse/render for HTML5
+    my $song_data = <<'EOD';
+{title: Standalone Strum Section}
+{start_of_strum: label="Verse Groove"}
+dn up dn~up | dn~up
+{end_of_strum}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+
+    my $output = $html5->generate_song($song);
+    like($output, qr/cp-delegate-strum-block/, "Feature 58: Standalone strum section renders HTML block");
+    like($output, qr/cp-standalone-strum-svg/, "Feature 58: Standalone strum section renders as SVG image");
+}
+
+{
+    # Regression: complex repeat tokens expose deterministic anchor/cell metadata
+    my $song_data = <<'EOD';
+{title: Grid Repeat Anchors}
+{start_of_grid}
+|: C . . | G . . :|
+| % . . | %% . . |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+
+    my $output = $html5->generate_song($song);
+
+    like($output, qr/cp-grid-token-bar/, "Bug 54: Bar tokens emit explicit bar-role class");
+    like($output, qr/cp-grid-repeat-anchor/, "Bug 54: Repeat tokens emit anchor class");
+    like($output, qr/<span(?=[^>]*data-token-class="repeat1")(?=[^>]*data-anchor-start="\d+")(?=[^>]*data-anchor-end="\d+")[^>]*>/,
+         "Bug 54: Repeat1 token includes anchor start/end metadata");
+        like($output, qr/<span(?=[^>]*data-token-class="repeat1")(?=[^>]*style="[^"]*grid-column-start:[^"]*")[^>]*>/,
+            "Bug 54: Repeat1 token emits explicit grid-column span style");
+    like($output, qr/data-cell-index="\d+"/, "Bug 54: Grid cell index metadata emitted for cell tokens");
 }
 
 # =========================================================================

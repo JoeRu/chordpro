@@ -4,7 +4,7 @@
     <title>ChordPro</title>
     <version>6.090_040</version>
     <analyzed>2026-02-08</analyzed>
-    <updated>2026-02-26</updated>
+    <updated>2026-03-01</updated>
     <repository>https://github.com/ChordPro/chordpro</repository>
   </metadata>
 
@@ -706,6 +706,82 @@
       <description>Split SVG style normalization now merges shared first-fragment style into all later fragments, including fragments with partial local style blocks. Lowlands verification confirms candidate fragment with local `.f3` plus `slW/sW` usage now contains shared `.slW/.sW` style definitions and notation font-face rules. PNG intermediary was not adopted due to complexity and fidelity/performance trade-offs.</description>
       <files>
         <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-52" completed="2026-03-01" source-item="52">
+      <title>Refactor HTML5 chord-diagram panel sizing and float behavior for right/top placement</title>
+      <description>Right-placement stability is improved by forcing the panel to be content-sized at the diagram-container layer (`.cp-chord-diagrams`), not only at the outer wrapper. Top placement now uses a dedicated wrapper with float-based panel flow so body content can wrap beside the diagram box while preserving DOM reading order. Template parity was maintained: both standard and paged song templates now share the same top-wrapper and top-layout class behavior.</description>
+      <files>
+        <file>lib/ChordPro/res/templates/html5/css/chord-diagrams.tt</file>
+        <file>lib/ChordPro/res/templates/html5/song.tt</file>
+        <file>lib/ChordPro/res/templates/html5/paged/song.tt</file>
+        <file>t/86_html5_diagram_pos.t</file>
+      </files>
+    </feature>
+    <feature id="CF-54" completed="2026-03-01" source-item="54">
+      <title>HTML5 strum grid positioning parity options against PDF complex strum layout</title>
+      <description>Implemented Option B by enhancing HTML5 grid rendering with canonical token/cell progression metadata (`data-token-index`, `data-token-class`, `data-cell-index`, `data-cell-edge`) and repeat anchor semantics (`data-anchor-start`, `data-anchor-end`) for repeat tokens. Added explicit role classes (`cp-grid-token-bar`, `cp-grid-token-cell`) and repeat-anchor styling hooks to support deterministic positioning behavior without changing parser/PDF behavior. Regression coverage was expanded in both mirrored HTML5 bugfix suites and parser-level grid tests to lock repeat-token parsing and HTML metadata contracts. Post-feedback correction: visual impact was initially too weak because shared grid columns were computed from logical cells while rendered token spans also included bars/split chord parts. Renderer geometry now uses rendered-column counts and repeat markers get explicit cross-cell `grid-column` span styling (`cp-grid-repeat-span`), producing visible positioning closer to PDF intent.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/css/tab-grid.tt</file>
+        <file>t/180_grids.t</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-55" completed="2026-03-01" source-item="55">
+      <title>Refactor HTML5 strum rendering from grid items to SVG image with PDF-aligned positioning</title>
+      <description>Implemented SVG-image strumline rendering for HTML5 by moving strum symbol interpretation into `ChordPro::Delegate::Strum` helpers and refactoring HTML5 strumline output away from tokenized grid-item spans. `lib/ChordPro/Output/HTML5.pm` now renders `strumline` via delegate-driven SVG payload (`cp-grid-strum-svg` IMG/data-URI), while standard `gridline` rendering remains token-grid based. Updated tab-grid CSS for the new SVG row path and mirrored regression suites to assert SVG strum output and absence of tokenized strum span glyphs. Focused verification PASS: `prove -bv t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=3, Tests=110). Manual artifacts generated for parity review: `testing/lowlands-item55.pdf` and `testing/lowlands-item55.html`.</description>
+      <files>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/css/tab-grid.tt</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-56" completed="2026-03-01" source-item="56">
+      <title>HTML5 strum grid misaligns barlines/arrows and misses explicit `~` connector/pause semantics</title>
+      <description>Implemented item 56 by extending HTML5 strum rendering with explicit `~` behavior and stronger bar semantics: strum rows now emit connector/pause midline strokes for tilde patterns, and chord/grid bar symbols are rendered with Unicode music-bar characters for deterministic semantics. `render_strumline_svg` now propagates bar-kind metadata and pause/connector hints to `ChordPro::Delegate::Strum::strumline_svg`; the delegate SVG renderer now supports richer bar drawing primitives and in-beat connector/pause visuals. Parser output for current strum fixtures still normalizes bar tokens in strum rows mostly to single bars, so repeat/end special drawings are guarded by available token symbols; mirrored tests were aligned to assert stable semantics that the parser currently exposes. Verification PASS: `prove -bv t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=3, Tests=126).</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-57" completed="2026-03-01" source-item="57">
+      <title>HTML5 Grid rendert Akkorde und Strum in getrennten Pipelines statt als einheitliches SVG-Grid</title>
+      <description>`lib/ChordPro/Output/HTML5.pm` now aggregates grid blocks and emits one SVG payload (`cp-grid-full-svg`) when a block contains strumline rows. `lib/ChordPro/Delegate/Strum.pm` provides shared SVG geometry helpers for full-grid rendering (bars/repeats/chord labels + strum arrows on one coordinate system). `lib/ChordPro/res/templates/html5/css/tab-grid.tt` includes full-grid SVG embedding styles and retains non-strum grid compatibility paths. Verification PASS: `prove -bv t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t`.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>lib/ChordPro/res/templates/html5/css/tab-grid.tt</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+        <file>t/180_grids.t</file>
+      </files>
+    </feature>
+    <feature id="CF-58" completed="2026-03-01" source-item="58">
+      <title>Strum-Implementierung gegen Strum-requirement angleichen (Gap-Closure)</title>
+      <description>`lib/ChordPro/Song.pm` now accepts `{start_of_strum}`/`{end_of_strum}` and aliases (`sos`/`eos`) as parser directives. `lib/ChordPro/Delegate/Strum.pm` now renders standalone strum sections to SVG image HTML output and safely falls back from PDF XO-only paths in non-PDF contexts. Added `t/181_strum_sections.t` for directive/tuplet/asset assertions; updated mirrored HTML5 bugfix suites for standalone strum and full-grid SVG assertions. Verification PASS: `prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=131).</description>
+      <files>
+        <file>lib/ChordPro/Song.pm</file>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/res/templates/html5/css/tab-grid.tt</file>
+        <file>t/181_strum_sections.t</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-59" completed="2026-03-01" source-item="59">
+      <title>HTML5 Full-Grid-SVG serialisiert Chord-Objekte als `...Appearance=ARRAY(...)` statt Akkordtext</title>
+      <description>`lib/ChordPro/Delegate/Strum.pm::grid_block_svg` now resolves `class=chords` part labels via `_chord_display_text` instead of direct scalar interpolation. This removes user-visible artifacts like `ChordPro::Chords::Appearance=ARRAY(...)` from generated `cp-grid-full-svg` payloads. Mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` now explicitly assert absence of `Appearance=ARRAY(` in decoded full-grid SVG payloads. Verification PASS: `prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=133).</description>
+      <files>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
         <file>t/html5/09_bugfixes.t</file>
         <file>t/190_html5_bugfixes.t</file>
       </files>

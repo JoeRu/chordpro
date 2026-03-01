@@ -15,6 +15,10 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 - **L-27** (2026-02-26, item-50): Split SVG fragments are separate documents, so shared CSS/font rules must be replicated per fragment.
 - **L-28** (2026-02-26, item-51): A local style block can be partial; merge shared and local styles to prevent class/font regressions.
 
+- **L-32** (2026-03-01, item-54): Parity improvements are more stable when renderer emits semantic metadata first and CSS consumes it, instead of hardcoding symbol-specific spacing rules.
+- **L-33** (2026-03-01, item-55): For strum rows, canonical semantic names (`dn`/`up`) should drive rendering decisions, not display glyphs from font-dependent chord output.
+- **L-41** (2026-03-01, item-59): When renderer paths handle mixed token payload types (strings + chord objects), all label emission points must use shared normalization helpers instead of direct string interpolation.
+
 ## Architektur
 
 - **L-4** (2026-02-11, item-19): Dedicated break elements between songs avoid leading blank pages and behave more consistently than relying on CSS break-before on the song wrapper itself.
@@ -29,6 +33,12 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 - **L-22** (2026-02-26, item-45): Row-to-row layout parity requires shared geometry; hidden placeholders preserve alignment better than dropping structural nodes.
 - **L-23** (2026-02-26, item-46): Scope two-column right-panel layout to a dedicated wrapper to avoid title/metadata interactions with grid sizing.
 
+- **L-29** (2026-03-01, item-52): Panel sizing constraints must be applied on the element that owns background/border (`.cp-chord-diagrams`), otherwise wrapper-level fit-content rules can still yield full-width visual boxes.
+- **L-30** (2026-03-01, item-52): When adding a flow-specific layout (top wrap), introducing a dedicated structural wrapper keeps right/top variants isolated and easier to reason about.
+- **L-35** (2026-03-01, item-56): For strumline `~` semantics, parser output uses split chord parts with empty segments (`<EMPTY>`), so connector/pause logic should be derived from part adjacency and empties rather than raw source text.
+- **L-39** (2026-03-01, item-58): Delegate modules shared across backends must guard backend-specific APIs (e.g., PDF XO internals) and provide deterministic fallback behavior.
+- **L-40** (2026-03-01, item-58): Module-level imports should avoid package-scope ambiguity; fully qualified utility calls improve reliability across load paths.
+
 ## Testing
 
 - **L-7** (2026-02-11, item-22): Keeping preview styles (screen mode) aligned with print defaults avoids visual surprises during development and review.
@@ -42,3 +52,10 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 - **L-19** (2026-02-25, item-42): Delegate payload normalization should enforce format contracts at backend boundaries (e.g., `<img>` with image/svg+xml requires SVG document payload, not arbitrary HTML wrapper markup).
 - **L-20** (2026-02-25, item-42): For textual SVG payloads, URL-encoded UTF-8 data URIs provide a clear, standards-friendly representation and avoid unnecessary base64 inflation.
 - **L-24** (2026-02-26, item-47): Warning-cleanup fixes should include explicit no-warning assertions to keep diagnostic signal quality stable.
+
+- **L-31** (2026-03-01, item-54): Attribute-order assumptions in regex assertions are brittle; use order-independent lookaheads for HTML attribute checks.
+- **L-34** (2026-03-01, item-55): Mirrored bugfix suites are effective guardrails for parity-sensitive HTML5 rendering changes and should be updated in lockstep.
+- **L-36** (2026-03-01, item-56): Mirrored HTML5 bugfix suites remain essential for parity-sensitive rendering changes; update both in lockstep to prevent drift.
+- **L-37** (2026-03-01, item-57): For parity-sensitive HTML5 rendering changes, assertions should validate structural SVG properties (geometry/text nodes/viewBox) rather than brittle encoded payload literals.
+- **L-38** (2026-03-01, item-57): When mirrored suites exist, update them in lockstep to avoid divergence and false negatives.
+- **L-42** (2026-03-01, item-59): Mirrored regression suites are effective to lock bugfix behavior and prevent one-sided test drift in HTML5 rendering changes.

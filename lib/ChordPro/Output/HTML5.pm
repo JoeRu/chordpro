@@ -25,6 +25,7 @@ use File::Spec;
 
 use ChordPro::Paths;
 use ChordPro::Files qw(fs_load fs_blob fs_open);
+use ChordPro::Delegate::Strum;
 use ChordPro::Output::ChordProBase;
 use ChordPro::Output::ChordDiagram::SVG;
 use ChordPro::Output::HTML5Helper::FormatGenerator;
@@ -328,6 +329,74 @@ class ChordPro::Output::HTML5
         });
     }
 
+    method _gridline_layout($tokens) {
+        $tokens //= [];
+
+        my @next_bar;
+        my $next_bar_index = -1;
+        for (my $i = $#$tokens; $i >= 0; $i--) {
+            my $class = $tokens->[$i]->{class} // '';
+            $next_bar[$i] = $next_bar_index;
+            $next_bar_index = $i if $class eq 'bar';
+        }
+
+        my @layout;
+        my $prev_bar_index = -1;
+        my $cell_index = 0;
+        my $render_index = 1;
+
+        for my $i (0 .. $#$tokens) {
+            my $token = $tokens->[$i] // {};
+            my $class = $token->{class} // '';
+
+            my %entry = (
+                token => $token,
+                index => $i,
+                class => $class,
+                prev_bar => $prev_bar_index,
+                next_bar => $next_bar[$i],
+            );
+
+            if ($class eq 'bar') {
+                $entry{is_bar} = 1;
+                $entry{cell_index} = $cell_index;
+                $entry{render_start} = $render_index;
+                $entry{render_end} = $render_index;
+                $render_index++;
+                push @layout, \%entry;
+                $prev_bar_index = $i;
+                next;
+            }
+
+            if ($class eq 'chords') {
+                my $parts = $token->{chords} // [];
+                my $columns = scalar(@$parts);
+                $columns = 1 if $columns < 1;
+                $entry{columns} = $columns;
+                $entry{cell_start} = $cell_index;
+                $entry{cell_end} = $cell_index + $columns - 1;
+                $entry{render_start} = $render_index;
+                $entry{render_end} = $render_index + $columns - 1;
+                $cell_index += $columns;
+                $render_index += $columns;
+            }
+            else {
+                $entry{columns} = 1;
+                $entry{cell_start} = $cell_index;
+                $entry{cell_end} = $cell_index;
+                $entry{render_start} = $render_index;
+                $entry{render_end} = $render_index;
+                $cell_index++;
+                $render_index++;
+            }
+
+            push @layout, \%entry;
+        }
+
+        my $render_columns = $render_index - 1;
+        return (\@layout, $cell_index, $render_columns);
+    }
+
     method render_gridline($element, $opts = undef) {
         $opts //= {};
         my $tokens = $element->{tokens} // [];
@@ -335,6 +404,19 @@ class ChordPro::Output::HTML5
         my $comment = $element->{comment};
         my $is_strumline = !!($opts->{strumline});
         my $show_bars = exists $opts->{show_bars} ? !!$opts->{show_bars} : 1;
+        my ($layout, $logical_columns, $render_columns) = $self->_gridline_layout($tokens);
+        my %bar_cell_at = map {
+            my $entry = $_;
+            $entry->{index} => $entry->{cell_index}
+        } grep {
+            $_->{is_bar}
+        } @$layout;
+        my %bar_render_at = map {
+            my $entry = $_;
+            $entry->{index} => $entry->{render_start}
+        } grep {
+            $_->{is_bar}
+        } @$layout;
 
         my $display_chord = sub {
             my ($chord) = @_;
@@ -371,15 +453,48 @@ class ChordPro::Output::HTML5
             $html .= '<span class="cp-grid-margin">' . $self->escape_text($margin_text) . '</span>';
         }
         
+        my $attrs_to_str = sub {
+            my ($attrs) = @_;
+            my @keys = sort keys %$attrs;
+            return '' unless @keys;
+            return join('', map {
+                my $value = $attrs->{$_};
+                $value = '' unless defined $value;
+                qq{ $_="} . $self->escape_text($value) . q{"};
+            } @keys);
+        };
+
+        my $bar_unicode = sub ($symbol) {
+            return chr(119043) . chr(119042) if $symbol eq '||';
+            return chr(119046) if $symbol eq '|:' || $symbol eq '{';
+            return chr(119047) if $symbol eq ':|' || $symbol eq '}';
+            return chr(119047) . chr(119046) if $symbol eq ':|:' || $symbol eq '}{';
+            return chr(119042) if $symbol eq '|.';
+            return chr(119040);
+        };
+
         # Render tokens
         my @token_html;
         my $rendered_columns = 0;
-        foreach my $token (@$tokens) {
+        foreach my $entry (@$layout) {
+            my $token = $entry->{token};
             my $class = $token->{class} // '';
             my $hide_bar = $is_strumline && !$show_bars && $class eq 'bar';
             my $text = '';
             my @classes = ('cp-grid-token');
-            my $data_attrs = '';
+            push @classes, ($entry->{is_bar} ? 'cp-grid-token-bar' : 'cp-grid-token-cell');
+
+            my %data_attrs = (
+                'data-token-index' => $entry->{index},
+            );
+            $data_attrs{'data-token-class'} = $class if $class ne '';
+
+            if ($entry->{is_bar}) {
+                $data_attrs{'data-cell-edge'} = $entry->{cell_index};
+            }
+            else {
+                $data_attrs{'data-cell-index'} = $entry->{cell_start};
+            }
             
             if ($class eq 'chord') {
                 $text = $display_chord->($token->{chord});
@@ -402,11 +517,14 @@ class ChordPro::Output::HTML5
                 if ($class && !grep { $_ eq "cp-grid-$class" } @part_classes) {
                     push @part_classes, "cp-grid-$class";
                 }
-                for my $part (@parts) {
+                for my $offset (0 .. $#parts) {
+                    my $part = $parts[$offset];
                     my $part_text = defined($part) ? $part : '';
                     my $class_attr = join(' ', @part_classes);
+                    my %part_attrs = %data_attrs;
+                    $part_attrs{'data-cell-index'} = ($entry->{cell_start} // 0) + $offset;
                     push @token_html,
-                      '<span class="' . $class_attr . '">' . $self->escape_text($part_text) . '</span>';
+                      '<span class="' . $class_attr . '"' . $attrs_to_str->(\%part_attrs) . '>' . $self->escape_text($part_text) . '</span>';
                     $rendered_columns++;
                 }
                 next;
@@ -417,6 +535,7 @@ class ChordPro::Output::HTML5
                 if ($class eq 'bar') {
                     push @classes, 'cp-grid-bar';
                     my $symbol = $token->{symbol} // '';
+                    $text = $bar_unicode->($symbol);
                     if ($symbol eq '||') {
                         push @classes, 'cp-grid-bar-double';
                     } elsif ($symbol eq '|.') {
@@ -433,17 +552,49 @@ class ChordPro::Output::HTML5
 
                     if (defined $token->{volta}) {
                         push @classes, 'cp-grid-volta';
-                        $data_attrs = qq{ data-volta="$token->{volta}"};
+                        $data_attrs{'data-volta'} = $token->{volta};
                     }
                 } elsif ($class eq 'repeat1') {
                     push @classes, 'cp-grid-repeat', 'cp-grid-repeat1';
+                    push @classes, 'cp-grid-repeat-anchor';
                 } elsif ($class eq 'repeat2') {
                     push @classes, 'cp-grid-repeat', 'cp-grid-repeat2';
+                    push @classes, 'cp-grid-repeat-anchor';
                 } elsif ($class eq 'slash') {
                     push @classes, 'cp-grid-slash';
                 } elsif ($class eq 'space') {
                     push @classes, 'cp-grid-space';
                 }
+            }
+
+            if ($class eq 'repeat1' || $class eq 'repeat2') {
+                my $anchor_start = 0;
+                if (($entry->{prev_bar} // -1) >= 0) {
+                    $anchor_start = $bar_cell_at{$entry->{prev_bar}} // 0;
+                }
+
+                my $next_edge = $logical_columns;
+                if (($entry->{next_bar} // -1) >= 0) {
+                    $next_edge = $bar_cell_at{$entry->{next_bar}} // $logical_columns;
+                }
+
+                my $anchor_end = $next_edge > $anchor_start ? $next_edge - 1 : $anchor_start;
+                $data_attrs{'data-anchor-start'} = $anchor_start;
+                $data_attrs{'data-anchor-end'} = $anchor_end;
+
+                                my $render_prev = (($entry->{prev_bar} // -1) >= 0)
+                                    ? ($bar_render_at{$entry->{prev_bar}} // 1)
+                                    : 1;
+                                my $render_next = (($entry->{next_bar} // -1) >= 0)
+                                    ? ($bar_render_at{$entry->{next_bar}} // $render_columns)
+                                    : $render_columns;
+
+                                if ($render_next > $render_prev + 1) {
+                                        my $span_start = $render_prev + 1;
+                                        my $span_end = $render_next;
+                                        $data_attrs{style} = "grid-column-start: $span_start; grid-column-end: $span_end; justify-self: center;";
+                                        push @classes, 'cp-grid-repeat-span';
+                                }
             }
 
             if ($hide_bar) {
@@ -457,7 +608,7 @@ class ChordPro::Output::HTML5
             my $class_attr = @classes ? join(' ', @classes) : '';
             my $class_str = $class_attr ? qq{ class="$class_attr"} : '';
             push @token_html,
-              '<span' . $class_str . $data_attrs . '>' . $self->escape_text($text) . '</span>';
+                            '<span' . $class_str . $attrs_to_str->(\%data_attrs) . '>' . $self->escape_text($text) . '</span>';
             $rendered_columns++;
         }
 
@@ -483,22 +634,175 @@ class ChordPro::Output::HTML5
         return $html;
     }
 
+    method render_strumline_svg($element, $opts = undef) {
+        $opts //= {};
+
+        my $tokens = $element->{tokens} // [];
+        my $margin = $element->{margin};
+        my $comment = $element->{comment};
+        my $show_bars = exists $opts->{show_bars} ? !!$opts->{show_bars} : 1;
+
+        my ($layout, undef, $render_columns) = $self->_gridline_layout($tokens);
+
+        my @cells;
+        for my $entry (@$layout) {
+            my $token = $entry->{token};
+            my $class = $token->{class} // '';
+
+            if ($entry->{is_bar}) {
+                my $symbol = $token->{symbol} // '|';
+                my $bar_kind = 'single';
+                if ($symbol eq '||') {
+                    $bar_kind = 'double';
+                } elsif ($symbol eq '|:') {
+                    $bar_kind = 'repeat-start';
+                } elsif ($symbol eq ':|') {
+                    $bar_kind = 'repeat-end';
+                } elsif ($symbol eq ':|:') {
+                    $bar_kind = 'repeat-both';
+                } elsif ($symbol eq '|.') {
+                    $bar_kind = 'end';
+                }
+
+                push @cells, {
+                    type => 'bar',
+                    column => $entry->{render_start},
+                    bar_kind => $bar_kind,
+                    bar_symbol => $symbol,
+                };
+                next;
+            }
+
+            if ($class eq 'chords') {
+                my $parts = $token->{chords} // [];
+                my $offset = 0;
+                my @part_info = map { ChordPro::Delegate::Strum::strum_symbol_info($_) } @$parts;
+
+                for my $part (@$parts) {
+                    my $info = $part_info[$offset] // {};
+                    my $prev_info = $offset > 0 ? ($part_info[$offset - 1] // {}) : {};
+
+                    my $is_pause = 0;
+                    if (($info->{raw} // '') eq '') {
+                        my $prev_raw = $offset > 0 ? ($prev_info->{raw} // '') : undef;
+                        $is_pause = (!defined($prev_raw) || $prev_raw ne '') ? 1 : 0;
+                    }
+
+                    my $connect_left = 0;
+                    if ( ($info->{direction} // '') ne '' && ($prev_info->{direction} // '') ne '' ) {
+                        $connect_left = 1;
+                    }
+
+                    push @cells, {
+                        type      => 'cell',
+                        column    => ($entry->{render_start} // 1) + $offset,
+                        direction => $info->{direction},
+                        muted     => $info->{muted},
+                        accent    => $info->{accent},
+                        arpeggio  => $info->{arpeggio},
+                        pause     => $is_pause,
+                        connect_left => $connect_left,
+                    };
+                    $offset++;
+                }
+                next;
+            }
+
+            if ($class eq 'chord') {
+                my $info = ChordPro::Delegate::Strum::strum_symbol_info($token->{chord});
+                push @cells, {
+                    type      => 'cell',
+                    column    => $entry->{render_start},
+                    direction => $info->{direction},
+                    muted     => $info->{muted},
+                    accent    => $info->{accent},
+                    arpeggio  => $info->{arpeggio},
+                };
+                next;
+            }
+
+            push @cells, {
+                type   => 'cell',
+                column => $entry->{render_start},
+            };
+        }
+
+        my $grid_columns = $opts->{grid_columns};
+        $grid_columns = $render_columns unless defined $grid_columns && $grid_columns > 0;
+        $grid_columns = 1 if !$grid_columns;
+
+        my $svg = ChordPro::Delegate::Strum::strumline_svg(
+            cells => \@cells,
+            columns => $grid_columns,
+            show_bars => $show_bars,
+        );
+        my $uri = $self->_svg_to_data_uri($svg);
+
+        my @line_classes = ('cp-gridline', 'cp-gridline-strum', 'cp-gridline-strum-svg');
+        my $html = '<div class="' . join(' ', @line_classes) . '">';
+
+        if ($margin) {
+            my $margin_text = $margin->{chord} // $margin->{text} // '';
+            if (ref($margin_text) && $margin_text->can('chord_display')) {
+                $margin_text = $margin_text->chord_display;
+            } elsif (ref($margin_text) && $margin_text->can('name')) {
+                $margin_text = $margin_text->name;
+            }
+            $html .= '<span class="cp-grid-margin">' . $self->escape_text($margin_text) . '</span>';
+        }
+
+        $html .= '<span class="cp-grid-tokens" style="--cp-grid-cols:' . $grid_columns . '">';
+        $html .= '<img class="cp-grid-strum-svg" src="' . $self->escape_text($uri) . '" alt="" />';
+        $html .= '</span>';
+
+        if ($comment) {
+            my $comment_text = $comment->{chord} // $comment->{text} // '';
+            if (ref($comment_text) && $comment_text->can('chord_display')) {
+                $comment_text = $comment_text->chord_display;
+            } elsif (ref($comment_text) && $comment_text->can('name')) {
+                $comment_text = $comment_text->name;
+            }
+            $html .= '<span class="cp-grid-comment">' . $self->escape_text($comment_text) . '</span>';
+        }
+
+        $html .= '</div>';
+        return $html;
+    }
+
+    method render_grid_block_svg($body, $grid_columns) {
+        $body //= [];
+        $grid_columns = 1 if !$grid_columns;
+
+        my @rows;
+        for my $line (@$body) {
+            my $type = $line->{type} // '';
+            next unless $type eq 'gridline' || $type eq 'strumline';
+            push @rows, {
+                type => $type,
+                tokens => $line->{tokens} // [],
+                subtype => $line->{subtype} // '',
+            };
+        }
+
+        return '' unless @rows;
+
+        my $svg = ChordPro::Delegate::Strum::grid_block_svg(
+            rows => \@rows,
+            columns => $grid_columns,
+        );
+        my $uri = $self->_svg_to_data_uri($svg);
+
+        return '<div class="cp-gridline cp-gridline-fullsvg">'
+             . '<span class="cp-grid-tokens" style="--cp-grid-cols:' . $grid_columns . '">'
+             . '<img class="cp-grid-full-svg" src="' . $self->escape_text($uri) . '" alt="" />'
+             . '</span>'
+             . '</div>';
+    }
+
     method _gridline_columns($element, $opts = undef) {
         $opts //= {};
         my $tokens = $element->{tokens} // [];
-        my $count = 0;
-        foreach my $token (@$tokens) {
-            my $class = $token->{class} // '';
-            if ($class eq 'chords') {
-                my $parts = $token->{chords} // [];
-                my $n = scalar(@$parts);
-                $n = 1 if $n < 1;
-                $count += $n;
-            }
-            else {
-                $count++;
-            }
-        }
+        my (undef, undef, $count) = $self->_gridline_layout($tokens);
         return $count;
     }
 
@@ -637,9 +941,11 @@ class ChordPro::Output::HTML5
             elsif ($type eq 'grid') {
                 my $body = $element->{body} // [];
                 my $grid_columns = 0;
+                my $has_strumline = 0;
                 foreach my $line (@$body) {
                     my $line_type = $line->{type} // '';
                     next unless $line_type eq 'gridline' || $line_type eq 'strumline';
+                    $has_strumline = 1 if $line_type eq 'strumline';
                     my $line_cols = $self->_gridline_columns($line, {
                         strumline => ($line_type eq 'strumline') ? 1 : 0,
                         show_bars => (($line->{subtype} // '') eq 'cellbars') ? 1 : 0,
@@ -661,17 +967,22 @@ class ChordPro::Output::HTML5
                     $label_attr = qq{ data-label="$escaped"};
                 }
                 $html .= qq{<div class="cp-grid"$label_attr>\n};
-                my @grid_body = map {
-                    my %copy = %$_;
-                    if (($copy{type} // '') eq 'gridline') {
-                        $copy{_html5_grid_columns} = $grid_columns;
-                    }
-                    elsif (($copy{type} // '') eq 'strumline') {
-                        $copy{_html5_grid_columns} = $grid_columns;
-                    }
-                    \%copy;
-                } @$body;
-                $html .= $self->_process_song_body(\@grid_body, $song);
+                if ($has_strumline) {
+                    $html .= $self->render_grid_block_svg($body, $grid_columns);
+                }
+                else {
+                    my @grid_body = map {
+                        my %copy = %$_;
+                        if (($copy{type} // '') eq 'gridline') {
+                            $copy{_html5_grid_columns} = $grid_columns;
+                        }
+                        elsif (($copy{type} // '') eq 'strumline') {
+                            $copy{_html5_grid_columns} = $grid_columns;
+                        }
+                        \%copy;
+                    } @$body;
+                    $html .= $self->_process_song_body(\@grid_body, $song);
+                }
                 $html .= qq{</div>\n};
             }
             elsif ($type eq 'gridline') {
@@ -681,8 +992,7 @@ class ChordPro::Output::HTML5
             }
             elsif ($type eq 'strumline') {
                 my $show_bars = (($element->{subtype} // '') eq 'cellbars') ? 1 : 0;
-                $html .= $self->render_gridline($element, {
-                    strumline => 1,
+                $html .= $self->render_strumline_svg($element, {
                     show_bars => $show_bars,
                     grid_columns => $element->{_html5_grid_columns},
                 });
@@ -811,9 +1121,23 @@ class ChordPro::Output::HTML5
             return '';
         }
 
-        my $hd = $pkg->can($handler);
+        my $effective_handler = $handler;
+        my $cfg = $self->config // {};
+        my $dcfg = eval { $cfg->{delegates}->{lc($delegate)} } // eval { $cfg->{delegates}->{$delegate} };
+        if ($dcfg) {
+            my $h5 = eval { $dcfg->{html5}->{handler} } // '';
+            my $hh = eval { $dcfg->{html}->{handler} } // '';
+            if ($h5 && $pkg->can($h5)) {
+                $effective_handler = $h5;
+            }
+            elsif ($hh && $pkg->can($hh)) {
+                $effective_handler = $hh;
+            }
+        }
+
+        my $hd = $pkg->can($effective_handler);
         unless ($hd) {
-            warn("HTML5: Missing delegate handler ${pkg}::$handler\n");
+            warn("HTML5: Missing delegate handler ${pkg}::$effective_handler\n");
             return '';
         }
 

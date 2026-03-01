@@ -6,7 +6,7 @@ use utf8;
 use ChordPro::Testing;
 use ChordPro::Songbook;
 
-plan tests => 6;
+plan tests => 8;
 
 # Prevent a dummy {body} for chord grids.
 $config->{diagrams}->{show} = 0;
@@ -529,3 +529,19 @@ $song = {
 };
 
 is_deeply( { %{ $s->{songs}->[1] } }, $song, "Song contents" );
+
+$data = <<'EOD';
+{title Grid Repeat Tokens}
+{start_of_grid}
+| % . . | %% . . |
+{end_of_grid}
+EOD
+
+eval { $s->parse_file(\$data) } or diag("$@");
+
+my $repeat_song = $s->{songs}->[2];
+my ($repeat_gridline) = grep { ($_->{type} // '') eq 'gridline' } @{ $repeat_song->{body} // [] };
+my %repeat_classes = map { ( $_->{class} // '' ) => 1 } @{ $repeat_gridline->{tokens} // [] };
+
+ok( $repeat_classes{repeat1}, "Repeat token class repeat1 parsed from %" );
+ok( $repeat_classes{repeat2}, "Repeat token class repeat2 parsed from %%" );
