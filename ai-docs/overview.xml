@@ -685,7 +685,7 @@
     </feature>
     <feature id="CF-49" completed="2026-02-26" source-item="49">
       <title>HTML5 ABC multi-image SVG payload collapses to one image and appears to ignore pagewidth</title>
-      <description>HTML5 delegate SVG rendering now detects multi-SVG payloads and emits one `<img>` per SVG block rather than collapsing to the first SVG. This restores full ABC multi-system rendering in HTML5 and removes the false impression that pagewidth is ignored due to dropped systems. Mirrored regression suites now include explicit multi-SVG payload assertions and both pass.</description>
+      <description>HTML5 delegate SVG rendering now detects multi-SVG payloads and emits one `&lt;img&gt;` per SVG block rather than collapsing to the first SVG. This restores full ABC multi-system rendering in HTML5 and removes the false impression that pagewidth is ignored due to dropped systems. Mirrored regression suites now include explicit multi-SVG payload assertions and both pass.</description>
       <files>
         <file>lib/ChordPro/Output/HTML5.pm</file>
         <file>t/html5/09_bugfixes.t</file>
@@ -694,7 +694,7 @@
     </feature>
     <feature id="CF-50" completed="2026-02-26" source-item="50">
       <title>HTML5 split ABC SVG fragments lose shared style and fallback fonts appear</title>
-      <description>HTML5 now propagates first-fragment SVG style definitions to later split fragments that lack a `<style>` block, preserving class/font rendering consistency. The existing multi-SVG rendering path from item 49 is retained; only style normalization is added before per-fragment image emission. PNG intermediary was considered but intentionally not used due to higher implementation/runtime complexity and vector fidelity loss.</description>
+      <description>HTML5 now propagates first-fragment SVG style definitions to later split fragments that lack a `&lt;style&gt;` block, preserving class/font rendering consistency. The existing multi-SVG rendering path from item 49 is retained; only style normalization is added before per-fragment image emission. PNG intermediary was considered but intentionally not used due to higher implementation/runtime complexity and vector fidelity loss.</description>
       <files>
         <file>lib/ChordPro/Output/HTML5.pm</file>
         <file>t/html5/09_bugfixes.t</file>

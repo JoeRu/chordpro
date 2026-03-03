@@ -329,8 +329,10 @@ class ChordPro::Output::HTML5
         });
     }
 
-    method _gridline_layout($tokens) {
+    method _gridline_layout($tokens, $layout_opts = undef) {
         $tokens //= [];
+        $layout_opts //= {};
+        my $is_strumline = !!($layout_opts->{is_strumline});
 
         my @next_bar;
         my $next_bar_index = -1;
@@ -369,8 +371,8 @@ class ChordPro::Output::HTML5
             }
 
             if ($class eq 'chords') {
-                my $parts = $token->{chords} // [];
-                my $columns = scalar(@$parts);
+                my $parts = ChordPro::Delegate::Strum::_normalize_grid_chord_parts($token->{chords});
+                my $columns = $is_strumline ? 1 : scalar(@$parts);
                 $columns = 1 if $columns < 1;
                 $entry{columns} = $columns;
                 $entry{cell_start} = $cell_index;
@@ -501,7 +503,7 @@ class ChordPro::Output::HTML5
                 push @classes, 'cp-grid-chord';
                 push @classes, 'cp-grid-strum' if $is_strumline;
             } elsif ($class eq 'chords') {
-                my $chords = $token->{chords} // [];
+                my $chords = ChordPro::Delegate::Strum::_normalize_grid_chord_parts($token->{chords});
                 my @parts;
                 for my $chord (@$chords) {
                     if (!defined $chord) {
@@ -674,7 +676,7 @@ class ChordPro::Output::HTML5
             }
 
             if ($class eq 'chords') {
-                my $parts = $token->{chords} // [];
+                my $parts = ChordPro::Delegate::Strum::_normalize_grid_chord_parts($token->{chords});
                 my $offset = 0;
                 my @part_info = map { ChordPro::Delegate::Strum::strum_symbol_info($_) } @$parts;
 
@@ -682,8 +684,9 @@ class ChordPro::Output::HTML5
                     my $info = $part_info[$offset] // {};
                     my $prev_info = $offset > 0 ? ($part_info[$offset - 1] // {}) : {};
 
+                    my $is_rest = $info->{rest} // 0;
                     my $is_pause = 0;
-                    if (($info->{raw} // '') eq '') {
+                    if ( !$is_rest && ($info->{raw} // '') eq '') {
                         my $prev_raw = $offset > 0 ? ($prev_info->{raw} // '') : undef;
                         $is_pause = (!defined($prev_raw) || $prev_raw ne '') ? 1 : 0;
                     }
@@ -700,6 +703,8 @@ class ChordPro::Output::HTML5
                         muted     => $info->{muted},
                         accent    => $info->{accent},
                         arpeggio  => $info->{arpeggio},
+                        staccato  => $info->{staccato},
+                        rest      => $is_rest,
                         pause     => $is_pause,
                         connect_left => $connect_left,
                     };
@@ -717,6 +722,8 @@ class ChordPro::Output::HTML5
                     muted     => $info->{muted},
                     accent    => $info->{accent},
                     arpeggio  => $info->{arpeggio},
+                    staccato  => $info->{staccato},
+                    rest      => $info->{rest} // 0,
                 };
                 next;
             }
@@ -802,7 +809,9 @@ class ChordPro::Output::HTML5
     method _gridline_columns($element, $opts = undef) {
         $opts //= {};
         my $tokens = $element->{tokens} // [];
-        my (undef, undef, $count) = $self->_gridline_layout($tokens);
+        my $layout_opts = {};
+        $layout_opts->{is_strumline} = 1 if $opts->{strumline};
+        my (undef, undef, $count) = $self->_gridline_layout($tokens, $layout_opts);
         return $count;
     }
 

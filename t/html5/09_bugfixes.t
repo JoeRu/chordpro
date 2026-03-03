@@ -17,7 +17,7 @@ use File::Temp qw(tempdir);
 use MIME::Base64 qw(encode_base64);
 use URI::Escape qw(uri_unescape);
 
-plan tests => 64;
+plan tests => 105;
 
 use_ok('ChordPro::Output::HTML5');
 
@@ -371,8 +371,8 @@ EOD
         cmp_ok(scalar(@strum_stems), '>=', 2,
             "Bug 60: Strum row emits arrow stems for paired symbols");
         my $first_pair_gap = abs(($strum_stems[1] // 0) - ($strum_stems[0] // 0));
-        cmp_ok($first_pair_gap, '<', 16,
-            "Bug 60: Connected strum pairs render with tight arrow spacing");
+        cmp_ok($first_pair_gap, '<', 12,
+            "Bug 60: Connected strum pairs render with visibly tight arrow spacing");
 }
 
 {
@@ -391,6 +391,118 @@ EOD
     my $output = $html5->generate_song($song);
     like($output, qr/cp-delegate-strum-block/, "Feature 58: Standalone strum section renders HTML block");
     like($output, qr/cp-standalone-strum-svg/, "Feature 58: Standalone strum section renders as SVG image");
+}
+
+{
+    # Bug 61 follow-up: leading ~ tokens must not create an extra geometry shift
+    my $song_data = <<'EOD';
+{title: Leading Tilde Geometry}
+{start_of_grid shape="0+2x4+4"}
+| C ~A . . | C ~A . . |
+|s dn~up dn~up ~up dn~up | dn~up dn~up ~up dn~up |
+| D . . . | % . . . |
+|s d+~u+ ~up d+~u+ ~up | d+~u+ ~up d+~u+ ~ux |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 61: Full-grid SVG captured for leading-tilde geometry check");
+
+    my $grid_svg = uri_unescape($grid_uri // '');
+    $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    my @strum_stems = ($grid_svg =~ /<line x1="([0-9.]+)" y1="(?:36\.00|52\.00)" x2="\1" y2="(?:52\.00|36\.00)" stroke="currentColor" stroke-width="1\.6"\/>/g);
+    cmp_ok(scalar(@strum_stems), '>=', 4, "Bug 61: Enough strum stems captured for drift check");
+
+    my $first_pair_gap = abs(($strum_stems[1] // 0) - ($strum_stems[0] // 0));
+    my $third_pair_gap = abs(($strum_stems[3] // 0) - ($strum_stems[2] // 0));
+    cmp_ok($third_pair_gap, '<=', $first_pair_gap + 0.01,
+        "Bug 61: Leading ~up pair is not shifted wider than baseline dn~up pair");
+
+    my ($a_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="16\.00"[^>]*>A<\/text>/);
+    ok(defined $a_x, "Bug 61: Leading ~A chord label captured on first grid row");
+    my $nearest_stem_gap = 9999;
+    for my $stem_x (@strum_stems) {
+        my $gap = abs(($a_x // 0) - ($stem_x // 0));
+        $nearest_stem_gap = $gap if $gap < $nearest_stem_gap;
+    }
+    cmp_ok($nearest_stem_gap, '<=', 0.05,
+        "Bug 61: Leading ~A aligns to a strum stem without drift");
+
+    my @last_row_down = ($grid_svg =~ /<line x1="([0-9.]+)" y1="100\.00" x2="\1" y2="116\.00" stroke="currentColor" stroke-width="1\.6"\/>/g);
+    cmp_ok(scalar(@last_row_down), '>=', 4,
+        "Bug 61: d+~u+ rows keep visible downstroke stems in the last strum row");
+
+    my ($middle_bar_x) = ($grid_svg =~ /<line x1="([0-9.]+)" y1="67\.00" x2="\1" y2="87\.00" stroke="currentColor" stroke-width="1"\/>/);
+    my ($repeat_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="80\.00"[^>]*>%<\/text>/);
+    ok(defined($middle_bar_x) && defined($repeat_x), "Bug 61: Repeat marker and middle barline captured");
+    cmp_ok(($repeat_x // 0), '>', ($middle_bar_x // 0),
+        "Bug 61: Repeat marker (%) stays in-cell to the right of the barline");
+}
+
+{
+    # Bug 61: docs-table token normalization and semantic parity
+    require ChordPro::Delegate::Strum;
+
+    my @equiv = (
+        [ 'd+', '+d' ],
+        [ 'da', 'ad' ],
+        [ 'dx+', '+dx' ],
+        [ 'us+', 'su+' ],
+    );
+
+    for my $pair (@equiv) {
+        my ($left, $right) = @$pair;
+        my $lhs = ChordPro::Delegate::Strum::strum_symbol_info({ name => $left });
+        my $rhs = ChordPro::Delegate::Strum::strum_symbol_info({ name => $right });
+        is_deeply(
+            { map { $_ => ($lhs->{$_} // 0) } qw(direction muted accent arpeggio staccato) },
+            { map { $_ => ($rhs->{$_} // 0) } qw(direction muted accent arpeggio staccato) },
+            "Bug 61: Equivalent token forms $left and $right normalize identically"
+        );
+    }
+
+    my $ds = ChordPro::Delegate::Strum::strum_symbol_info({ name => 'ds+' });
+    is($ds->{direction}, 'down', "Bug 61: ds+ maps to down direction");
+    ok($ds->{staccato}, "Bug 61: ds+ sets staccato flag");
+    ok($ds->{accent}, "Bug 61: ds+ sets accent flag");
+
+    my $us = ChordPro::Delegate::Strum::strum_symbol_info({ name => 'us' });
+    is($us->{direction}, 'up', "Bug 61: us maps to up direction");
+    ok($us->{staccato}, "Bug 61: us sets staccato flag");
+    ok(!$us->{muted}, "Bug 61: us is not treated as muted");
+
+    my $song_data = <<'EOD';
+{title: Strum Token Matrix}
+{start_of_strum}
+d+ +d da ad dx+ +dx ds us ds+ us+
+{end_of_strum}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($uri) = ($output =~ /<img(?=[^>]*class="[^"]*cp-standalone-strum-svg[^"]*")(?=[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)")[^>]*>/);
+    ok($uri, "Bug 61: Standalone strum SVG data URI captured for token matrix");
+
+    my $svg = uri_unescape($uri // '');
+    $svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    my $staccato_count = () = ($svg =~ /<circle\b[^>]*r="1\.4"/g);
+    cmp_ok($staccato_count, '>=', 4, "Bug 61: Staccato tokens emit dedicated marker circles");
+
+    my $accent_count = () = ($svg =~ /<polyline\b[^>]*stroke-width="1\.4"/g);
+    cmp_ok($accent_count, '>=', 4, "Bug 61: Accent-capable tokens emit accent markers");
+
+    my $muted_count = () = ($svg =~ /<line\b[^>]*stroke-width="1\.4"\/>/g);
+    cmp_ok($muted_count, '>=', 2, "Bug 61: Muted tokens emit muted-cross strokes");
 }
 
 {
@@ -416,6 +528,127 @@ EOD
     like($output, qr/<span(?=[^>]*data-token-class="repeat1")(?=[^>]*style="[^"]*grid-column-start:[^"]*")[^>]*>/,
          "Bug 54: Repeat1 token emits explicit grid-column span style");
     like($output, qr/data-cell-index="\d+"/, "Bug 54: Grid cell index metadata emitted for cell tokens");
+}
+
+# =========================================================================
+# Bug 63: Chord-strum vertical alignment — strumline column counting
+# =========================================================================
+
+{
+    # Bug 63: strumline sub-beat tokens (dn~up) must occupy 1 column, not 2.
+    # Each chord label's x-position must match the corresponding strum arrow.
+    my $song_data = <<'EOD';
+{title: Chord Strum Align}
+{start_of_grid}
+| C . D . |
+|s dn~up . dn~up . |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 63: Full-grid SVG captured for chord-strum alignment check");
+
+    my $grid_svg = uri_unescape($grid_uri // '');
+    $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    # Extract chord label x-positions from row 0 (y=16.00)
+    my ($c_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="16\.00"[^>]*>C<\/text>/);
+    my ($d_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="16\.00"[^>]*>D<\/text>/);
+    ok(defined $c_x, "Bug 63: Chord C label x-position captured");
+    ok(defined $d_x, "Bug 63: Chord D label x-position captured");
+
+    # Extract downstroke arrow stem x-positions from row 1 (y1=36.00, y2=52.00)
+    my @dn_arrows = ($grid_svg =~ /<line x1="([0-9.]+)" y1="36\.00" x2="\1" y2="52\.00" stroke="currentColor" stroke-width="1\.6"\/>/g);
+    cmp_ok(scalar(@dn_arrows), '==', 2,
+        "Bug 63: Exactly 2 downstroke arrows in strum row");
+
+    # Core alignment assertion: chord x matches strum arrow x
+    cmp_ok(abs(($c_x // 0) - ($dn_arrows[0] // 0)), '<', 0.5,
+        "Bug 63: Chord C vertically aligns with first downstroke arrow");
+    cmp_ok(abs(($d_x // 0) - ($dn_arrows[1] // 0)), '<', 0.5,
+        "Bug 63: Chord D vertically aligns with second downstroke arrow");
+
+    # Verify sub-beat up-arrow is within the same column (tight_pair_step)
+    my @up_arrows = ($grid_svg =~ /<line x1="([0-9.]+)" y1="52\.00" x2="\1" y2="36\.00" stroke="currentColor" stroke-width="1\.6"\/>/g);
+    cmp_ok(scalar(@up_arrows), '==', 2,
+        "Bug 63: Exactly 2 upstroke arrows in strum row");
+    my $subbeat_gap = abs(($up_arrows[0] // 0) - ($dn_arrows[0] // 0));
+    cmp_ok($subbeat_gap, '<', 12,
+        "Bug 63: Sub-beat up-arrow is within column (tight pair spacing)");
+
+    # Verify barlines align across rows
+    my @bar_row0 = ($grid_svg =~ /<line x1="([0-9.]+)" y1="3\.00" x2="\1" y2="23\.00" stroke="currentColor" stroke-width="1"\/>/g);
+    my @bar_row1 = ($grid_svg =~ /<line x1="([0-9.]+)" y1="35\.00" x2="\1" y2="55\.00" stroke="currentColor" stroke-width="1"\/>/g);
+    cmp_ok(scalar(@bar_row0), '>=', 2, "Bug 63: Chord row has barlines");
+    cmp_ok(scalar(@bar_row1), '>=', 2, "Bug 63: Strum row has barlines");
+    is($bar_row0[0], $bar_row1[0],
+        "Bug 63: Left barline aligned across chord and strum rows");
+    is($bar_row0[1], $bar_row1[1],
+        "Bug 63: Right barline aligned across chord and strum rows");
+}
+
+{
+    # Bug 63: Chord-only grid must not be affected by the strumline fix
+    my $song_data = <<'EOD';
+{title: Chord Only Grid}
+{start_of_grid}
+| C . G . | Am . F . |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    # Chord-only grids should NOT use full-grid SVG path
+    unlike($output, qr/cp-gridline-fullsvg/,
+        "Bug 63: Chord-only grid does not use full-grid SVG");
+    like($output, qr/cp-grid-token/,
+        "Bug 63: Chord-only grid uses standard token rendering");
+}
+
+# =========================================================================
+# Bug 64: Leading-tilde semantics (~F6 / ~up) in full-grid SVG
+# =========================================================================
+
+{
+    my $song_data = <<'EOD';
+{title: Leading Tilde}
+{start_of_grid}
+| ~F6 . G . |
+|s ~up . dn . |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 64: Full-grid SVG captured for leading-tilde semantics");
+
+    my $grid_svg = uri_unescape($grid_uri // '');
+    $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    my ($rest_chord_x, $f6_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="16\.00"[^>]*>[^<]+<\/text><text x="([0-9.]+)" y="16\.00"[^>]*>F6<\/text>/);
+    ok(defined $rest_chord_x && defined $f6_x, "Bug 64: Chord row rest and F6 x-positions captured");
+    cmp_ok(($f6_x // 0) - ($rest_chord_x // 0), '>', 6,
+        "Bug 64: Leading ~F6 keeps explicit rest and shifts chord within beat");
+
+    my ($rest_strum_x, $up_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="48\.00"[^>]*>[^<]+<\/text><line x1="([0-9.]+)" y1="52\.00" x2="\2" y2="36\.00"[^>]*\/>/);
+    if (!defined $up_x) {
+        ($rest_strum_x, $up_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="48\.00"[^>]*>[^<]+<\/text><text x="([0-9.]+)" y="48\.00"[^>]*>[^<]+<\/text>/);
+    }
+    ok(defined $rest_strum_x && defined $up_x, "Bug 64: Strum row rest and upstroke x-positions captured");
+    cmp_ok(($up_x // 0) - ($rest_strum_x // 0), '>', 6,
+        "Bug 64: Leading ~up keeps explicit rest and shifts upstroke within beat");
 }
 
 # =========================================================================

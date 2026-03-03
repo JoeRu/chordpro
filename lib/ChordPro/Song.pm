@@ -39,6 +39,7 @@ my $skip_context = 0;
 my $grid_arg;			# also used for grilles?
 my $grid_cells;			# also used for grilles?
 my $grid_type = 0;		# 0 = chords, 1,2 = strums
+my $grid_last_slot_count = 0;	# count validation for strum lines
 my @grille;
 
 # Transposition.
@@ -679,6 +680,20 @@ sub parse_song {
 
 			# Move to assets.
 			$self->{assets}->{$id} = $a;
+
+			# Named strum pattern storage (task 62.5).
+			if ( $in_context eq 'strum'
+			     && ($opts->{label}//"") ne "" ) {
+			    my $pat_label = $opts->{label};
+			    $self->{strum_patterns} //= {};
+			    $self->{strum_patterns}->{$pat_label} = {
+				id       => $id,
+				data     => $a->{data},
+				opts     => { %$opts },
+				time_sig => $opts->{time_sig},
+			    };
+			}
+
 			if ( $def ) {
 			    my $label = delete $a->{label};
 			    do_warn("Label \"$label\" ignored on non-displaying $in_context section\n")
@@ -1283,6 +1298,18 @@ sub decompose_grid {
     if ( $nbt > $grid_cells->[0] ) {
 	do_warn( "Too few cells for grid content" );
     }
+
+    # Count validation for strum lines (task 62.7).
+    if ( is_gridstrum($grid_type) ) {
+	if ( $grid_last_slot_count > 0 && $nbt != $grid_last_slot_count ) {
+	    do_warn( "Strum line has $nbt entries but chord line has $grid_last_slot_count slots (mismatch)" );
+	}
+    }
+    else {
+	# Remember the chord line's slot count for validation.
+	$grid_last_slot_count = $nbt if $nbt > 0;
+    }
+
     return ( tokens => \@tokens,
 	     $grid_type == 1 ? ( type => "strumline" ) : (),
 	     $grid_type == 2 ? ( type => "strumline", subtype => "cellbars" ) : (),
@@ -1318,6 +1345,7 @@ my %directives = (
 		  no_grid	     => \&dir_no_grid,
 		  pagesize	     => \&dir_papersize,
 		  pagetype	     => \&dir_papersize,
+		  strum		     => \&dir_strum,
 		  start_of_bridge    => undef,
 		  start_of_chorus    => undef,
 		  start_of_grid	     => undef,
@@ -1513,6 +1541,7 @@ sub directive {
 	if ( $in_context eq "grid"
 	     || ( $in_context eq "grille" && !exists $config->{delegates}->{$in_context} ) ) {
 	    $cctag = $in_context;
+	    $grid_last_slot_count = 0;	# reset for count validation
 	    my $kv = parse_kv( $arg, "shape" );
 	    my $shape = $kv->{shape} // "";
 	    if ( $in_context eq "grille" ) {
@@ -1571,7 +1600,16 @@ sub directive {
 	    }
 	    my $kv = parse_kv( $arg, "label" );
 	    delete $kv->{label} if ($kv->{label}//"") eq "";
-	    $self->add( type     => beo( $d, 'type' ),
+
+	    # For strum delegates: extract time-signature from label if
+	    # the label starts with a time-sig pattern (e.g., "4/4 verse").
+	    if ( $in_context eq 'strum' && exists $kv->{label}
+		 && $kv->{label} =~ /^(\d+\s*\/\s*\d+)\s+(.+)$/ ) {
+		$kv->{time_sig} //= $1;
+		$kv->{label} = $2;
+	    }
+
+	    $self->add( type     => "image",
 			subtype  => "delegate",
 			delegate_type => $d->{type},
 			delegate => $d->{module},
@@ -2288,6 +2326,33 @@ sub dir_diagrams {	# AKA grid
 sub dir_grid {
     my ( $self, $dir, $arg ) = @_;
     $self->{settings}->{diagrams} = 1;
+    return 1;
+}
+
+sub dir_strum {
+    my ( $self, $dir, $arg ) = @_;
+    my $label = $arg;
+    $label =~ s/^\s+//;
+    $label =~ s/\s+$//;
+    unless ( $label ne '' ) {
+	do_warn("{strum} requires a label argument\n");
+	return 1;
+    }
+
+    my $patterns = $self->{strum_patterns} // {};
+    unless ( exists $patterns->{$label} ) {
+	do_warn("Unknown strum pattern: \"$label\"\n");
+	return 1;
+    }
+
+    my $pat = $patterns->{$label};
+    my $id  = $pat->{id};
+
+    # Emit the same image element as the original {start_of_strum}.
+    $self->add( type => "image",
+		opts => { %{$pat->{opts} // {}} },
+		id   => $id );
+
     return 1;
 }
 

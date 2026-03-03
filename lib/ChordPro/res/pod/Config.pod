@@ -414,7 +414,11 @@
     }
     
     // Grid strum overrides.
-    gridstrum.symbols {}
+    gridstrum.symbols {
+        // Override rest glyph (default: built-in Unicode quarter rest U+1D13D).
+        // Set to empty string "" to use the built-in default.
+        rest : ""
+    }
     
     // Delegates.
     // Basically a delegate is a section `{start_of_XXX}` which content is collected and handled later by the delegate module.
