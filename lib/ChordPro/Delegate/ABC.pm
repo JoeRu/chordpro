@@ -52,7 +52,8 @@ my $backend;
 # NOTE: This is a copy from Song.pm. Redo later.
 sub beo {
     my ( $h, $k ) = @_;
-    if ( exists( $h->{$backend} )
+    if ( defined($backend)
+	 && exists( $h->{$backend} )
 	 && exists( $h->{$backend}->{$k} )
 	 && defined( $h->{$backend}->{$k} ) ) {
 	return $h->{$backend}->{$k};
@@ -66,7 +67,8 @@ sub beo {
 sub abc2svg( $song, %args ) {
 
 	my $abc2svg = info( $args{elt}->{handler} );
-    my $backend = lc $song->{generate};
+	my $cfg = $abc2svg;
+    $backend = lc( $song->{generate} // "" );
 
     if ( DEBUG() ) {
 	::dump($abc2svg);

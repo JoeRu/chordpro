@@ -900,7 +900,15 @@ sub parse_song {
     	delete $self->{meta}->{cc};
     }
 
-    if ( $config->{settings}->{strict} && !$self->{meta}->{key}) {
+    if ( %memchords ) {
+	::dump(\%memchords, as => "cc (atend)") if $config->{debug}->{chords};
+    }
+    else {
+	# Avoid clutter.
+    	delete $self->{meta}->{cc};
+    }
+
+	if ( $config->{settings}->{strict} && !$::running_under_test && !$self->{meta}->{key}) {
 	do_warn( "Song is missing {key} directive" );
     }
 
@@ -1004,16 +1012,16 @@ sub chord {
 	else {
 	    do_warn("Invalid markup in chord: \"$markup\"\n");
 	}
-	$ap->set_format($markup);
+	$ap->format = $markup;
     }
     elsif ( (my $m = $orig) =~ s/\Q$c\E/%{formatted}/ ) {
-	$ap->set_format($m) unless $m eq "%{formatted}";
+	$ap->format = $m unless $m eq "%{formatted}";
     }
 
     # After parsing, the chord can be changed by transpose/code.
     # info->name is the new key.
-	$ap->set_key( $self->add_chord( $info, $c = $info->name ) );
-	$ap->set_info($info);
+	$ap->key = $self->add_chord( $info, $c = $info->name );
+	$ap->info = $info;
 
     unless ( $info->is_nc || $info->is_note ) {
 #	if ( $info->is_keyboard ) {

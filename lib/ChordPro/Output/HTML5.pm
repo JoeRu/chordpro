@@ -25,9 +25,10 @@ use File::Spec;
 
 use ChordPro::Paths;
 use ChordPro::Files qw(fs_load fs_blob fs_open);
+use ChordPro::Assets qw(prepare_assets);
 use ChordPro::Delegate::Strum;
 use ChordPro::Output::ChordProBase;
-use ChordPro::Output::ChordDiagram::SVG;
+use ChordPro::Output::SVG::ChordDiagram;
 use ChordPro::Output::HTML5Helper::FormatGenerator;
 use ChordPro::Output::Common qw(prep_outlines fmt_subst);
 use ChordPro::Utils qw(expand_tilde is_true);
@@ -43,7 +44,7 @@ class ChordPro::Output::HTML5
 
     BUILD {
         # Initialize SVG diagram generator with HTML escape function
-        $svg_generator = ChordPro::Output::ChordDiagram::SVG->new(
+        $svg_generator = ChordPro::Output::SVG::ChordDiagram->new(
             escape_fn => sub { $self->escape_text(@_) },
             config => $self->config,
         );
@@ -829,6 +830,28 @@ class ChordPro::Output::HTML5
                 $html .= $self->_render_comment_template($element);
             }
             elsif ($type eq 'image') {
+                my $prepared_asset;
+                if ($song && $element->{id}) {
+                    my $asset = $song->{assets}->{$element->{id}};
+                    $prepared_asset = $asset if ref($asset) eq 'HASH';
+                }
+
+                if ($prepared_asset) {
+                    my $prepared_subtype = $prepared_asset->{subtype} // '';
+                    if ($prepared_subtype eq 'delegate' || $prepared_subtype eq 'svg') {
+                        my $prepared_with_element_opts = { %$prepared_asset };
+                        my $prepared_opts = $prepared_asset->{opts} // {};
+                        my $element_opts = $element->{opts} // {};
+                        $prepared_with_element_opts->{opts} = { %$prepared_opts, %$element_opts };
+
+                        my $prepared_html = $self->_render_delegate_result($prepared_with_element_opts);
+                        if ($prepared_html ne '') {
+                            $html .= $prepared_html;
+                            next;
+                        }
+                    }
+                }
+
                 my $delegate_asset;
                 if ( ($element->{subtype} // '') eq 'delegate' ) {
                     $delegate_asset = $element;
@@ -848,6 +871,13 @@ class ChordPro::Output::HTML5
                         my $asset = $song->{assets}->{$element->{id}};
                         if ($asset && $asset->{uri}) {
                             $img_element = { %$element, uri => $asset->{uri} };
+                        }
+                        elsif ($asset && ($asset->{subtype} // '') eq 'svg' && $asset->{data}) {
+                            my $svg = ref($asset->{data}) eq 'ARRAY'
+                                ? join("\n", @{ $asset->{data} })
+                                : $asset->{data};
+                            my $uri = $self->_svg_to_data_uri($svg);
+                            $img_element = { %$element, uri => $uri } if $uri;
                         }
                     }
                     # Convert file URIs to base64 data URIs for portability
@@ -2391,6 +2421,10 @@ sub generate_songbook {
         $song->{meta}->{songindex} //= [ $song_index ];
         my $song_id = "cp-song-$song_index";
         $song->{meta}->{html5_id} = [ $song_id ];
+
+        if ($song->{assets} && ref($song->{assets}) eq 'HASH') {
+            prepare_assets($song);
+        }
 
         my $before_break_html = '';
         my $song_page_break_class = $song_break_after;

@@ -25,6 +25,7 @@ lib/ChordPro/Files.pm
 lib/ChordPro/Logger.pm
 lib/ChordPro/Output/ChordPro.pm
 lib/ChordPro/Output/Common.pm
+lib/ChordPro/Output/ChordDiagram/SVG.pm
 lib/ChordPro/Output/Debug.pm
 lib/ChordPro/Output/HTML.pm
 lib/ChordPro/Output/LaTeX.pm
@@ -38,6 +39,7 @@ lib/ChordPro/Output/PDF/KeyboardDiagram.pm
 lib/ChordPro/Output/PDF/Song.pm
 lib/ChordPro/Output/PDF/StringDiagram.pm
 lib/ChordPro/Output/PDF/Writer.pm
+lib/ChordPro/Output/SVG/ChordDiagram.pm
 lib/ChordPro/Output/SVG/Images.pm
 lib/ChordPro/Output/Text.pm
 lib/ChordPro/Paths.pm
