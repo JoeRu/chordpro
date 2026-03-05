@@ -339,7 +339,153 @@ so users can control song separation in print layouts without manual CSS edits.
         </files>
       </r>
     </item>
+<item id="26" type="feature" status="PENDING" priority="MEDIUM" complexity="XL">
+      <title>Comprehensive ChordPro feature-coverage test song</title>
+      <justification><![CDATA[
+The current test corpus covers features across many focused fixtures, but there is no
+single test song that exercises all supported language directives and delegate features
+for a holistic visual completeness review. A consolidated .cho file enables quick
+inspection across backends and helps confirm that feature interactions render correctly.
+]]></justification>
+      <depends-on></depends-on>
+      <acceptance-criteria>
+        <criterion><![CDATA[A single .cho test song exists that covers all documented language directives and constructs, with explicit section labels for traceability.]]></criterion>
+        <criterion><![CDATA[All delegate features (ABC, LilyPond, SVG, Grille, Strum, TextBlock, Program) are exercised with clear, minimal examples and safe defaults.]]></criterion>
+        <criterion><![CDATA[The test song lives in testing/ with guidance for promotion to t/ after review, per AI-generated test policy.]]></criterion>
+        <criterion><![CDATA[A visual verification guide exists that lists expected backend outputs and any optional dependencies.]]></criterion>
+      </acceptance-criteria>
+      <tasks>
+        <task id="26.1"><![CDATA[Inventory language features and map them to song sections that can coexist in a single .cho file without ambiguity.]]></task>
+        <task id="26.2"><![CDATA[Define safe delegate samples, including optional dependency gating and fallback text where external binaries are unavailable.]]></task>
+        <task id="26.3"><![CDATA[Compose the consolidated test song in testing/ and ensure supporting assets (SVG, images, delegate inputs) are included.]]></task>
+        <task id="26.4"><![CDATA[Document a visual verification workflow and backend coverage expectations.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Generate HTML5, PDF, and Markdown outputs from the consolidated test song and visually inspect directive/delegate sections.</description>
+            <assertions>Each section renders and the delegate blocks appear or are skipped with a clear placeholder when dependencies are missing.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
 
+    <item id="27" type="feature" status="PENDING" priority="MEDIUM" complexity="M">
+      <title>Language feature coverage matrix for test song</title>
+      <justification><![CDATA[
+To avoid omissions, a coverage matrix is required to map every documented directive and
+construct to a specific section in the consolidated test song.
+]]></justification>
+      <depends-on>26</depends-on>
+      <parent>26</parent>
+      <tasks>
+        <task id="27.1"><![CDATA[Enumerate language directives from docs and existing tests, grouping by metadata, layout, and rendering behavior.]]></task>
+        <task id="27.2"><![CDATA[Define a section outline that includes a minimal example for each directive without conflicts.]]></task>
+        <task id="27.3"><![CDATA[Record the mapping in a checklist to be embedded or referenced by the test song.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Review the coverage matrix to confirm all documented directives are mapped to a test song section.</description>
+            <assertions>No documented language feature remains unmapped.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="28" type="feature" status="PENDING" priority="MEDIUM" complexity="M">
+      <title>Delegate feature coverage samples</title>
+      <justification><![CDATA[
+Delegate features rely on external tools or embedded engines. The consolidated test song
+needs minimal, deterministic samples for each delegate with safe behavior when optional
+dependencies are missing.
+]]></justification>
+      <depends-on>26</depends-on>
+      <parent>26</parent>
+      <tasks>
+        <task id="28.1"><![CDATA[Define minimal delegate inputs for ABC, LilyPond, SVG, Grille, Strum, TextBlock, and Program.]]></task>
+        <task id="28.2"><![CDATA[Specify how the test song should behave when optional delegate binaries are not available (skip/placeholder).]]></task>
+        <task id="28.3"><![CDATA[Confirm delegate output formats align with existing backend support and do not require extra runtime flags.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Generate output with delegates enabled and verify each delegate block renders or provides a clear fallback marker.</description>
+            <assertions>All delegate blocks are visible and traceable in output.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="29" type="feature" status="PENDING" priority="MEDIUM" complexity="M">
+      <title>Consolidated .cho test song and assets</title>
+      <justification><![CDATA[
+The core artifact is a consolidated .cho file placed in testing/ that references all
+language and delegate feature sections, along with any required asset files.
+]]></justification>
+      <depends-on>27,28</depends-on>
+      <parent>26</parent>
+      <tasks>
+        <task id="29.1"><![CDATA[Create the consolidated test song in testing/ with labeled sections per the coverage matrix.]]></task>
+        <task id="29.2"><![CDATA[Add supporting assets (SVG, images, delegate inputs) under testing/ in a structured subfolder.]]></task>
+        <task id="29.3"><![CDATA[Provide notes for promoting the test song to t/ after review, consistent with AI-generated test policy.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Load the test song through script/chordpro.pl to ensure parsing succeeds without warnings.</description>
+            <assertions>The song parses cleanly and all sections are present in output.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="30" type="feature" status="PENDING" priority="MEDIUM" complexity="S">
+      <title>Visual verification guide for completeness check</title>
+      <justification><![CDATA[
+Completeness checks require a quick, repeatable workflow. A short guide should list
+commands, expected outputs, and optional dependencies.
+]]></justification>
+      <depends-on>29</depends-on>
+      <parent>26</parent>
+      <tasks>
+        <task id="30.1"><![CDATA[Document commands for generating PDF, HTML5, and Markdown outputs from the consolidated test song.]]></task>
+        <task id="30.2"><![CDATA[List expected section headings and delegate output notes for visual inspection.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Follow the guide to generate outputs and confirm the section checklist matches actual output.</description>
+            <assertions>The guide is sufficient to complete a visual completeness pass.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
+
+    <item id="32" type="feature" status="PENDING" priority="MEDIUM" complexity="L">
+      <title>HTML5 user template starter directory with docs and AI agent guide</title>
+      <justification><![CDATA[
+End users who want to build their own HTML5 songbook need a ready-to-copy template
+directory with config, templates, and a song workspace. Providing thorough documentation
+and an AI-agent guidance file lowers the barrier to customization and enables consistent
+results when users work with automation.
+]]></justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="32.1"><![CDATA[Define a template-directory layout that includes a config file, HTML5 template tree, and a songs folder suitable for end-user customization.]]></task>
+        <task id="32.2"><![CDATA[Create documentation in .md files that explains how to use the starter directory, customize templates, and build a songbook.]]></task>
+        <task id="32.3"><![CDATA[Add a comprehensive AI-agent guidance file describing inputs, expected outputs, and safe customization workflows for templates and songs.]]></task>
+        <task id="32.4"><![CDATA[Provide a minimal example config and song list that demonstrates the workflow without relying on optional dependencies.]]></task>
+      </tasks>
+      <verification>
+        <tests>
+          <test type="manual">
+            <description>Follow the documentation to generate an HTML5 songbook using the starter directory.</description>
+            <assertions>The template directory works with the provided config and produces a valid HTML5 output.</assertions>
+          </test>
+        </tests>
+      </verification>
+    </item>
   </items>
 
   <archive>

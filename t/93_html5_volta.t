@@ -28,8 +28,8 @@ open my $out_fh, '<:utf8', $out or die "Cannot open $out: $!";
 my $content = do { local $/; <$out_fh> };
 close $out_fh;
 
-like($content, qr/cp-grid-volta/, 'Volta class applied');
-like($content, qr/data-volta="1"/, 'Volta data attribute present');
+like($content, qr/cp-grid-full-svg/, 'Volta grid rendered as SVG (universal path)');
+like($content, qr/data-volta(?:="1"|%3D%221%22)/, 'Volta data attribute present in SVG');
 like($content, qr/\.cp-grid-volta::before/, 'Volta CSS added');
 
 unlink $out;

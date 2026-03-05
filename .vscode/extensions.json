@@ -1,5 +1,6 @@
 {
     "recommendations": [
-        "sfodje.perltidy"
+        "sfodje.perltidy",
+        "nihilus118.perl-debugger"
     ]
 }

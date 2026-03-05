@@ -1006,22 +1006,7 @@ class ChordPro::Output::HTML5
                     $label_attr = qq{ data-label="$escaped"};
                 }
                 $html .= qq{<div class="cp-grid"$label_attr>\n};
-                if ($has_strumline) {
-                    $html .= $self->render_grid_block_svg($body, $grid_columns);
-                }
-                else {
-                    my @grid_body = map {
-                        my %copy = %$_;
-                        if (($copy{type} // '') eq 'gridline') {
-                            $copy{_html5_grid_columns} = $grid_columns;
-                        }
-                        elsif (($copy{type} // '') eq 'strumline') {
-                            $copy{_html5_grid_columns} = $grid_columns;
-                        }
-                        \%copy;
-                    } @$body;
-                    $html .= $self->_process_song_body(\@grid_body, $song);
-                }
+                $html .= $self->render_grid_block_svg($body, $grid_columns);
                 $html .= qq{</div>\n};
             }
             elsif ($type eq 'gridline') {
@@ -1130,17 +1115,53 @@ class ChordPro::Output::HTML5
         return @svgs unless @svgs > 1;
 
         my $shared_style;
+        my $shared_defs;
+        my $shared_defs_content = '';
         if ($svgs[0] =~ m{(<style\b[^>]*>.*?</style>)}is) {
             $shared_style = $1;
         }
-        return @svgs unless defined $shared_style && $shared_style ne '';
+        if ($svgs[0] =~ m{(<defs\b[^>]*>.*?</defs>)}is) {
+            $shared_defs = $1;
+            if ($shared_defs =~ m{<defs\b[^>]*>(.*?)</defs>}is) {
+                $shared_defs_content = $1;
+            }
+        }
+
+        return @svgs
+          unless (defined $shared_style && $shared_style ne '')
+              || (defined $shared_defs && $shared_defs ne '');
 
         for my $idx (1 .. $#svgs) {
-            if ($svgs[$idx] =~ m{<style\b}i) {
-                $svgs[$idx] =~ s{(<style\b[^>]*>)}{$1\n$shared_style\n}is;
+            if (defined $shared_style && $shared_style ne '') {
+                if ($svgs[$idx] =~ m{<style\b}i) {
+                    $svgs[$idx] =~ s{(<style\b[^>]*>)}{$1\n$shared_style\n}is;
+                }
+                else {
+                    $svgs[$idx] =~ s{</svg>}{${shared_style}</svg>}i;
+                }
             }
-            else {
-                $svgs[$idx] =~ s{</svg>}{${shared_style}</svg>}i;
+
+            if (defined $shared_defs && $shared_defs ne '') {
+                my @refs = ($svgs[$idx] =~ /\b(?:xlink:href|href)\s*=\s*["']#([^"']+)["']/g);
+                if (@refs) {
+                    my $needs_shared_defs = 0;
+                    for my $id (@refs) {
+                        next unless $shared_defs =~ /\bid="\Q$id\E"/;
+                        if ( $svgs[$idx] !~ /\bid="\Q$id\E"/ ) {
+                            $needs_shared_defs = 1;
+                            last;
+                        }
+                    }
+
+                    if ($needs_shared_defs) {
+                        if ($svgs[$idx] =~ m{<defs\b}i) {
+                            $svgs[$idx] =~ s{(<defs\b[^>]*>)}{$1\n$shared_defs_content\n}is;
+                        }
+                        else {
+                            $svgs[$idx] =~ s{</svg>}{${shared_defs}</svg>}i;
+                        }
+                    }
+                }
             }
         }
 

@@ -4,7 +4,7 @@
     <title>ChordPro</title>
     <version>6.090_040</version>
     <analyzed>2026-02-08</analyzed>
-    <updated>2026-03-01</updated>
+    <updated>2026-03-04</updated>
     <repository>https://github.com/ChordPro/chordpro</repository>
   </metadata>
 
@@ -118,6 +118,11 @@
       <risk>LOW</risk>
       <vulnerability>ABC handler alias fallback previously emitted repeated warning noise and reduced signal quality for detecting regressions.</vulnerability>
       <mitigation>Item 47 canonicalized deprecated ABC handler aliases early and hardened test invocations with explicit config isolation; concern considered mitigated.</mitigation>
+    </concern>
+    <concern>
+      <title>Pre-render asset pipeline path traversal</title>
+      <description>The HTML5 pre-render asset preparation pipeline (item 68) processes image paths for embedding. Improperly validated paths could enable path traversal or arbitrary file inclusion.</description>
+      <mitigation>Item 68 implemented image-first embedding contract with restricted fast-path limited to delegate/SVG assets; element-level opts preserved for prepared assets. Concern considered mitigated.</mitigation>
     </concern>
   </security>
 
@@ -784,6 +789,118 @@
         <file>lib/ChordPro/Delegate/Strum.pm</file>
         <file>t/html5/09_bugfixes.t</file>
         <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-53" completed="2026-03-04" source-item="53">
+      <title>HTML5 print mode emits "page 1" even without TOC</title>
+      <files>
+      </files>
+    </feature>
+    <feature id="CF-60" completed="2026-02-28" source-item="60">
+      <title>Full-Grid-SVG: Taktstriche zwischen Chord- und `|s`-Zeilen driften; `dn~up`-Paare sind optisch zu weit</title>
+      <description><![CDATA[
+`lib/ChordPro/Delegate/Strum.pm::grid_block_svg` now derives canonical bar columns once and reuses them across all rendered rows, keeping chord and `|s` barlines vertically aligned even when row-local token expansion differs.
+Connected strum symbols in `class=chords` rows (`dn~up` / `up~dn`) now use compact intra-pair x-spacing (`tight_pair_step`) instead of full-cell center spacing, producing visibly tighter pairs.
+Mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` now verify row-to-row barline anchor parity and bounded first-pair stem spacing for connected strums.
+Verification PASS: `prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=143).
+]]></description>
+      <files>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-61" completed="2026-03-01" source-item="61">
+      <title>Erstmeldung-Folge: HTML5 Strum-SVG Token-Semantik weicht von Directives-env_grid ab (inkl. `us/ds`, `dx+`, `ua+`)</title>
+      <description><![CDATA[
+`lib/ChordPro/Delegate/Strum.pm::strum_symbol_info` now performs canonical direction/modifier parsing independent of affix order and adds explicit staccato semantics (`us/ds`, including accented forms).
+Semantic marker rendering is now consistent across both full-grid SVG (`grid_block_svg`) and standalone strum SVG (`strumline_svg`) via shared decoration helper logic.
+Mirrored bugfix suites now include token-equivalence matrix assertions (`d+`/`+d`, `da`/`ad`, `dx+`/`+dx`, `us+`/`su+`) and semantic marker checks for staccato/accent/muted outputs.
+Verification PASS: `make && prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=171).
+]]></description>
+      <files>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-62" completed="2026-03-02" source-item="62">
+      <title>Refactor Strum SVG rendering and delegate logic to align with renewed Strum-requirement.md</title>
+      <files>
+      </files>
+    </feature>
+    <feature id="CF-63" completed="2026-03-02" source-item="63">
+      <title>Grid chord-strum pairs not vertically aligned — strumline column counting treats sub-beats as separate columns</title>
+      <description>Fix was narrowly scoped to four lambdas/methods adding row-type awareness. The tight_pair_step mechanism already handled sub-beat arrow placement within a column — the only issue was that $column accounting treated each sub-beat as a separate column, pushing subsequent tokens rightward and inflating grid width. After the fix, chord label x-positions match strum arrow x-positions exactly (within 0.5px). SVG width decreased to match gridline column count.</description>
+      <files>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-64" completed="2026-03-02" source-item="64">
+      <title>Leading tilde rest semantics not rendered for chord/strum pairs (`~F6`, `~up`) and symbol output diverges from Strum requirement</title>
+      <description>Leading-tilde semantics are now preserved during rendering without reintroducing geometry drift: `~F6` and `~up` emit explicit leading-rest + shifted symbol/chord behavior within the same beat. The fix keeps row-type-aware column counting from item 63 intact and applies a hybrid symbol strategy in SVG primitives (text glyph mode when configured, shape fallback for complex/modifier cases).</description>
+      <files>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+        <file>lib/ChordPro/Delegate/Strum/SVGPrimitives.pm</file>
+        <file>t/html5/09_bugfixes.t</file>
+        <file>t/190_html5_bugfixes.t</file>
+      </files>
+    </feature>
+    <feature id="CF-65" completed="2026-03-02" source-item="65">
+      <title>Split oversized Strum delegate module into focused internal files</title>
+      <description>`lib/ChordPro/Delegate/Strum.pm` was converted to a facade while preserving public function signatures. Internal responsibilities were extracted into focused modules (`Tokens.pm`, `SVGPrimitives.pm`, `StrumlineRenderer.pm`, `GridRenderer.pm`) with behavior parity validated by focused suites and full `make test`.</description>
+      <files>
+        <file>lib/ChordPro/Delegate/Strum.pm</file>
+        <file>lib/ChordPro/Delegate/Strum/Tokens.pm</file>
+        <file>lib/ChordPro/Delegate/Strum/SVGPrimitives.pm</file>
+        <file>lib/ChordPro/Delegate/Strum/StrumlineRenderer.pm</file>
+        <file>lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+      </files>
+    </feature>
+    <feature id="CF-66" completed="2026-03-03" source-item="66">
+      <title>Refactor Object::Pad mutator usage and remove non-essential setter indirection outside HTML5 scope</title>
+      <description>Removed redundant explicit setter methods from `ChordPro::Chords::Appearance` and reverted `Song.pm` usage to native Object::Pad mutator assignments (`$ap-&gt;format = ...`, `$ap-&gt;key = ...`, `$ap-&gt;info = ...`). Follow-up fixes restored compatibility by replacing accidental call-form writes (`$ap-&gt;format(...)`) with mutator assignment syntax and by suppressing strict missing-key warning under test harness (`$::running_under_test`) to match existing test expectations. User-reported VS Code debug-mode error (`Can't modify non-lvalue subroutine call of &amp;amp;DB::sub` at Song.pm lines around chord assignment) maps to this same root cause and is considered covered by item 66 as long as mutator assignment form is retained. User confirmation indicates the remaining trigger depends on a specific extension/debug environment; therefore this tracker remains closed with no further product code action planned. Focused verification PASS: `t/73_md.t`, `t/75_html5.t`, `t/76_html5paged.t`, `t/122_memorize.t`.</description>
+      <files>
+        <file>lib/ChordPro/Chords/Appearance.pm</file>
+        <file>lib/ChordPro/Song.pm</file>
+        <file>ai-docs/objectpad-mutator-debugger-note.md</file>
+      </files>
+    </feature>
+    <feature id="CF-67" completed="2026-03-03" source-item="67">
+      <title>Refactor SVG chord-diagram module path to Output::SVG namespace and align built-in SVG assets structure</title>
+      <description>Moved the implementation to `lib/ChordPro/Output/SVG/ChordDiagram.pm`, updated HTML5 backend usage to `ChordPro::Output::SVG::ChordDiagram`, and added a compatibility shim at `lib/ChordPro/Output/ChordDiagram/SVG.pm` to keep legacy namespace resolution stable. `MANIFEST` was updated for both the new module path and shim file.</description>
+      <files>
+        <file>lib/ChordPro/Output/SVG/ChordDiagram.pm</file>
+        <file>lib/ChordPro/Output/ChordDiagram/SVG.pm</file>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>MANIFEST</file>
+      </files>
+    </feature>
+    <feature id="CF-68" completed="2026-03-03" source-item="68">
+      <title>HTML5 pre-render asset preparation pipeline with image-first embedding contract</title>
+      <description>Integrated `prepare_assets($song)` at HTML5 songbook generation start so assets are normalized before body rendering. `_process_song_body` now prefers prepared asset payloads via a unified image-rendering path and handles prepared SVG payload data (`subtype=svg` + `data`) by converting to data URI for `&amp;lt;img&amp;gt;` embedding. Follow-up fixes merged element-level image opts (scale/align/width) into prepared delegate rendering and restricted the prepared fast-path to delegate/SVG assets so standard image directives still use template-based container rendering. Focused verification PASS: `t/190_html5_bug7_image_scale_pagewidth.t`, `t/191_html5_image_scale.t`, `t/85_html5_image_align.t`.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML5.pm</file>
+        <file>lib/ChordPro/Delegate/ABC.pm</file>
+      </files>
+    </feature>
+    <feature id="CF-69" completed="2026-03-03" source-item="69">
+      <title>HTML backend compile-time failure from restricted-hash access to `default` key</title>
+      <description>Fixed restricted-hash access in `lib/ChordPro/Output/HTML.pm` by reading style config via safe access and cloning into a plain hash before applying defaults. Also removed legacy `display` alias emission and deduplicated stylesheet links that matched default to preserve expected HTML output structure.</description>
+      <files>
+        <file>lib/ChordPro/Output/HTML.pm</file>
+      </files>
+    </feature>
+    <feature id="CF-70" completed="2026-03-03" source-item="70">
+      <title>ABC delegate warns about uninitialized `$backend` in backend-specific option lookup</title>
+      <description>Fixed backend lookup in `lib/ChordPro/Delegate/ABC.pm` by assigning the module-level `$backend` in `abc2svg()` (`$backend = lc($song-&amp;gt;{generate}//"")`) instead of shadowing it with a local lexical variable. Hardened `beo()` to require `defined($backend)` before backend-specific `exists` checks, removing the reported warning path. Verification PASS: `make`, `prove -bv t/83_html5_delegate.t` (Files=1, Tests=5, PASS), and manual repro command no longer emits `Use of uninitialized value $backend in exists`.</description>
+      <files>
+        <file>lib/ChordPro/Delegate/ABC.pm</file>
       </files>
     </feature>
   </completed-features>

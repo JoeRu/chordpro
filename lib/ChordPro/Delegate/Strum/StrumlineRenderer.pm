@@ -113,6 +113,7 @@ sub strumline_svg( %args ) {
 
 	$columns = 1 if $columns < 1;
 	my $width = $columns * $cell_width;
+	my $font_stack = ChordPro::Delegate::Strum::SVGPrimitives::svg_font_stack();
 
 	my @parts;
 
@@ -152,11 +153,6 @@ sub strumline_svg( %args ) {
 			$x = $last_arrow_x + ($cell_width * $tight_pair_step);
 		}
 
-		if ( $cell->{connect_left} && defined $last_arrow_x ) {
-			push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_connector_svg(
-				from_x => $last_arrow_x, to_x => $x);
-		}
-
 		push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_arrow_svg(
 			x => $x, base_y => 0, direction => $direction,
 			stroke_width => $stroke,
@@ -171,8 +167,8 @@ sub strumline_svg( %args ) {
 		$last_arrow_x = $x;
 	}
 
-	return sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f %d" width="%.2f" height="%d" aria-hidden="true">%s</svg>',
-		$width, $height, $width, $height, join('', @parts));
+	return sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f %d" width="%.2f" height="%d" aria-hidden="true" style="font-family:%s">%s</svg>',
+		$width, $height, $width, $height, ChordPro::Delegate::Strum::Tokens::esc($font_stack), join('', @parts));
 }
 
 1;

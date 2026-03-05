@@ -18,6 +18,8 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 - **L-32** (2026-03-01, item-54): Parity improvements are more stable when renderer emits semantic metadata first and CSS consumes it, instead of hardcoding symbol-specific spacing rules.
 - **L-33** (2026-03-01, item-55): For strum rows, canonical semantic names (`dn`/`up`) should drive rendering decisions, not display glyphs from font-dependent chord output.
 - **L-41** (2026-03-01, item-59): When renderer paths handle mixed token payload types (strings + chord objects), all label emission points must use shared normalization helpers instead of direct string interpolation.
+- **L-51** (2026-03-04, item-69): Legacy backends should normalize restricted-hash data into plain hashes before applying defaults.
+- **L-52** (2026-03-04, item-70): Delegate helpers relying on module-scoped state should avoid local variable shadowing and guard backend-key access defensively.
 
 ## Architektur
 
@@ -38,6 +40,13 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 - **L-35** (2026-03-01, item-56): For strumline `~` semantics, parser output uses split chord parts with empty segments (`<EMPTY>`), so connector/pause logic should be derived from part adjacency and empties rather than raw source text.
 - **L-39** (2026-03-01, item-58): Delegate modules shared across backends must guard backend-specific APIs (e.g., PDF XO internals) and provide deterministic fallback behavior.
 - **L-40** (2026-03-01, item-58): Module-level imports should avoid package-scope ambiguity; fully qualified utility calls improve reliability across load paths.
+- **L-43** (2026-03-04, item-60): Barline geometry from shared row-independent model; compact connected-pair styling asserted via arrow-stem geometry.
+- **L-44** (2026-03-04, item-61): Normalize token semantics before rendering; shared decoration helpers reduce drift.
+- **L-45** (2026-03-04, item-63): Row-type-aware column counting is the correct abstraction: strumline = beats (1 column), gridline = individual chords (N columns).
+- **L-46** (2026-03-04, item-64): Semantic preservation and geometry normalization must remain separate concerns. Renderer-level handling safer than globally deleting in shared normalization.
+- **L-47** (2026-03-04, item-65): Facade + internal module split reduces change risk while keeping external call-sites stable.
+- **L-49** (2026-03-04, item-67): Namespace/path refactors safest with compatibility shim retained during migration.
+- **L-50** (2026-03-04, item-68): Centralizing asset preparation simplifies downstream element handling.
 
 ## Testing
 
@@ -59,3 +68,9 @@ Format: **L-N** (YYYY-MM-DD, item-ID): Lesson text.
 - **L-37** (2026-03-01, item-57): For parity-sensitive HTML5 rendering changes, assertions should validate structural SVG properties (geometry/text nodes/viewBox) rather than brittle encoded payload literals.
 - **L-38** (2026-03-01, item-57): When mirrored suites exist, update them in lockstep to avoid divergence and false negatives.
 - **L-42** (2026-03-01, item-59): Mirrored regression suites are effective to lock bugfix behavior and prevent one-sided test drift in HTML5 rendering changes.
+
+## Security
+
+## Process
+
+- **L-48** (2026-03-04, item-66): Debugger-specific friction handled with local debugging practices, not by expanding public setter APIs.

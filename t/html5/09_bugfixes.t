@@ -17,7 +17,7 @@ use File::Temp qw(tempdir);
 use MIME::Base64 qw(encode_base64);
 use URI::Escape qw(uri_unescape);
 
-plan tests => 105;
+plan tests => 109;
 
 use_ok('ChordPro::Output::HTML5');
 
@@ -296,6 +296,27 @@ diag("--- Bug 4: Delegate element handling ---");
 }
 
 {
+    # Regression: split fragment with shared defs keeps referenced ids in later SVG payloads
+    my $defs_split = '<div><svg xmlns="http://www.w3.org/2000/svg"><defs><g id="stdef"><path class="slW" d="M0 0h10"/></g></defs><use href="#stdef"/></svg><svg xmlns="http://www.w3.org/2000/svg"><use href="#stdef"/></svg></div>';
+
+    my $result = $html5->_render_delegate_result({
+        type    => 'image',
+        subtype => 'svg',
+        data    => $defs_split,
+    });
+
+    my @uris = ($result =~ /src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/g);
+    is(scalar(@uris), 2, "Bug 72: Split defs payload renders two SVG image URIs");
+
+    my $second_svg = uri_unescape($uris[1] // '');
+    $second_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+    like($second_svg, qr/<defs\b[^>]*>.*id="stdef"/s,
+         "Bug 72: Referenced shared defs id is present in later split SVG");
+    like($second_svg, qr/<use\b[^>]*(?:href|xlink:href)="#stdef"/,
+         "Bug 72: Later split SVG keeps staff definition references");
+}
+
+{
     # Regression: chord diagrams should be emitted as <img> data URIs, not inline <svg>
     my $song_data = <<'EOD';
 {title: Diagram Encapsulation}
@@ -341,11 +362,13 @@ EOD
     my $grid_svg = uri_unescape($grid_uri // '');
         $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
 
-        my $arrow_count = () = ($grid_svg =~ /<polygon\b[^>]*fill="currentColor"/g);
-        cmp_ok($arrow_count, '>=', 6,
-            "Bug 56/57: Full-grid SVG includes multiple strum arrow heads");
-        like($grid_svg, qr/<line\b[^>]*y1="3\.00"[^>]*stroke-width="1"/,
-         "Bug 56/57: Full-grid SVG includes barline strokes");
+        my $arrow_text_count = () = ($grid_svg =~ /<text\b[^>]*font-size="14"[^>]*>[^<]+<\/text>/g);
+        cmp_ok($arrow_text_count, '>=', 6,
+            "Bug 56/57: Full-grid SVG includes multiple strum arrow glyph text nodes");
+        like($grid_svg, qr/<use\b[^>]*href="#bar-[^"]*"[^>]*y="3\.00"[^>]*height="[0-9.]+"/,
+         "Bug 56/57: Full-grid SVG includes barline bars (icon-based)");
+        like($grid_svg, qr/<svg\b[^>]*style="[^"]*font-family:[^"]*Noto Music/,
+            "Bug 71: Full-grid SVG root declares Unicode-capable font stack");
 
         like($grid_svg, qr/text-anchor="middle"[^>]*font-size="6"/,
             "Bug 56/57: Full-grid SVG contains bar marker text nodes");
@@ -358,21 +381,23 @@ EOD
         unlike($grid_svg, qr/Appearance=ARRAY\(/,
             "Bug 59: Full-grid SVG does not leak Perl object stringification labels");
 
-        my @bars_row1 = ($grid_svg =~ /<line x1="([0-9.]+)" y1="3\.00" x2="\1" y2="23\.00" stroke="currentColor" stroke-width="1"\/>/g);
-        my @bars_row2 = ($grid_svg =~ /<line x1="([0-9.]+)" y1="35\.00" x2="\1" y2="55\.00" stroke="currentColor" stroke-width="1"\/>/g);
-        cmp_ok(scalar(@bars_row1), '>=', 2,
-            "Bug 60: Full-grid SVG top row includes barline anchors");
-        cmp_ok(scalar(@bars_row2), '>=', 2,
-            "Bug 60: Full-grid SVG strum row includes barline anchors");
-        is($bars_row1[0], $bars_row2[0],
-            "Bug 60: First barline anchor is aligned across chord and strum rows");
+        my @bars_paired = ($grid_svg =~ /<use\b[^>]*href="#bar-[^"]*"[^>]*y="3\.00"[^>]*height="52\.00"[^>]*\/>/g);
+        my @bars_row2_split = ($grid_svg =~ /<use\b[^>]*href="#bar-[^"]*"[^>]*y="35\.00"[^>]*\/>/g);
+        cmp_ok(scalar(@bars_paired), '>=', 2,
+            "Bug 74: Full-grid SVG emits continuous paired-row barlines");
+        is(scalar(@bars_row2_split), 0,
+            "Bug 74: Full-grid SVG avoids split second-row-only barline segments");
+        unlike($grid_svg, qr/stroke-width="1\.1"[^>]*stroke-linecap="round"/,
+            "Bug 73: Full-grid SVG no longer emits connector line primitives");
+        unlike($grid_svg, qr/<(?:line|polygon|polyline|circle)\b/,
+            "Bug 76: Full-grid Strum symbol/decorator output avoids non-text SVG primitives");
 
-        my @strum_stems = ($grid_svg =~ /<line x1="([0-9.]+)" y1="(?:36\.00|52\.00)" x2="\1" y2="(?:52\.00|36\.00)" stroke="currentColor" stroke-width="1\.6"\/>/g);
-        cmp_ok(scalar(@strum_stems), '>=', 2,
-            "Bug 60: Strum row emits arrow stems for paired symbols");
-        my $first_pair_gap = abs(($strum_stems[1] // 0) - ($strum_stems[0] // 0));
+        my @strum_arrow_x = ($grid_svg =~ /<text x="([0-9.]+)" y="[0-9.]+" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g);
+        cmp_ok(scalar(@strum_arrow_x), '>=', 2,
+            "Bug 60: Strum row emits arrow glyph text for paired symbols");
+        my $first_pair_gap = abs(($strum_arrow_x[1] // 0) - ($strum_arrow_x[0] // 0));
         cmp_ok($first_pair_gap, '<', 12,
-            "Bug 60: Connected strum pairs render with visibly tight arrow spacing");
+            "Bug 60: Connected strum pairs keep visibly tight arrow spacing");
 }
 
 {
@@ -391,6 +416,15 @@ EOD
     my $output = $html5->generate_song($song);
     like($output, qr/cp-delegate-strum-block/, "Feature 58: Standalone strum section renders HTML block");
     like($output, qr/cp-standalone-strum-svg/, "Feature 58: Standalone strum section renders as SVG image");
+
+    my ($uri) = ($output =~ /<img(?=[^>]*class="[^"]*cp-standalone-strum-svg[^"]*")(?=[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)")[^>]*>/);
+    ok($uri, "Bug 73: Standalone strum SVG data URI captured");
+    my $svg = uri_unescape($uri // '');
+    $svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+    unlike($svg, qr/stroke-width="1\.1"[^>]*stroke-linecap="round"/,
+        "Bug 73: Standalone strum SVG no longer emits connector line primitives");
+    unlike($svg, qr/<(?:line|polygon|polyline|circle)\b/,
+        "Bug 76: Standalone Strum SVG primitives are text-only");
 }
 
 {
@@ -416,32 +450,32 @@ EOD
     my $grid_svg = uri_unescape($grid_uri // '');
     $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
 
-    my @strum_stems = ($grid_svg =~ /<line x1="([0-9.]+)" y1="(?:36\.00|52\.00)" x2="\1" y2="(?:52\.00|36\.00)" stroke="currentColor" stroke-width="1\.6"\/>/g);
-    cmp_ok(scalar(@strum_stems), '>=', 4, "Bug 61: Enough strum stems captured for drift check");
+    my @strum_arrows = ($grid_svg =~ /<text x="([0-9.]+)" y="[0-9.]+" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g);
+    cmp_ok(scalar(@strum_arrows), '>=', 4, "Bug 61: Enough strum arrow glyphs captured for drift check");
 
-    my $first_pair_gap = abs(($strum_stems[1] // 0) - ($strum_stems[0] // 0));
-    my $third_pair_gap = abs(($strum_stems[3] // 0) - ($strum_stems[2] // 0));
+    my $first_pair_gap = abs(($strum_arrows[1] // 0) - ($strum_arrows[0] // 0));
+    my $third_pair_gap = abs(($strum_arrows[3] // 0) - ($strum_arrows[2] // 0));
     cmp_ok($third_pair_gap, '<=', $first_pair_gap + 0.01,
         "Bug 61: Leading ~up pair is not shifted wider than baseline dn~up pair");
 
     my ($a_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="16\.00"[^>]*>A<\/text>/);
     ok(defined $a_x, "Bug 61: Leading ~A chord label captured on first grid row");
-    my $nearest_stem_gap = 9999;
-    for my $stem_x (@strum_stems) {
-        my $gap = abs(($a_x // 0) - ($stem_x // 0));
-        $nearest_stem_gap = $gap if $gap < $nearest_stem_gap;
+    my $nearest_arrow_gap = 9999;
+    for my $arrow_x (@strum_arrows) {
+        my $gap = abs(($a_x // 0) - ($arrow_x // 0));
+        $nearest_arrow_gap = $gap if $gap < $nearest_arrow_gap;
     }
-    cmp_ok($nearest_stem_gap, '<=', 0.05,
-        "Bug 61: Leading ~A aligns to a strum stem without drift");
+    cmp_ok($nearest_arrow_gap, '<=', 0.05,
+        "Bug 61: Leading ~A aligns to a strum arrow without drift");
 
-    my @last_row_down = ($grid_svg =~ /<line x1="([0-9.]+)" y1="100\.00" x2="\1" y2="116\.00" stroke="currentColor" stroke-width="1\.6"\/>/g);
-    cmp_ok(scalar(@last_row_down), '>=', 4,
-        "Bug 61: d+~u+ rows keep visible downstroke stems in the last strum row");
+    my @last_row_arrows = ($grid_svg =~ /<text x="([0-9.]+)" y="1(?:0[0-9]|1[0-9])\.00" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g);
+    cmp_ok(scalar(@last_row_arrows), '>=', 4,
+        "Bug 61: d+~u+ rows keep visible arrow glyphs in the last strum row");
 
-    my ($middle_bar_x) = ($grid_svg =~ /<line x1="([0-9.]+)" y1="67\.00" x2="\1" y2="87\.00" stroke="currentColor" stroke-width="1"\/>/);
+    my ($middle_bar_x) = ($grid_svg =~ /<use\b[^>]*href="#bar-single"[^>]*x="([0-9.]+)"[^>]*y="67\.00"[^>]*\/>/);
     my ($repeat_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="80\.00"[^>]*>%<\/text>/);
     ok(defined($middle_bar_x) && defined($repeat_x), "Bug 61: Repeat marker and middle barline captured");
-    cmp_ok(($repeat_x // 0), '>', ($middle_bar_x // 0),
+    cmp_ok(($repeat_x // 0), '>', (($middle_bar_x // 0) + 0.5),
         "Bug 61: Repeat marker (%) stays in-cell to the right of the barline");
 }
 
@@ -495,14 +529,14 @@ EOD
     my $svg = uri_unescape($uri // '');
     $svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
 
-    my $staccato_count = () = ($svg =~ /<circle\b[^>]*r="1\.4"/g);
-    cmp_ok($staccato_count, '>=', 4, "Bug 61: Staccato tokens emit dedicated marker circles");
+    my $staccato_count = () = ($svg =~ /<text\b[^>]*y="8\.00"[^>]*font-size="8"[^>]*>/g);
+    cmp_ok($staccato_count, '>=', 4, "Bug 61: Staccato tokens emit dedicated text markers");
 
-    my $accent_count = () = ($svg =~ /<polyline\b[^>]*stroke-width="1\.4"/g);
-    cmp_ok($accent_count, '>=', 4, "Bug 61: Accent-capable tokens emit accent markers");
+    my $accent_count = () = ($svg =~ /<text\b[^>]*y="12\.00"[^>]*font-size="9"[^>]*>/g);
+    cmp_ok($accent_count, '>=', 4, "Bug 61: Accent-capable tokens emit accent text markers");
 
-    my $muted_count = () = ($svg =~ /<line\b[^>]*stroke-width="1\.4"\/>/g);
-    cmp_ok($muted_count, '>=', 2, "Bug 61: Muted tokens emit muted-cross strokes");
+    my $muted_count = () = ($svg =~ /<text\b[^>]*y="21\.00"[^>]*font-size="9"[^>]*>/g);
+    cmp_ok($muted_count, '>=', 2, "Bug 61: Muted tokens emit muted-cross text markers");
 }
 
 {
@@ -521,13 +555,15 @@ EOD
 
     my $output = $html5->generate_song($song);
 
-    like($output, qr/cp-grid-token-bar/, "Bug 54: Bar tokens emit explicit bar-role class");
-    like($output, qr/cp-grid-repeat-anchor/, "Bug 54: Repeat tokens emit anchor class");
-    like($output, qr/<span(?=[^>]*data-token-class="repeat1")(?=[^>]*data-anchor-start="\d+")(?=[^>]*data-anchor-end="\d+")[^>]*>/,
-         "Bug 54: Repeat1 token includes anchor start/end metadata");
-    like($output, qr/<span(?=[^>]*data-token-class="repeat1")(?=[^>]*style="[^"]*grid-column-start:[^"]*")[^>]*>/,
-         "Bug 54: Repeat1 token emits explicit grid-column span style");
-    like($output, qr/data-cell-index="\d+"/, "Bug 54: Grid cell index metadata emitted for cell tokens");
+    # Bug 54 grids now always render as SVG (no more tokenized HTML path)
+    like($output, qr/cp-grid-full-svg/, "Bug 54: Chord-only grid renders as SVG (fullsvg path)");
+    my ($b54_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($b54_uri, "Bug 54: SVG data URI present for chord-only grid");
+    my $b54_svg = uri_unescape($b54_uri // '');
+    $b54_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+    like($b54_svg, qr/font-size="12"[^>]*>C<\/text>/, "Bug 54: Chord C label present in SVG");
+    like($b54_svg, qr/<use\b[^>]*href="#bar-repeat-start"/, "Bug 54: Repeat-start bar icon emitted in SVG");
+    like($b54_svg, qr/<use\b[^>]*href="#bar-repeat-end"/, "Bug 54: Repeat-end bar icon emitted in SVG");
 }
 
 # =========================================================================
@@ -562,34 +598,25 @@ EOD
     ok(defined $c_x, "Bug 63: Chord C label x-position captured");
     ok(defined $d_x, "Bug 63: Chord D label x-position captured");
 
-    # Extract downstroke arrow stem x-positions from row 1 (y1=36.00, y2=52.00)
-    my @dn_arrows = ($grid_svg =~ /<line x1="([0-9.]+)" y1="36\.00" x2="\1" y2="52\.00" stroke="currentColor" stroke-width="1\.6"\/>/g);
-    cmp_ok(scalar(@dn_arrows), '==', 2,
-        "Bug 63: Exactly 2 downstroke arrows in strum row");
+    # Extract strum arrow x-positions from row 1 text-glyph symbols.
+    my @strum_arrows = ($grid_svg =~ /<text x="([0-9.]+)" y="[0-9.]+" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g);
+    cmp_ok(scalar(@strum_arrows), '>=', 4,
+        "Bug 63: Strum row emits glyph arrows for paired symbols");
 
     # Core alignment assertion: chord x matches strum arrow x
-    cmp_ok(abs(($c_x // 0) - ($dn_arrows[0] // 0)), '<', 0.5,
+    cmp_ok(abs(($c_x // 0) - ($strum_arrows[0] // 0)), '<', 0.5,
         "Bug 63: Chord C vertically aligns with first downstroke arrow");
-    cmp_ok(abs(($d_x // 0) - ($dn_arrows[1] // 0)), '<', 0.5,
+    cmp_ok(abs(($d_x // 0) - ($strum_arrows[2] // 0)), '<', 0.5,
         "Bug 63: Chord D vertically aligns with second downstroke arrow");
 
-    # Verify sub-beat up-arrow is within the same column (tight_pair_step)
-    my @up_arrows = ($grid_svg =~ /<line x1="([0-9.]+)" y1="52\.00" x2="\1" y2="36\.00" stroke="currentColor" stroke-width="1\.6"\/>/g);
-    cmp_ok(scalar(@up_arrows), '==', 2,
-        "Bug 63: Exactly 2 upstroke arrows in strum row");
-    my $subbeat_gap = abs(($up_arrows[0] // 0) - ($dn_arrows[0] // 0));
+    # Verify sub-beat paired arrow is within the same column (tight_pair_step)
+    my $subbeat_gap = abs(($strum_arrows[1] // 0) - ($strum_arrows[0] // 0));
     cmp_ok($subbeat_gap, '<', 12,
         "Bug 63: Sub-beat up-arrow is within column (tight pair spacing)");
 
     # Verify barlines align across rows
-    my @bar_row0 = ($grid_svg =~ /<line x1="([0-9.]+)" y1="3\.00" x2="\1" y2="23\.00" stroke="currentColor" stroke-width="1"\/>/g);
-    my @bar_row1 = ($grid_svg =~ /<line x1="([0-9.]+)" y1="35\.00" x2="\1" y2="55\.00" stroke="currentColor" stroke-width="1"\/>/g);
-    cmp_ok(scalar(@bar_row0), '>=', 2, "Bug 63: Chord row has barlines");
-    cmp_ok(scalar(@bar_row1), '>=', 2, "Bug 63: Strum row has barlines");
-    is($bar_row0[0], $bar_row1[0],
-        "Bug 63: Left barline aligned across chord and strum rows");
-    is($bar_row0[1], $bar_row1[1],
-        "Bug 63: Right barline aligned across chord and strum rows");
+    my @bar_paired = ($grid_svg =~ /<use\b[^>]*href="#bar-[^"]*"[^>]*y="3\.00"[^>]*height="52\.00"[^>]*\/>/g);
+    cmp_ok(scalar(@bar_paired), '>=', 2, "Bug 74/63: Paired rows use continuous aligned barlines");
 }
 
 {
@@ -606,11 +633,11 @@ EOD
     my $song = $s->{songs}[0];
     my $output = $html5->generate_song($song);
 
-    # Chord-only grids should NOT use full-grid SVG path
-    unlike($output, qr/cp-gridline-fullsvg/,
-        "Bug 63: Chord-only grid does not use full-grid SVG");
-    like($output, qr/cp-grid-token/,
-        "Bug 63: Chord-only grid uses standard token rendering");
+    # All grids now use the SVG path (plan: single canonical SVG renderer)
+    like($output, qr/cp-gridline-fullsvg/,
+        "Bug 63: Chord-only grid uses SVG rendering (universal SVG path)");
+    like($output, qr/cp-grid-full-svg/,
+        "Bug 63: Chord-only grid emits full-grid SVG img tag");
 }
 
 # =========================================================================
