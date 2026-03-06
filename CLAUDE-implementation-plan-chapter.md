@@ -27,6 +27,23 @@ A separate `overview.xml` captures the project's architectural baseline – stru
 
 **Also read:** `CLAUDE-roles-chapter.md` for role definitions, capability tables, and the end-to-end workflow swimlane.
 
+### Script-First Backend (`plan_manager.py`)
+
+Use `ai-docs/plan_manager.py` as the default write backend for lifecycle mutations.
+
+```bash
+# Baseline integrity check
+python3 ai-docs/plan_manager.py --json validate
+
+# Use fixture copies for safe rehearsal
+python3 ai-docs/plan_manager.py --json \
+  --plan ai-docs/testing/xml-fixtures/overview-features-bugs.sample.xml \
+  --archive ai-docs/testing/xml-fixtures/overview-features-bugs-archive.sample.xml \
+  --overview ai-docs/testing/xml-fixtures/overview.sample.xml \
+  --lessons ai-docs/testing/xml-fixtures/lessons-learned.sample.md \
+  validate
+```
+
 ## Code Analysis
 
 Code analysis runs in two modes: **initial** (first encounter) and **update** (verification of existing XMLs). Both modes execute the same analysis steps but differ in how results are processed.
@@ -108,6 +125,13 @@ When no `overview.xml` exists, or the user explicitly runs `/init_overview`:
 3. **Generate** `ai-docs/overview-features-bugs.xml` with discovered issues, TODOs, and `[REF]` items as PENDING
 4. If files already exist (`/init_overview` on existing project): **back up** existing files as `overview.xml.bak` and `overview-features-bugs.xml.bak` before overwriting
 
+**Example (`plan_manager.py`):**
+
+```bash
+python3 ai-docs/plan_manager.py --json init-overview
+python3 ai-docs/plan_manager.py --json validate
+```
+
 ### Mode: Update (`/update`)
 
 When both XML files already exist and the user runs `/update`, perform a **verification pass** that compares the current codebase against the existing XMLs:
@@ -172,6 +196,14 @@ Items:
 
 → Updated overview.xml (2 changes)
 → Created 1 new [REF] item, flagged 1 stale feature, 2 item warnings
+```
+
+**Example (`plan_manager.py`):**
+
+```bash
+python3 ai-docs/plan_manager.py --json sync-update \
+  --summary "Update pass after drift verification"
+python3 ai-docs/plan_manager.py --json validate
 ```
 
 ### Output (Initial mode)
@@ -305,6 +337,18 @@ Every interaction that involves code changes, bug reports, or feature discussion
 - Implementation progress → update status (`PENDING` → `APPROVED` → `IN_PROGRESS` → `DONE`)
 - Bugs found during implementation → new `<item type="bug">` with `depends-on` referencing the parent item
 - Verification results → fill `<r>` block with outcome, observations, lessons-learned, files
+
+**Example (`plan_manager.py`):**
+
+```bash
+# Create new item
+python3 ai-docs/plan_manager.py --json create-item \
+  --kind bug --title "Login fails silently"
+
+# Move lifecycle state
+python3 ai-docs/plan_manager.py --json transition \
+  --item-id 71 --to-status APPROVED --role PO --action approved
+```
 
 ### 3. Default Status is PENDING
 
@@ -451,6 +495,13 @@ Completed and denied items are moved **out of** `overview-features-bugs.xml` and
 7. **Update** architecture, dependencies, or security sections in `overview.xml` if the archived item introduced changes.
 
 **Do not archive** items that are still referenced by active `depends-on`.
+
+**Example (`plan_manager.py`):**
+
+```bash
+python3 ai-docs/plan_manager.py --json archive-run --role SM
+python3 ai-docs/plan_manager.py --json validate
+```
 
 ### 11. Security by Default
 
@@ -790,6 +841,16 @@ The user can use slash commands as shortcuts. When a message starts with a slash
 5. **Update** `<security>` section in `overview.xml` with any new concerns discovered
 6. **Report** summary to user: total findings, by category, by severity, new vs. already tracked
 
+**Example (`plan_manager.py`):**
+
+```bash
+python3 ai-docs/plan_manager.py --json security-update \
+  --title "[SECURITY] Input validation review" \
+  --description "Audit detected missing sanitization in search endpoint" \
+  --mitigation "Apply canonical input validation and parameterized query path"
+python3 ai-docs/plan_manager.py --json validate
+```
+
 **Example:**
 ```
 /security
@@ -866,6 +927,29 @@ The user can use slash commands as shortcuts. When a message starts with a slash
 4. **Still update changelog** – every command that modifies the plan gets a changelog entry
 5. **Confirm creation** – after processing, show: item ID, title, type, priority, status
 6. **Unknown commands** – if a slash command is not recognized, list available commands
+
+### Slash-to-Backend Mapping (Examples)
+
+```bash
+# /feature
+python3 ai-docs/plan_manager.py --json create-item --kind feature --title "Add dark mode"
+
+# /approve
+python3 ai-docs/plan_manager.py --json transition --item-id 71 --to-status APPROVED --role PO --action approved
+
+# /submit
+python3 ai-docs/plan_manager.py --json transition \
+  --item-id 71 --to-status REVIEW --role DEV --action submitted \
+  --outcome DONE --observations "Unit tests passed" --files lib/ChordPro.pm t/100_basic.t
+
+# /fail (with linked bug)
+python3 ai-docs/plan_manager.py --json transition \
+  --item-id 71 --to-status FAILED --role TST --action failed \
+  --create-followup-bug-title "Follow-up bug for failed verification"
+
+# /release or /sprint or /blockers
+python3 ai-docs/plan_manager.py --json create-structural --kind sprint --title "Sprint N" --scope-item 71
+```
 
 ## Knowledge Base
 

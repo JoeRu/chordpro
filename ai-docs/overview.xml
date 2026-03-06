@@ -1,16 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <project-overview>
   <metadata>
     <title>ChordPro</title>
     <version>6.090_040</version>
     <analyzed>2026-02-08</analyzed>
-    <updated>2026-03-04</updated>
+    <updated>2026-03-06</updated>
     <repository>https://github.com/ChordPro/chordpro</repository>
   </metadata>
-
   <architecture>
     <description>
-      ChordPro follows a Parse -> Transform -> Render pipeline. Song.pm parses .cho files into
+      ChordPro follows a Parse -&gt; Transform -&gt; Render pipeline. Song.pm parses .cho files into
       element arrays, Chords/*.pm handles transposition and notation conversion, and Output/*.pm
       backends render the songbook. CLI entry is script/chordpro.pl; GUI entry is
       script/wxchordpro.pl (wxWidgets).
@@ -23,8 +22,8 @@
       A bundled SVG-to-PDF converter (lib/ChordPro/lib/SVGPDF.pm) replaces the former CPAN SVGPDF
       dependency, enabling inline SVG rendering inside PDF output without external dependencies.
 
-      Configuration is JSON-based with hierarchical merging: builtin -> sysconfig -> userconfig
-      -> CLI --define. Config/Data.pm is generated from lib/ChordPro/res/config/chordpro.json via
+      Configuration is JSON-based with hierarchical merging: builtin -&gt; sysconfig -&gt; userconfig
+      -&gt; CLI --define. Config/Data.pm is generated from lib/ChordPro/res/config/chordpro.json via
       script/cfgboot.pl. Resources (fonts, templates, configs) resolve via ChordPro::Paths.
       Template::Toolkit drives HTML5 and LaTeX output. Delegates handle external notation
       (ABC via embedded QuickJS/abc2svg, LilyPond via external binary, Grille/Strum/SVG).
@@ -86,14 +85,12 @@
       <decision date="2026-02-08">HTML5 output embeds images as base64 data URIs for portability.</decision>
     </design-decisions>
   </architecture>
-
   <environments>
     <environment name="dev">Dev container via .devcontainer/devcontainer.json (Dockerfile, VARIANT=5), PERL5LIB=/workspace/lib, workspace mounted at /workspace and /data.</environment>
     <environment name="docs">Docs site built with Hugo in docs/ (see docs/Makefile).</environment>
     <environment name="staging">Not documented in repo.</environment>
     <environment name="prod">Not documented in repo.</environment>
   </environments>
-
   <security>
     <concern>
       <threat>External delegate execution may run external programs with user-supplied inputs.</threat>
@@ -125,7 +122,6 @@
       <mitigation>Item 68 implemented image-first embedding contract with restricted fast-path limited to delegate/SVG assets; element-level opts preserved for prepared assets. Concern considered mitigated.</mitigation>
     </concern>
   </security>
-
   <completed-features>
     <feature id="CF-1" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="1">
       <title>CLI pipeline and backend selection</title>
@@ -144,7 +140,6 @@
         <gap>CLI option edge cases and filelist parsing not fully mapped.</gap>
       </gaps>
     </feature>
-
     <feature id="CF-2" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="2">
       <title>Song parser and directives</title>
       <description>Parses ChordPro directives, builds song element arrays, and tracks metadata.</description>
@@ -161,7 +156,6 @@
         <gap>Edge directives and metadata normalization are not fully documented.</gap>
       </gaps>
     </feature>
-
     <feature id="CF-3" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="3">
       <title>Chord parsing, notation, and transposition</title>
       <description>Parses chord tokens, handles notation systems, and applies transposition.</description>
@@ -178,7 +172,6 @@
         <gap>Notation edge cases and alternate naming systems need deeper mapping.</gap>
       </gaps>
     </feature>
-
     <feature id="CF-4" completed="2026-02-08" completeness="FULL" test-coverage="TESTED">
       <title>HTML5 output backend</title>
       <description>Renders HTML5 output with screen and print modes using templates and paged.js.</description>
@@ -198,7 +191,6 @@
         <file>t/192_html5_chord_only_align.t</file>
       </test-files>
     </feature>
-
     <feature id="CF-5" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="4">
       <title>Legacy and auxiliary output backends</title>
       <description>PDF, HTML, Text, LaTeX, JSON, MMA, ChordPro, Debug, and Meta output formats.</description>
@@ -223,7 +215,6 @@
         <gap>Feature parity and edge-case handling across legacy backends not fully documented.</gap>
       </gaps>
     </feature>
-
     <feature id="CF-6" completed="2026-02-08" completeness="PARTIAL" test-coverage="UNKNOWN" ref-item="5">
       <title>Markdown output backend</title>
       <description>Renders song output to Markdown via Object::Pad backend.</description>
@@ -234,7 +225,6 @@
         <gap>Handler coverage for diagrams, delegates, and grids not fully mapped.</gap>
       </gaps>
     </feature>
-
     <feature id="CF-7" completed="2026-02-08" completeness="PARTIAL" test-coverage="PARTIAL" ref-item="6">
       <title>Chord diagrams and grids</title>
       <description>Chord diagram rendering and grid/measure layout across backends.</description>
@@ -250,7 +240,6 @@
         <gap>Diagram rendering variants and keyboard diagrams need full mapping.</gap>
       </gaps>
     </feature>
-
     <feature id="CF-8" completed="2026-02-08" completeness="PARTIAL" test-coverage="NONE" ref-item="7">
       <title>External delegate integration</title>
       <description>Delegates render ABC, LilyPond, SVG, Grille, Strum, and text blocks.</description>
@@ -267,7 +256,6 @@
         <gap>Delegate IO contracts and error handling are not fully documented or tested.</gap>
       </gaps>
     </feature>
-
     <feature id="CF-9" completed="2026-02-08" completeness="PARTIAL" test-coverage="UNKNOWN" ref-item="8">
       <title>Wx GUI application</title>
       <description>WxWidgets-based GUI for editing, previewing, and printing.</description>
@@ -279,7 +267,6 @@
         <gap>GUI workflows, state handling, and test coverage not fully mapped.</gap>
       </gaps>
     </feature>
-
     <feature id="CF-10" completed="2026-02-08" completeness="PARTIAL" test-coverage="UNKNOWN" ref-item="9">
       <title>Configuration system and resource resolution</title>
       <description>JSON config hierarchy, generated config data, and resource path lookup.</description>
@@ -294,7 +281,6 @@
         <gap>Config precedence edge cases and validation behavior need documentation.</gap>
       </gaps>
     </feature>
-
     <feature id="CF-11" completed="2026-02-08" completeness="PARTIAL" test-coverage="NONE" ref-item="10">
       <title>Documentation site (Hugo)</title>
       <description>Static documentation site built with Hugo and pagefind search.</description>
@@ -510,7 +496,6 @@
         <file>t/78_html5_toc.t</file>
       </files>
     </feature>
-    <!-- NEW: Drift-detected features (2026-02-24) -->
     <feature id="CF-34" completed="2026-02-24" completeness="PARTIAL" test-coverage="UNKNOWN">
       <title>Bundled SVGPDF SVG-to-PDF converter</title>
       <description>lib/ChordPro/lib/SVGPDF.pm and its Object::Pad module tree replaces the former CPAN SVGPDF dependency. Used by Output/PDF/Song.pm to render inline SVG content inside PDF output.</description>
@@ -619,7 +604,6 @@
         <file>t/86_html5_diagram_pos.t</file>
       </files>
     </feature>
-
     <feature id="CF-38" completed="2026-02-26" source-item="38">
       <title>HTML5 diagrams.show:right — vertical stacking layout with direction config option</title>
       <description>chordpro.json has two html5 { } blocks that are merged last-wins; the diagrams key had to be added to the SECOND block (the one with mode:"print") because the second block overwrites the first entirely. cfgboot.pl must be run directly (perl script/cfgboot.pl) to regenerate Data.pm since `make resources` skips it when Data.pm is newer than chordpro.json. The built-in default config sets html5.diagrams.direction:"vertical", so the direction class IS emitted for the default case (not absent as initially expected in the test).</description>
@@ -798,12 +782,12 @@
     </feature>
     <feature id="CF-60" completed="2026-02-28" source-item="60">
       <title>Full-Grid-SVG: Taktstriche zwischen Chord- und `|s`-Zeilen driften; `dn~up`-Paare sind optisch zu weit</title>
-      <description><![CDATA[
+      <description>
 `lib/ChordPro/Delegate/Strum.pm::grid_block_svg` now derives canonical bar columns once and reuses them across all rendered rows, keeping chord and `|s` barlines vertically aligned even when row-local token expansion differs.
 Connected strum symbols in `class=chords` rows (`dn~up` / `up~dn`) now use compact intra-pair x-spacing (`tight_pair_step`) instead of full-cell center spacing, producing visibly tighter pairs.
 Mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` now verify row-to-row barline anchor parity and bounded first-pair stem spacing for connected strums.
 Verification PASS: `prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=143).
-]]></description>
+</description>
       <files>
         <file>lib/ChordPro/Delegate/Strum.pm</file>
         <file>t/html5/09_bugfixes.t</file>
@@ -812,12 +796,12 @@ Verification PASS: `prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bu
     </feature>
     <feature id="CF-61" completed="2026-03-01" source-item="61">
       <title>Erstmeldung-Folge: HTML5 Strum-SVG Token-Semantik weicht von Directives-env_grid ab (inkl. `us/ds`, `dx+`, `ua+`)</title>
-      <description><![CDATA[
+      <description>
 `lib/ChordPro/Delegate/Strum.pm::strum_symbol_info` now performs canonical direction/modifier parsing independent of affix order and adds explicit staccato semantics (`us/ds`, including accented forms).
 Semantic marker rendering is now consistent across both full-grid SVG (`grid_block_svg`) and standalone strum SVG (`strumline_svg`) via shared decoration helper logic.
 Mirrored bugfix suites now include token-equivalence matrix assertions (`d+`/`+d`, `da`/`ad`, `dx+`/`+dx`, `us+`/`su+`) and semantic marker checks for staccato/accent/muted outputs.
-Verification PASS: `make && prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=171).
-]]></description>
+Verification PASS: `make &amp;&amp; prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=171).
+</description>
       <files>
         <file>lib/ChordPro/Delegate/Strum.pm</file>
         <file>lib/ChordPro/Output/HTML5.pm</file>

@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <implementation-plan>
   <metadata>
     <title>ChordPro Feature and Bug Plan</title>
     <version>3.1</version>
     <date>2026-02-08</date>
-    <updated>2026-03-04</updated>
+    <updated>2026-03-06</updated>
     <status>Update pass (2026-02-24) – schema migration + drift detection</status>
     <summary>
       Migrated from inline &lt;archive&gt; to separate overview-features-bugs-archive.xml.
@@ -15,12 +15,10 @@
     <done-since-last-fulltest>12</done-since-last-fulltest>
     <last-fulltest-date>2026-03-03</last-fulltest-date>
   </metadata>
-
-    <items>
+  <items>
     
 
   </items>
-
   <sprints>
     <sprint id="SPR-3" status="COMPLETED" type="SPRINT" started="2026-03-03">
       <title>Sprint 3 – Mutator cleanup and HTML5 asset/SVG path refactor</title>
@@ -30,11 +28,15 @@
         <item-ref id="68" type="feature" status="DONE">HTML5 pre-render asset preparation pipeline with image-first embedding contract</item-ref>
       </scope>
       <gates>
-        <gate name="code-complete" status="PASSED" date="2026-03-03" owner="SM" />
-        <gate name="full-test-pass" status="PASSED" date="2026-03-03" owner="TST" />
+        <gate name="code-complete" status="PASSED" date="2026-03-03" owner="SM"></gate>
+        <gate name="full-test-pass" status="PASSED" date="2026-03-03" owner="TST"></gate>
       </gates>
       <release-test>
-        <run date="2026-03-03" result="PASS"><total>3305</total><passed>3305</passed><failed>0</failed></run>
+        <run date="2026-03-03" result="PASS">
+          <total>3305</total>
+          <passed>3305</passed>
+          <failed>0</failed>
+        </run>
       </release-test>
     </sprint>
     <sprint id="SPR-1" status="COMPLETED" type="SPRINT" started="2026-02-25">
@@ -44,11 +46,15 @@
         <item-ref id="44" type="bug" status="DONE">HTML5 grid strum lines are not rendered as arrow rows</item-ref>
       </scope>
       <gates>
-        <gate name="code-complete" status="PASSED" date="2026-02-25" owner="SM" />
-        <gate name="full-test-pass" status="PENDING" date="" owner="TST" />
+        <gate name="code-complete" status="PASSED" date="2026-02-25" owner="SM"></gate>
+        <gate name="full-test-pass" status="PENDING" date="" owner="TST"></gate>
       </gates>
       <release-test>
-        <run date="2026-02-25" result="PASS"><total>90</total><passed>90</passed><failed>0</failed></run>
+        <run date="2026-02-25" result="PASS">
+          <total>90</total>
+          <passed>90</passed>
+          <failed>0</failed>
+        </run>
       </release-test>
     </sprint>
     <sprint id="SPR-2" status="COMPLETED" type="SPRINT" started="2026-02-26">
@@ -59,16 +65,20 @@
         <item-ref id="47" type="tech-debt" status="DONE">Retire deprecated ABC handler alias usage in test paths and stabilize warning-free runs</item-ref>
       </scope>
       <gates>
-        <gate name="code-complete" status="PASSED" date="2026-02-26" owner="SM" />
-        <gate name="full-test-pass" status="PASSED" date="2026-02-26" owner="TST" />
+        <gate name="code-complete" status="PASSED" date="2026-02-26" owner="SM"></gate>
+        <gate name="full-test-pass" status="PASSED" date="2026-02-26" owner="TST"></gate>
       </gates>
       <release-test>
-        <run date="2026-02-26" result="PASS"><total>151</total><passed>151</passed><failed>0</failed></run>
+        <run date="2026-02-26" result="PASS">
+          <total>151</total>
+          <passed>151</passed>
+          <failed>0</failed>
+        </run>
       </release-test>
     </sprint>
   </sprints>
-
   <changelog>
+    <entry date="2026-03-06">Update mode drift-check: overview sections updated=0; features verified=67 (OK=63, CHANGED=0, STALE=4, NEW=0); stale features: CF-21, CF-23, CF-29, CF-30 (missing listed files/tests); item warnings=0.</entry>
     <entry date="2026-03-04">Archive run executed: moved 12 items to overview-features-bugs-archive.xml (DONE: 12, DENIED: 0). Archived IDs: 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70. Extracted lessons L-43 through L-52 to lessons-learned.md. Updated overview completed-features for source items 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70; done-since-last-fulltest=12.</entry>
     <entry date="2026-03-03">Item 70 implemented via `/implement 70` and completed. Fixed `lib/ChordPro/Delegate/ABC.pm` backend lookup by removing lexical shadowing of module-level `$backend` in `abc2svg()` and guarding backend-specialized access in `beo()` with `defined($backend)`. Verification PASS: `make`, `prove -bv t/83_html5_delegate.t` (Files=1, Tests=5), and manual repro command for `testing/lowlands.cho`/`testing/myconfig_html5.json` no longer emits the uninitialized `$backend` warning.</entry>
     <entry date="2026-03-03">Added bug item 70 (PENDING, S): `lib/ChordPro/Delegate/ABC.pm` emits `Use of uninitialized value $backend in exists` (line 55) during HTML5 generation for `testing/lowlands.cho` with `testing/myconfig_html5.json`. Inline analysis identifies lexical shadowing of module-level `$backend` in `abc2svg()` as likely root cause; planned fix scopes to backend lookup initialization/guarding and targeted delegate regression verification.</entry>
@@ -98,6 +108,5 @@
     <entry date="2026-03-01">Duplicate check: no new item created for “Pfeile entsprechen nicht der Tabelle”. Existing item 61 was enriched/updated to explicitly track full table-conformance against `docs/content/Directives-env_grid.md`, including staccato and mixed-affix token families (`us/ds`, `dx+`, `ua+`) plus mirrored verification matrix.</entry>
     <entry date="2026-03-01">Added bug item 61 (PENDING): HTML5 strum suffix-notation follow-up for `testing/lowlands.cho` where tokens like `d+`, `u+`, `da`, `ua` are not normalized consistently, causing lost arrow semantics and perceived chord/arrow desync. Confirmed root-cause hypothesis in `lib/ChordPro/Delegate/Strum.pm::strum_symbol_info` (prefix-biased parsing), added focused tasks for canonical token normalization, mirrored verification in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, plus security/impact/collision assessment.</entry>
     <entry date="2026-02-28">Item 60 implemented via `/implement 60` and completed. Full-grid SVG row geometry now uses canonical shared bar anchors in `lib/ChordPro/Delegate/Strum.pm` so chord and `|s` barlines stay aligned, and connected strum pairs (`dn~up` / `up~dn`) now render with compact intra-pair spacing. Added mirrored regression checks in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` for cross-row barline parity and tight connected-pair arrow spacing. Verification PASS: `prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=143).</entry>
-    <entry date="2026-02-28">Added bug item 60 (PENDING): full-grid SVG follow-up for remaining strum geometry issues — barlines between chord and `|s` rows can drift, and connected `dn~up` pairs are visually too wide. Confirmed row-local anchor root cause in `lib/ChordPro/Delegate/Strum.pm::grid_block_svg` and added focused fix plan for shared bar/beat anchors plus compact connected-pair spacing, with mirrored verification and impact/collision analysis.</entry>
-</changelog>
+  </changelog>
 </implementation-plan>
