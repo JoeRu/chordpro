@@ -73,6 +73,8 @@ sub strum_cells_from_text( $text ) {
 				type => 'cell',
 				column => $column,
 				direction => $info->{direction},
+				code => $info->{code},
+				glyph => $info->{glyph},
 				muted => $info->{muted},
 				accent => $info->{accent},
 				arpeggio => $info->{arpeggio},
@@ -157,6 +159,8 @@ sub strumline_svg( %args ) {
 			x => $x, base_y => 0, direction => $direction,
 			stroke_width => $stroke,
 			info => {
+				code     => $cell->{code},
+				glyph    => $cell->{glyph},
 				muted    => $cell->{muted},
 				accent   => $cell->{accent},
 				arpeggio => $cell->{arpeggio},

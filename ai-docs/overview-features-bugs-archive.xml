@@ -2926,8 +2926,136 @@ Variable shadowing in `lib/ChordPro/Delegate/ABC.pm`: backend initialization occ
         <entry timestamp="2026-03-03" role="TST" action="passed" from-status="IN_PROGRESS" to-status="DONE" note="Verification PASS: make; prove -bv t/83_html5_delegate.t; manual lowlands HTML5 repro warning no longer present."></entry>
       </workflow-log>
     </item>
+    <item id="71" type="refactoring" status="DENIED" priority="MEDIUM" complexity="M" archived="2026-03-06">
+      <title>[REF] CF-21 HTML5 empty-lines feature mapping and test path refresh</title>
+      <justification>Feature CF-21 is STALE: listed test file testing/96_html5_condense_output.t is missing. Re-map current test path and restore FULL+TESTED confidence.</justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="71.1">Locate replacement/renamed test coverage for CF-21 behavior</task>
+        <task id="71.2">Update feature file/test-file references in overview.xml</task>
+        <task id="71.3">Add or restore focused regression test for empty-line normalization</task>
+      </tasks>
+      <verification>
+        <tests></tests>
+      </verification>
+      <r>
+        <outcome>DENIED</outcome>
+        <observations>Denied per user request.</observations>
+        <lessons-learned></lessons-learned>
+        <files></files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="denied" from-status="PENDING" to-status="DENIED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="archived" from-status="DENIED" to-status="ARCHIVED"></entry>
+      </workflow-log>
+    </item>
+    <item id="72" type="refactoring" status="DENIED" priority="MEDIUM" complexity="M" archived="2026-03-06">
+      <title>[REF] CF-23 HTML5 paged template refactor mapping refresh</title>
+      <justification>Feature CF-23 is STALE: listed test file testing/98_html5_paged_template_refactor.t is missing. Re-verify current template/test mapping and coverage.</justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="72.1">Identify current test replacement for CF-23</task>
+        <task id="72.2">Update stale file/test references in overview.xml</task>
+        <task id="72.3">Verify template consolidation behavior with focused tests</task>
+      </tasks>
+      <verification>
+        <tests></tests>
+      </verification>
+      <r>
+        <outcome>DENIED</outcome>
+        <observations>Denied per user request.</observations>
+        <lessons-learned></lessons-learned>
+        <files></files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="denied" from-status="PENDING" to-status="DENIED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="archived" from-status="DENIED" to-status="ARCHIVED"></entry>
+      </workflow-log>
+    </item>
+    <item id="73" type="refactoring" status="DENIED" priority="MEDIUM" complexity="M" archived="2026-03-06">
+      <title>[REF] CF-29 minimal paged bundle file-path reconciliation</title>
+      <justification>Feature CF-29 is STALE: multiple listed paths are missing (minimal paged templates/tests). Reconcile moved paths and ensure regression coverage remains active.</justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="73.1">Map moved/renamed minimal paged templates and tests</task>
+        <task id="73.2">Correct feature file list and test-file references</task>
+        <task id="73.3">Add focused test if path migration removed coverage</task>
+      </tasks>
+      <verification>
+        <tests></tests>
+      </verification>
+      <r>
+        <outcome>DENIED</outcome>
+        <observations>Denied per user request.</observations>
+        <lessons-learned></lessons-learned>
+        <files></files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="denied" from-status="PENDING" to-status="DENIED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="archived" from-status="DENIED" to-status="ARCHIVED"></entry>
+      </workflow-log>
+    </item>
+    <item id="74" type="refactoring" status="DENIED" priority="MEDIUM" complexity="S" archived="2026-03-06">
+      <title>[REF] CF-30 paged background test-path refresh</title>
+      <justification>Feature CF-30 is STALE: listed test file testing/97_html5_paged_background.t is missing. Re-anchor coverage to current test location and verify behavior.</justification>
+      <depends-on></depends-on>
+      <tasks>
+        <task id="74.1">Find current regression test for paged background behavior</task>
+        <task id="74.2">Update feature references to existing paths</task>
+      </tasks>
+      <verification>
+        <tests></tests>
+      </verification>
+      <r>
+        <outcome>DENIED</outcome>
+        <observations>Denied per user request.</observations>
+        <lessons-learned></lessons-learned>
+        <files></files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="denied" from-status="PENDING" to-status="DENIED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="archived" from-status="DENIED" to-status="ARCHIVED"></entry>
+      </workflow-log>
+    </item>
   </archive>
   <changelog-history>
+    <entry date="2026-03-06">Added refactoring item 73 (PENDING, M): [REF] CF-29 minimal paged bundle file-path reconciliation</entry>
+    <entry date="2026-03-06">Added refactoring item 72 (PENDING, M): [REF] CF-23 HTML5 paged template refactor mapping refresh</entry>
+    <entry date="2026-03-06">Added refactoring item 71 (PENDING, M): [REF] CF-21 HTML5 empty-lines feature mapping and test path refresh</entry>
+    <entry date="2026-03-06">Update mode drift-check: overview sections updated=0; features verified=67 (OK=63, CHANGED=0, STALE=4, NEW=0); stale features: CF-21, CF-23, CF-29, CF-30 (missing listed files/tests); item warnings=0.</entry>
+    <entry date="2026-03-04">Archive run executed: moved 12 items to overview-features-bugs-archive.xml (DONE: 12, DENIED: 0). Archived IDs: 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70. Extracted lessons L-43 through L-52 to lessons-learned.md. Updated overview completed-features for source items 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70; done-since-last-fulltest=12.</entry>
+    <entry date="2026-03-03">Item 70 implemented via `/implement 70` and completed. Fixed `lib/ChordPro/Delegate/ABC.pm` backend lookup by removing lexical shadowing of module-level `$backend` in `abc2svg()` and guarding backend-specialized access in `beo()` with `defined($backend)`. Verification PASS: `make`, `prove -bv t/83_html5_delegate.t` (Files=1, Tests=5), and manual repro command for `testing/lowlands.cho`/`testing/myconfig_html5.json` no longer emits the uninitialized `$backend` warning.</entry>
+    <entry date="2026-03-03">Added bug item 70 (PENDING, S): `lib/ChordPro/Delegate/ABC.pm` emits `Use of uninitialized value $backend in exists` (line 55) during HTML5 generation for `testing/lowlands.cho` with `testing/myconfig_html5.json`. Inline analysis identifies lexical shadowing of module-level `$backend` in `abc2svg()` as likely root cause; planned fix scopes to backend lookup initialization/guarding and targeted delegate regression verification.</entry>
+    <entry date="2026-03-03">Closure confirmation: debugger/lvalue symptom around `lib/ChordPro/Song.pm` is now reported as extension-dependent in user environment. Related tracker item 66 remains CLOSED (`DONE`); no additional ChordPro code changes are planned for this extension-specific trigger.</entry>
+    <entry date="2026-03-03">Duplicate bug report triaged: VS Code debug-mode message `Can't modify non-lvalue subroutine call of &amp;DB::sub` in `lib/ChordPro/Song.pm` (lines near chord mutator writes) maps to existing item 66. No new bug item created; item 66 remains the canonical tracker for this debugger/lvalue regression pattern.</entry>
+    <entry date="2026-03-03">Full-test workflow executed (`make tests`): standard suite PASS (`make test` → Files=139, Tests=3305, Result=PASS). Extended suite had one skip-only NOTESTS case (`xt/01_config.t`, missing legacy `chordpro.prp`) and no failing tests. Failure mapping found no affected items/features, so no item rollback to PROBLEM and no new bug item created. Updated metadata `last-fulltest-date` to 2026-03-03 and reset `done-since-last-fulltest` to 0.</entry>
+    <entry date="2026-03-03">Item 69 implemented and completed. Fixed restricted-hash style config handling in `lib/ChordPro/Output/HTML.pm` (safe plain-hash normalization + duplicate stylesheet suppression). Verification PASS: `make &amp;&amp; prove -bv t/40_basic01_html.t`.</entry>
+    <entry date="2026-03-03">Items 66 and 68 follow-up fixes implemented after regression mapping. Item 66: restored Object::Pad mutator assignment semantics in `lib/ChordPro/Song.pm` (no call-form writes) and aligned strict missing-key warning behavior for test harness expectations. Item 68: preserved per-element image options when rendering prepared assets and restricted prepared fast-path to delegate/SVG payloads to retain template-based image container alignment behavior. Focused verification PASS: `make &amp;&amp; prove -bv t/73_md.t t/75_html5.t t/76_html5paged.t t/122_memorize.t t/190_html5_bug7_image_scale_pagewidth.t t/191_html5_image_scale.t t/85_html5_image_align.t`.</entry>
+    <entry date="2026-03-03">Full-test workflow executed (`make tests`) and failed (Files=139, Tests=3241, failed-subtests=8, failing programs=10). Failure mapping applied: item 66 set to `IN_PROGRESS` with `PROBLEM` outcome due `Appearance::format` invocation regression in `lib/ChordPro/Song.pm` (affecting `t/73_md.t`, `t/75_html5.t`, `t/76_html5paged.t`, and related parser flows) plus warning drift in `t/122_memorize.t`; item 68 set to `IN_PROGRESS` with `PROBLEM` outcome due missing image style/scale attributes (`t/190_html5_bug7_image_scale_pagewidth.t`, `t/191_html5_image_scale.t`, `t/85_html5_image_align.t`). Added bug item 69 (PENDING) for independent standard HTML backend failure (`t/40_basic01_html.t`: restricted hash access to `default` in `lib/ChordPro/Output/HTML.pm`). Sprint SPR-3 gate `full-test-pass` switched to FAILED and sprint status reopened to IN_PROGRESS.</entry>
+    <entry date="2026-03-03">Items 66, 67, and 68 implemented and completed via `/implement`. Item 66 removed redundant `Appearance` setters, restored mutator assignment call sites in `Song.pm`, and added debugger guidance doc. Item 67 moved chord-diagram SVG module to `lib/ChordPro/Output/SVG/ChordDiagram.pm`, updated HTML5 usage, added legacy-namespace compatibility shim, and updated MANIFEST. Item 68 integrated early `prepare_assets` in HTML5 songbook generation and switched image rendering to prefer prepared asset payloads/data-URI conversion. Verification PASS: `make &amp;&amp; prove -bv t/105_chords.t t/114_songline.t t/86_html5_diagram_pos.t t/160_diagrams.t t/83_html5_delegate.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=7, Tests=569, Result=PASS).</entry>
+    <entry date="2026-03-03">Items 66, 67, and 68 approved. Status changed PENDING → APPROVED. Branches assigned: `refactoring/item-66-refactor-objectpad-mutator-usage`, `refactoring/item-67-refactor-svg-chorddiagram-module-path`, and `feature/item-68-html5-prerender-asset-preparation-pipeline`. Dependency check: no unresolved depends-on constraints.</entry>
+    <entry date="2026-03-03">Added feature item 68 (PENDING, M, security=true): integrate early `prepare_assets` call in HTML5 generation and establish an image-first asset contract so prepared assets render through a unified `&lt;img&gt;` path. Scope includes `lib/ChordPro/Output/HTML5.pm`, `lib/ChordPro/Assets.pm`, and built-in SVG fallback assets in `lib/ChordPro/Output/SVG/Images.pm`, with focused mirrored verification (`t/html5/09_bugfixes.t`, `t/190_html5_bugfixes.t`, `t/83_html5_delegate.t`). Security impact recorded for INPUT and DISCLOSURE; impact warning highlights CF-8 PARTIAL/NONE coverage.</entry>
+    <entry date="2026-03-03">Added refactoring item 67 (PENDING, S): rename chord-diagram SVG module from `lib/ChordPro/Output/ChordDiagram/SVG.pm` to `lib/ChordPro/Output/SVG/ChordDiagram.pm` and align call sites with the new `Output::SVG` namespace structure (alongside existing `lib/ChordPro/Output/SVG/Images.pm`). Includes behavior-preserving constraints, focused verification (`t/86_html5_diagram_pos.t`, `t/160_diagrams.t`), impact warning for CF-7 PARTIAL/PARTIAL coverage, affected-files planning, and collision analysis (no active APPROVED/IN_PROGRESS overlap).</entry>
+    <entry date="2026-03-03">Added refactoring item 66 (PENDING, S): non-HTML5 cleanup for Object::Pad mutator usage in `lib/ChordPro/Chords/Appearance.pm` and `lib/ChordPro/Song.pm`. Scope restores minimal/idiomatic field mutation (remove redundant setter indirection), documents debugger-related L-value workaround policy, includes full DA enrichment (tasks, technical parameters, security assessment), impact warning for CF-2/CF-3 PARTIAL coverage, affected-files planning, and collision analysis (no active APPROVED/IN_PROGRESS overlap).</entry>
+    <entry date="2026-03-02">Items 64 and 65 implemented and completed via `/implement 64 65`. Item 64: preserved leading-tilde rest semantics for `~F6` and `~up` in full-grid SVG rendering, with explicit rest+shifted symbol/chord behavior and no regression of item 63 alignment logic. Item 65: split `lib/ChordPro/Delegate/Strum.pm` into facade + focused internal modules (`Tokens.pm`, `SVGPrimitives.pm`, `StrumlineRenderer.pm`, `GridRenderer.pm`) while preserving public API compatibility. Verification PASS: `make`, `prove -bv t/html5/09_bugfixes.t t/190_html5_bugfixes.t t/180_grids.t`, and `make test` (Files=139, Tests=3305, Result=PASS).</entry>
+    <entry date="2026-03-02">Items 64 and 65 approved. Item 64 branch: `bug/item-64-leading-tilde-rest-semantics-rendering`. Item 65 branch: `refactoring/item-65-split-oversized-strum-module`. Dependency warning: item 65 depends on item 64, which is APPROVED (not DONE) at approval time.</entry>
+    <entry date="2026-03-02">Added refactoring item 65 (PENDING, L): split oversized `lib/ChordPro/Delegate/Strum.pm` (1146 lines) into focused internal modules under `lib/ChordPro/Delegate/Strum/` while preserving the existing public API facade used by HTML5 output. Includes behavior-preserving constraints, mirrored regression verification, security/impact review, and collision analysis.</entry>
+    <entry date="2026-03-02">Added bug item 64 (PENDING, M): leading-tilde rest semantics (`~F6`, `~up`) are not represented as explicit rest-prefix pairs in grid rendering, and symbol output diverges from `ai-docs/Strum-requirement.md` expectations. Code-grounded analysis points to `_normalize_grid_chord_parts()` dropping leading empty segments used for `~` semantics. Planned fix separates geometry normalization from semantic preservation, adds requirement-conformant symbol mapping strategy (including SVG text/glyph path evaluation), and introduces mirrored regression assertions in `t/html5/09_bugfixes.t` + `t/190_html5_bugfixes.t`.</entry>
+    <entry date="2026-03-02">Item 63 implemented and completed. Fixed row-type-aware column counting in `grid_block_svg()` (`lib/ChordPro/Delegate/Strum.pm`): `$compute_columns`, `$bar_columns_for`, and the rendering loop now treat strumline `chords`-class tokens as 1 beat-column instead of N sub-beat columns. Fixed `_gridline_layout()` and `_gridline_columns()` in `lib/ChordPro/Output/HTML5.pm` with `is_strumline` parameter for correct `$grid_columns` computation. Added 14 regression tests in `t/html5/09_bugfixes.t` and 12 in `t/190_html5_bugfixes.t` verifying chord-strum x-position alignment and chord-only grid stability. Verification PASS: `make test` (Files=139, Tests=3300, Result=PASS). Zero regressions.</entry>
+    <entry date="2026-03-02">Item 62 implemented and completed. Extracted shared SVG drawing primitives (_draw_bar_svg, _draw_arrow_svg, _draw_rest_svg, _draw_connector_svg, _draw_pause_svg) into private utility layer in `lib/ChordPro/Delegate/Strum.pm`. Added rest semantics: `.` now returns `rest =&gt; 1` from `strum_symbol_info()`, tilde-adjacent empties emit rest cells. Implemented named strum patterns (`{start_of_strum: 4/4 verse}` + `{strum: verse}` reference) in `lib/ChordPro/Song.pm`. Added chord/strum count validation in parser. Added `gridstrum.symbols.rest` config key and regenerated `Config/Data.pm`. Refactored `strumline_svg()` fully and `grid_block_svg()` partially (bar rendering kept inline for compatibility). Propagated rest flag through `lib/ChordPro/Output/HTML5.pm`. Verification PASS: `make test` (Files=139, Tests=3288, Result=PASS). Zero regressions.</entry>
+    <entry date="2026-03-02">Added refactoring item 62 (PENDING, XL): complete remake of Strum SVG rendering and delegate logic to align with renewed Strum-requirement.md. Scope: extract shared SVG drawing primitives from three parallel generators, add rest glyph rendering for `.` and tilde sub-beat rests, implement named strum pattern registry (`{start_of_strum: 4/4 verse}` + `{strum: verse}` reference), add chord/strum count validation in parser, and prepare symbol architecture for design-phase swap. 12 tasks, depends-on 61, XL complexity. DA enrichment includes security assessment (INPUT/DISCLOSURE LOW), impact check (CF-8 NONE coverage warning), and collision analysis (no active conflicts).</entry>
+    <entry date="2026-03-01">Post-feedback tuning after visual drift report: tightened connected strum-pair geometry in `lib/ChordPro/Delegate/Strum.pm` (reduced pair step and applied compact placement in standalone SVG path), and strengthened mirrored regression threshold in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` from &lt;16 to &lt;12. Verification PASS: `make &amp;&amp; prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=171).</entry>
+    <entry date="2026-03-01">Item 53 status synchronized to DONE per user confirmation (already completed).</entry>
+    <entry date="2026-03-01">Item 61 implemented via `/implement 61` and completed. Added canonical strum token normalization in `lib/ChordPro/Delegate/Strum.pm` with explicit staccato semantics and affix-order equivalence, propagated semantics into HTML5 strum SVG payloads via `lib/ChordPro/Output/HTML5.pm`, and expanded mirrored regression matrix in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`. Verification PASS: `make &amp;&amp; prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=171).</entry>
+    <entry date="2026-03-01">Item 61 clarified to explicitly retain the originally reported lowlands desync symptom as open scope: Item 60 remains closed for geometry/anchor alignment, while Item 61 tracks remaining token-semantics/table-conformance gaps from `docs/content/Directives-env_grid.md`.</entry>
+    <entry date="2026-03-01">Archive run executed: moved 7 items to overview-features-bugs-archive.xml (DONE: 7, DENIED: 0). Archived IDs: 52, 54, 55, 56, 57, 58, 59. Not archived: 60 (active depends-on reference). Updated overview completed-features for source items 52, 54, 55, 56, 57, 58, 59; done-since-last-fulltest=7.</entry>
+    <entry date="2026-03-01">Duplicate check: no new item created for “Pfeile entsprechen nicht der Tabelle”. Existing item 61 was enriched/updated to explicitly track full table-conformance against `docs/content/Directives-env_grid.md`, including staccato and mixed-affix token families (`us/ds`, `dx+`, `ua+`) plus mirrored verification matrix.</entry>
+    <entry date="2026-03-01">Added bug item 61 (PENDING): HTML5 strum suffix-notation follow-up for `testing/lowlands.cho` where tokens like `d+`, `u+`, `da`, `ua` are not normalized consistently, causing lost arrow semantics and perceived chord/arrow desync. Confirmed root-cause hypothesis in `lib/ChordPro/Delegate/Strum.pm::strum_symbol_info` (prefix-biased parsing), added focused tasks for canonical token normalization, mirrored verification in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, plus security/impact/collision assessment.</entry>
+    <entry date="2026-02-28">Item 60 implemented via `/implement 60` and completed. Full-grid SVG row geometry now uses canonical shared bar anchors in `lib/ChordPro/Delegate/Strum.pm` so chord and `|s` barlines stay aligned, and connected strum pairs (`dn~up` / `up~dn`) now render with compact intra-pair spacing. Added mirrored regression checks in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` for cross-row barline parity and tight connected-pair arrow spacing. Verification PASS: `prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=143).</entry>
     <entry date="2026-02-28">Added bug item 60 (PENDING): full-grid SVG follow-up for remaining strum geometry issues — barlines between chord and `|s` rows can drift, and connected `dn~up` pairs are visually too wide. Confirmed row-local anchor root cause in `lib/ChordPro/Delegate/Strum.pm::grid_block_svg` and added focused fix plan for shared bar/beat anchors plus compact connected-pair spacing, with mirrored verification and impact/collision analysis.</entry>
     <entry date="2026-02-24">Archive file created. Migrated items 18-23 from inline archive section in overview-features-bugs.xml. Archived DONE items 25, 31, 33 from active plan. DENIED items 34, 35, 36 archived immediately after creation.</entry>
     <entry date="2026-02-08">Initial code analysis; generated overview.xml and created 10 [REF] items.</entry>

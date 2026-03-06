@@ -127,7 +127,12 @@ This inserts the strum pattern previously defined with `{start_of_strum: 4/4 ver
 - Bar/beat markers not displayed on strum lines
 - Strum lines contain *only* strum actions — they have no chords, are ignored for chord memory, and are not affected by transposition
 - Support sub-beat divisions using `~` character
+- Repeat tokens are context-sensitive in strum rows:
+  - `%` repeats the previous **strum** measure on the same strum row context.
+  - `%%` repeats the previous two **strum** measures on the same strum row context.
+  - `%`/`%%` in strum rows do not read or modify chord memory.
 - **Validation:** The number of strum entries on a `|s` line *must* match the number of chord slots on the corresponding chord line above. A mismatch is a **parsing error** and must be rejected with a diagnostic message.
+- **Validation:** `%` requires at least one prior strum measure and `%%` requires at least two prior strum measures in the same row context; otherwise parsing fails with a diagnostic.
 
 Example:
 

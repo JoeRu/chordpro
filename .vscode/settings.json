@@ -33,6 +33,10 @@
         "/^python3 - <<'PY'\nimport xml\\.etree\\.ElementTree as ET\nET\\.parse\\('ai-docs/overview-features-bugs\\.xml'\\)\nprint\\('OK'\\)\nPY$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^cd /workspace && python3 ai-docs/plan_manager\\.py .*$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     },
     "github.copilot.chat.codeGeneration.useInstructionFiles": true

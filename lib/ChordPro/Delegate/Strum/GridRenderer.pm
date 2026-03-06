@@ -90,7 +90,8 @@ sub _bar_use( $kind, $x, $bar_top, $bar_bottom, $icons ) {
 	}
 	my $icon_w  = $ico->{width};
 	my $h       = $bar_bottom - $bar_top;
-	my $scaled_w = $icon_w * ($h / 100);
+	# Keep bar thickness stable in X and stretch only in Y.
+	my $scaled_w = $icon_w * (20 / 100);
 	my $use_x    = $x - $scaled_w / 2;
 	return sprintf('<use href="#bar-%s" x="%.4f" y="%.2f" width="%.4f" height="%.2f"/>',
 		$kind, $use_x, $bar_top, $scaled_w, $h);
@@ -236,11 +237,13 @@ sub render_grid( %args ) {
 			my $column    = 1;
 			my $bar_index = 0;
 			my $last_arrow_x;
+			my $prev_was_bar = 0;
 
 			for my $token (@$tokens) {
 				my $class = $token->{class} // '';
 
 				if ($class eq 'chords') {
+					$prev_was_bar = 0;
 					my $parts_raw       = $token->{chords} // [];
 					my $had_leading_empty = ( @$parts_raw > 1 && ( ($parts_raw->[0] // '') eq '' ) ) ? 1 : 0;
 					my $parts_in        = ChordPro::Delegate::Strum::Tokens::normalize_grid_chord_parts( $parts_raw );
@@ -315,9 +318,8 @@ sub render_grid( %args ) {
 							$used_kinds{$kind_l} = 1;
 							my $ico_r = $bar_icons->{'repeat-end'};
 							my $ico_l = $bar_icons->{'repeat-start'};
-							my $h = $bar_bottom - $bar_top;
-							my $w_r = $ico_r ? $ico_r->{width} * ($h / 100) : 6;
-							my $w_l = $ico_l ? $ico_l->{width} * ($h / 100) : 6;
+							my $w_r = $ico_r ? $ico_r->{width} * (20 / 100) : 6;
+							my $w_l = $ico_l ? $ico_l->{width} * (20 / 100) : 6;
 							push @parts, _bar_use($kind_r, $x - $w_l/2, $bar_top, $bar_bottom, $bar_icons);
 							push @parts, _bar_use($kind_l, $x + $w_r/2, $bar_top, $bar_bottom, $bar_icons);
 						}
@@ -326,11 +328,15 @@ sub render_grid( %args ) {
 						}
 					}
 					if ($type eq 'gridline') {
-						push @parts, sprintf(
-							'<text x="%.2f" y="%.2f" text-anchor="middle" font-size="6" fill="currentColor">%s</text>',
-							$x, $bar_label_y,
-							ChordPro::Delegate::Strum::Tokens::esc(
-								ChordPro::Delegate::Strum::Tokens::bar_unicode($symbol)));
+						# Avoid duplicate glyph rendering: when icon bar symbols are available,
+						# do not emit legacy Unicode bar text for the same token.
+						if ( !$bar_icons->{$kind} ) {
+							push @parts, sprintf(
+								'<text x="%.2f" y="%.2f" text-anchor="middle" font-size="6" fill="currentColor">%s</text>',
+								$x, $bar_label_y,
+								ChordPro::Delegate::Strum::Tokens::esc(
+									ChordPro::Delegate::Strum::Tokens::bar_unicode($symbol)));
+						}
 						# Volta bracket: horizontal line from current bar to next bar, plus number label
 						if (my $volta = $token->{volta}) {
 							my $next_col = $canonical_bar_columns[$bar_index];  # bar_index already incremented
@@ -349,16 +355,28 @@ sub render_grid( %args ) {
 						}
 					}
 					$last_arrow_x = undef;
-					$column++;
+					# In paired |s rows, synthetic adjacent bars (e.g. leading '|' + '|:')
+					# should consume a single beat column together.
+					if ($is_paired_strumline) {
+						$column++ unless $prev_was_bar;
+					}
+					else {
+						$column++;
+					}
+					$prev_was_bar = 1;
 					next;
 				}
+				$prev_was_bar = 0;
 
 				if ($type eq 'gridline') {
 					my $text = '';
 					if ($class eq 'chord') {
 						$text = ChordPro::Delegate::Strum::Tokens::chord_display_text($token->{chord});
 					}
-					elsif ($class eq 'repeat1' || $class eq 'repeat2' || $class eq 'slash' || $class eq 'space') {
+					elsif ($class eq 'repeat1' || $class eq 'repeat2') {
+						$text = $token->{resolved_symbol} // ($token->{symbol} // '');
+					}
+					elsif ($class eq 'slash' || $class eq 'space') {
 						$text = $token->{symbol} // '';
 					}
 					push @parts, sprintf(
@@ -686,7 +704,10 @@ sub _render_grid_compat_UNUSED( %args ) {
 				if ($class eq 'chord') {
 					$text = ChordPro::Delegate::Strum::Tokens::chord_display_text($token->{chord});
 				}
-				elsif ($class eq 'repeat1' || $class eq 'repeat2' || $class eq 'slash' || $class eq 'space') {
+				elsif ($class eq 'repeat1' || $class eq 'repeat2') {
+					$text = $token->{resolved_symbol} // ($token->{symbol} // '');
+				}
+				elsif ($class eq 'slash' || $class eq 'space') {
 					$text = $token->{symbol} // '';
 				}
 				push @parts, sprintf('<text x="%.2f" y="%.2f" text-anchor="middle" font-size="%d" fill="currentColor">%s</text>',

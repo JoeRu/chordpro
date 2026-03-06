@@ -17,7 +17,7 @@ use File::Temp qw(tempdir);
 use MIME::Base64 qw(encode_base64);
 use URI::Escape qw(uri_unescape);
 
-plan tests => 108;
+plan tests => 112;
 
 use_ok('ChordPro::Output::HTML5');
 
@@ -369,8 +369,8 @@ EOD
         like($grid_svg, qr/<svg\b[^>]*style="[^"]*font-family:[^"]*Noto Music/,
             "Bug 71: Full-grid SVG root declares Unicode-capable font stack");
 
-        like($grid_svg, qr/text-anchor="middle"[^>]*font-size="6"/,
-            "Bug 56/57: Full-grid SVG contains bar marker text nodes");
+        unlike($grid_svg, qr/<text\b[^>]*font-size="6"[^>]*>[𝄀𝄁𝄂𝄃𝄆𝄇]+<\/text>/u,
+            "Bug 75: Full-grid SVG avoids duplicate legacy Unicode bar marker text nodes");
         like($grid_svg, qr/font-size="12"[^>]*>C<\/text>/,
             "Bug 56/57: Full-grid SVG contains chord label text");
         like($grid_svg, qr/font-size="12"[^>]*>G<\/text>/,
@@ -472,10 +472,11 @@ EOD
         "Bug 61: d+~u+ rows keep visible arrow glyphs in the last strum row");
 
     my ($middle_bar_x) = ($grid_svg =~ /<use\b[^>]*href="#bar-single"[^>]*x="([0-9.]+)"[^>]*y="67\.00"[^>]*\/>/);
-    my ($repeat_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="80\.00"[^>]*>%<\/text>/);
-    ok(defined($middle_bar_x) && defined($repeat_x), "Bug 61: Repeat marker and middle barline captured");
-    cmp_ok(($repeat_x // 0), '>', (($middle_bar_x // 0) + 0.5),
-        "Bug 61: Repeat marker (%) stays in-cell to the right of the barline");
+    my @row4_d = ($grid_svg =~ /<text x="([0-9.]+)" y="80\.00"[^>]*>D<\/text>/g);
+    ok(defined($middle_bar_x) && @row4_d, "Bug 61: Resolved repeat chord text and middle barline captured");
+    my ($repeat_d_x) = grep { $_ > (($middle_bar_x // 0) + 0.5) } @row4_d;
+    ok(defined $repeat_d_x,
+        "Bug 61: Resolved repeat chord text stays in-cell to the right of the barline");
 }
 
 {
@@ -513,7 +514,7 @@ EOD
     my $song_data = <<'EOD';
 {title: Strum Token Matrix}
 {start_of_strum}
-d+ +d da ad dx+ +dx ds us ds+ us+
+d+ +d da ad ua+ dx ux ds us da+ dx+ ux+ ds+ us+
 {end_of_strum}
 EOD
 
@@ -528,14 +529,12 @@ EOD
     my $svg = uri_unescape($uri // '');
     $svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
 
-    my $staccato_count = () = ($svg =~ /<text\b[^>]*y="8\.00"[^>]*font-size="8"[^>]*>/g);
-    cmp_ok($staccato_count, '>=', 4, "Bug 61: Staccato tokens emit dedicated text markers");
-
-    my $accent_count = () = ($svg =~ /<text\b[^>]*y="12\.00"[^>]*font-size="9"[^>]*>/g);
-    cmp_ok($accent_count, '>=', 4, "Bug 61: Accent-capable tokens emit accent text markers");
-
-    my $muted_count = () = ($svg =~ /<text\b[^>]*y="21\.00"[^>]*font-size="9"[^>]*>/g);
-    cmp_ok($muted_count, '>=', 2, "Bug 61: Muted tokens emit muted-cross text markers");
+    my $glyph_count = () = ($svg =~ /<text\b[^>]*font-size="14"[^>]*>/g);
+    cmp_ok($glyph_count, '>=', 12, "Bug 76: Token matrix renders dedicated strum glyph text nodes");
+    unlike($svg, qr/<text\b[^>]*font-size="9"[^>]*>&gt;<\/text>/,
+        "Bug 76: Accent overlay marker is not used when dedicated glyphs are mapped");
+    unlike($svg, qr/<text\b[^>]*font-size="8"[^>]*>•<\/text>|<text\b[^>]*font-size="9"[^>]*>×<\/text>/u,
+        "Bug 76: Staccato/muted overlay markers are not used when dedicated glyphs are mapped");
 }
 
 {
@@ -636,6 +635,133 @@ EOD
     like($output, qr/cp-grid-full-svg/,
         "Bug 63: Chord-only grid emits full-grid SVG img tag");
 }
+
+subtest 'Bug 79: Combined modifier strums render glyphs' => sub {
+    my $song_data = <<'EOD';
+{title: Combined Modifier Glyphs}
+{start_of_grid}
+| C . . . | G . . . |
+|s da+ ua+ da+ ua+ | dx+ ux+ ds+ us+ |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 79: Full-grid SVG captured for combined modifiers");
+
+    my $grid_svg = uri_unescape($grid_uri // '');
+    $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    my $glyph_count = () = ($grid_svg =~ /<text\b[^>]*font-size="14"[^>]*>[^<]+<\/text>/g);
+    cmp_ok($glyph_count, '>=', 8,
+        "Bug 79: Combined modifier strum row emits visible glyph text nodes");
+    done_testing();
+};
+
+subtest 'Bug 80/81: Repeat-bar alignment and context-sensitive strum repeats' => sub {
+    my $song_data = <<'EOD';
+{title: Repeat Bar Strum Alignment}
+{start_of_grid}
+|: C . . . :| G . . . |
+|s |: dn up dn up :| dn up dn up |
+{end_of_grid}
+
+{start_of_grid}
+| C . . . | G . . . |
+|s dn up dn up | % |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my @uris = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/g);
+    cmp_ok(scalar(@uris), '>=', 2, "Bug 80/81: Captured two grid SVG payloads");
+
+    my $svg1 = uri_unescape($uris[0] // '');
+    $svg1 =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+    my ($c_x) = ($svg1 =~ /<text x="([0-9.]+)" y="16\.00"[^>]*>C<\/text>/);
+    my @strum_arrows = ($svg1 =~ /<text x="([0-9.]+)" y="[0-9.]+" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g);
+    ok(defined $c_x && @strum_arrows, "Bug 80: Captured chord/strum x-anchors for repeat-bar row");
+    cmp_ok(abs(($c_x // 0) - ($strum_arrows[0] // 0)), '<', 0.5,
+        "Bug 80: First strum arrow aligns with first beat anchor (no right drift)");
+
+    my $svg2 = uri_unescape($uris[1] // '');
+    $svg2 =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+    my @strum2 = ($svg2 =~ /<text x="([0-9.]+)" y="[0-9.]+" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g);
+    cmp_ok(scalar(@strum2), '>=', 8,
+        "Bug 81: Strumline % repeats prior bar as rendered strum symbols");
+    done_testing();
+};
+
+subtest 'Bug 82: Mixed chord/strum repeat slot validation with dn~up' => sub {
+    my $song_data = <<'EOD';
+{title: Mixed Repeat Slot Validation}
+{start_of_grid shape="1+4x4+0"}
+|: C . . . | Am . . . | % | % :|
+|s dn~up dn~up dn~up dn~up | dn~up dn~up dn~up dn~up | % | % |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    my $ok = eval { $s->parse_file(\$song_data, { nosongline => 1 }); 1 };
+    ok($ok, "Bug 82: Mixed repeat/sub-beat grid parses without slot mismatch");
+
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 82: Full-grid SVG generated for mixed repeat/sub-beat case");
+
+    my $svg = uri_unescape($grid_uri // '');
+    $svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+    my @strum_arrows = ($svg =~ /<text x="([0-9.]+)" y="[0-9.]+" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g);
+    cmp_ok(scalar(@strum_arrows), '>=', 24,
+        "Bug 82: Mixed repeat/sub-beat case renders dense strum glyph output");
+    done_testing();
+};
+
+subtest 'Bug 84: Chord repeat markers render resolved chord text' => sub {
+    my $song_data = <<'EOD';
+{title: Repeat Marker Display Expansion}
+{start_of_grid shape="0+4x4+0"}
+| C . . . | Am . . . | % | % |
+{end_of_grid}
+
+{start_of_grid shape="0+4x4+0"}
+| C . . . | Am . . . | %% | . . . . |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my @uris = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/g);
+    cmp_ok(scalar(@uris), '>=', 2, "Bug 84: Captured both grid SVG payloads");
+
+    my $svg1 = uri_unescape($uris[0] // '');
+    $svg1 =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+    unlike($svg1, qr/>%<\/text>|>%%<\/text>/,
+        "Bug 84: Percent markers are not rendered literally in first repeat grid");
+    my $am_count = () = ($svg1 =~ />Am<\/text>/g);
+    cmp_ok($am_count, '>=', 3,
+        "Bug 84: First repeat grid renders repeated Am chord labels");
+
+    my $svg2 = uri_unescape($uris[1] // '');
+    $svg2 =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+    unlike($svg2, qr/>%<\/text>|>%%<\/text>/,
+        "Bug 84: Percent markers are not rendered literally in double-repeat grid");
+    like($svg2, qr/>C Am<\/text>/,
+        "Bug 84: Double-repeat marker renders resolved two-bar chord text");
+    done_testing();
+};
 
 # =========================================================================
 # Bug 64: Leading-tilde semantics (~F6 / ~up) in full-grid SVG

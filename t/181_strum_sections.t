@@ -7,7 +7,7 @@ use utf8;
 use ChordPro::Testing;
 use ChordPro::Songbook;
 
-plan tests => 7;
+plan tests => 12;
 
 my $s = ChordPro::Songbook->new;
 
@@ -52,3 +52,32 @@ eval { $s->parse_file(\$data, { nosongline => 1 }) } or diag("$@");
 my $song2 = $s->{songs}->[1];
 my ($strumline) = grep { ($_->{type} // '') eq 'strumline' } @{ $song2->{body} // [] };
 ok( $strumline, "Grid strumline parsing remains available" );
+
+$data = <<'EOD';
+{title: Canonical Strum Header}
+{start_of_strum: 4/4 verse triplet}
+dn up dn up
+{end_of_strum}
+{strum: verse}
+EOD
+
+eval { $s->parse_file(\$data, { nosongline => 1 }) } or diag("$@");
+my $song3 = $s->{songs}->[2];
+ok( $song3, "Canonical start_of_strum header parsed" );
+
+my @canon_assets = grep {
+    my $asset = $song3->{assets}->{$_};
+    ($asset->{delegate} // '') eq 'Strum'
+} keys %{ $song3->{assets} // {} };
+
+is( scalar(@canon_assets), 1, "Canonical header creates one reusable strum asset" );
+my $canon_asset_id = $canon_assets[0];
+my $canon_asset = $song3->{assets}->{$canon_asset_id};
+
+is( $canon_asset->{opts}->{time_sig} // '', '4/4', "Canonical header extracts time signature" );
+is( $canon_asset->{opts}->{tuplet} // '', 3, "Canonical header extracts textual tuplet as numeric value" );
+
+my @canon_image_refs = grep {
+    ($_->{type} // '') eq 'image' && ($_->{id} // '') eq $canon_asset_id
+} @{ $song3->{body} // [] };
+is( scalar(@canon_image_refs), 2, "Canonical strum pattern can be referenced via {strum: label}" );

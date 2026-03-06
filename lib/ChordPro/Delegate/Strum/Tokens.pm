@@ -7,6 +7,7 @@ use feature qw( signatures );
 no warnings "experimental::signatures";
 use utf8;
 use URI::Escape ();
+use ChordPro::Symbols qw( strum );
 
 sub esc( $text ) {
 	return "" unless defined $text;
@@ -89,6 +90,8 @@ sub strum_symbol_info( $chord ) {
 		arpeggio  => 0,
 		staccato  => 0,
 		rest      => 0,
+		code      => '',
+		glyph     => '',
 	);
 
 	if ( $raw eq '.' ) {
@@ -110,13 +113,13 @@ sub strum_symbol_info( $chord ) {
 		$info{direction} = 'up';
 		$token =~ s/up//g;
 	}
-	elsif ( $token =~ /↠|↣/ ) {
+	elsif ( $token =~ /↠|↣|↡|↤|↦|↩|↢|↥/ ) {
 		$info{direction} = 'down';
-		$token =~ s/↠|↣//g;
+		$token =~ s/↠|↣|↡|↤|↦|↩|↢|↥//g;
 	}
-	elsif ( $token =~ /←|↖|↓/ ) {
+	elsif ( $token =~ /←|↖|↓|↑|↔|↙|→|↕/ ) {
 		$info{direction} = 'up';
-		$token =~ s/←|↖|↓//g;
+		$token =~ s/←|↖|↓|↑|↔|↙|→|↕//g;
 	}
 	elsif ( $token =~ /d/ ) {
 		$info{direction} = 'down';
@@ -131,6 +134,26 @@ sub strum_symbol_info( $chord ) {
 	$info{accent}   = 1 if $token =~ /\+/;
 	$info{arpeggio} = 1 if $token =~ /a/;
 	$info{staccato} = 1 if $token =~ /s/;
+
+	if ( $info{direction} ne '' ) {
+		my $dir = $info{direction} eq 'down' ? 'd' : 'u';
+		my $suffix = '';
+		# Keep muted/staccato/arpeggio mutually ordered and deterministic.
+		if ( $info{muted} ) {
+			$suffix = 'x';
+		}
+		elsif ( $info{arpeggio} ) {
+			$suffix = 'a';
+		}
+		elsif ( $info{staccato} ) {
+			$suffix = 's';
+		}
+
+		my $code = $dir . $suffix . ( $info{accent} ? '+' : '' );
+		$info{code} = $code;
+		my $glyph = strum($code);
+		$info{glyph} = $glyph if defined($glyph) && $glyph ne '';
+	}
 
 	return \%info;
 }

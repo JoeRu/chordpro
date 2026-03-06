@@ -16,8 +16,951 @@
     <last-fulltest-date>2026-03-03</last-fulltest-date>
   </metadata>
   <items>
-    
+    <item id="75" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-4" planned-files="lib/ChordPro/Delegate/Strum/GridRenderer.pm t/92_html5_grid_bars.t" security="true">
+      <title>Grid SVG barlines render duplicate glyphs (&lt;use&gt; plus legacy &lt;text&gt;)</title>
+      <justification>In `testing/grid-test.cho` section 2a, grid bar symbols render both the new SVG reference (`&lt;use href="#bar-*" .../&gt;`) and an additional legacy Unicode `&lt;text&gt;` glyph. Confirmed for single bar (`|`), double bar (`||`), and end bar (`|.`).</justification>
+      <depends-on></depends-on>
+      <steps-to-reproduce>
+        <step>Use `testing/grid-test.cho` section 2a with `{start_of_grid shape="0+4x4+0"}` and `|: C . . . || Am . . . :| F . . . |. G . . . |`.</step>
+        <step>Generate HTML5 output and inspect the encoded grid SVG payload around barline tokens.</step>
+        <step>Observe duplicate output per barline token: e.g. `&lt;use href="#bar-single" .../&gt;` plus `&lt;text ...&gt;𝄀&lt;/text&gt;`, `&lt;use href="#bar-double" .../&gt;` plus `&lt;text ...&gt;𝄃𝄂&lt;/text&gt;`, and `&lt;use href="#bar-end" .../&gt;` plus `&lt;text ...&gt;𝄂&lt;/text&gt;`.</step>
+      </steps-to-reproduce>
+      <expected-result>When icon symbols are emitted via `#bar-*`, no extra legacy Unicode `&lt;text&gt;` bar glyph should be emitted for the same bar token position.</expected-result>
+      <analysis>Code evidence in `lib/ChordPro/Delegate/Strum/GridRenderer.pm` (`render_grid`, branch `if ($class eq 'bar')`) shows icon output via `_bar_use(...)`, followed by unconditional Unicode text output for gridline rows using `Tokens::bar_unicode($symbol)`. This creates duplicate barline rendering for all icon-backed bar symbols (single/double/end and repeat variants). Safe fix path: suppress plain bar Unicode text emission when icon-based `&lt;use&gt;` rendering is active, while retaining volta bracket text/labels.</analysis>
+      <tasks>
+        <task id="75.1">Reproduce duplicate rendering for `|`, `||`, and `|.` in `testing/grid-test.cho` section 2a and capture rendered SVG evidence.</task>
+        <task id="75.2">Adjust `lib/ChordPro/Delegate/Strum/GridRenderer.pm` so icon bar rendering (`_bar_use`) and legacy Unicode bar `&lt;text&gt;` do not render together for the same token.</task>
+        <task id="75.3">Preserve volta bracket behavior (`data-volta` text/line rendering) and repeat semantics while removing duplicate plain bar glyph text.</task>
+        <task id="75.4">Extend `t/92_html5_grid_bars.t` with assertions preventing duplicate Unicode bar glyphs when icon `&lt;use href="#bar-*"&gt;` output exists.</task>
+      </tasks>
+      <technical-parameters>
+        <parameter name="backward-compat">Do not regress repeat bars (`|:`, `:|`, `:|:`), end bar (`|.`), or volta bracket rendering.</parameter>
+        <parameter name="scope">Keep implementation localized to `lib/ChordPro/Delegate/Strum/GridRenderer.pm` and focused regression tests.</parameter>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="integration">
+            <file>t/92_html5_grid_bars.t</file>
+            <description>Validate class coverage and rendered SVG behavior for mixed bar symbols.</description>
+            <assertions>No duplicate Unicode `&lt;text&gt;` bar glyph for icon-rendered `|`, `||`, `|.`; repeat and end bar classes remain present.</assertions>
+          </test>
+          <test type="manual">
+            <file>testing/grid-test.cho</file>
+            <description>Inspect generated HTML5 output from section 2a.</description>
+            <assertions>Each bar token is rendered once visually, without stacked legacy Unicode and icon glyphs.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-impact>
+        <category name="INPUT">
+          <threat>Directive/token text is user-controlled and influences parser/rendering paths.</threat>
+          <mitigation>Keep strict token validation and deterministic diagnostics; reject malformed control forms.</mitigation>
+        </category>
+        <category name="DISCLOSURE">
+          <threat>Rendered SVG/HTML output is externally visible and may expose malformed unescaped content if mishandled.</threat>
+          <mitigation>Preserve escaping and emit sanitized output text only.</mitigation>
+        </category>
+      </security-impact>
+      <impact-check>
+        <summary>Primary impact: CF-4 (HTML5 output) through delegate-backed grid SVG barline rendering.</summary>
+        <warning>CF-8 has `test-coverage="NONE"` in overview mapping; keep regression checks explicit for delegate/grid rendering.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+        <file role="modify" test="true">t/92_html5_grid_bars.t</file>
+        <file role="read" test="true">testing/grid-test.cho</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>No active `APPROVED` or `IN_PROGRESS` items currently overlap planned source files.</summary>
+        <result>No hard conflict detected; no automatic `depends-on` change required.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Removed duplicate bar glyph path by suppressing legacy Unicode bar text when icon-based &lt;use&gt; rendering is active; retained volta label behavior.</observations>
+        <lessons-learned>When icon and text fallback coexist, gate fallback text on icon availability to prevent double-render regressions.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+          <file>t/92_html5_grid_bars.t</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="approved" from-status="PENDING" to-status="APPROVED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>bug/item-75-grid-svg-barlines-render-duplicate</branch>
+    </item>
+    <item id="76" type="bug" status="DONE" priority="HIGH" complexity="M" ref-feature="CF-4" planned-files="lib/ChordPro/Delegate/Strum/SVGPrimitives.pm lib/ChordPro/Delegate/Strum/Tokens.pm t/html5/09_bugfixes.t t/190_html5_bugfixes.t" security="true">
+      <title>Strum modifier tokens miss dedicated Unicode glyph mapping in grid SVG</title>
+      <justification>In testing/grid-test.cho section 8e, many strum codes (da/ua/dx/ux/ds/us and + variants) do not render as dedicated symbols from ai-docs/Strum-requirement.md; output shows only partial generic arrows. Expected output should use explicit HTML-escaped symbols (e.g. ux+ =&gt; &amp;#x2199;).</justification>
+      <depends-on></depends-on>
+      <steps-to-reproduce>
+        <step>Use `testing/grid-test.cho` section 8e and generate HTML5 output.</step>
+        <step>Inspect the produced grid SVG for line `|s da ua d+ u+ | dx ux ds us | da+ ua+ dx+ ux+ | ds+ us+ . . |`.</step>
+        <step>Compare rendered strum symbols against `ai-docs/Strum-requirement.md` symbol table (e.g. `ux+` expected as `&amp;#x2199;`).</step>
+        <step>Observe that only partial generic arrows/decorations are present, while dedicated glyph mapping per modifier family is missing.</step>
+      </steps-to-reproduce>
+      <expected-result>All defined modifier families (`da/ua`, `d+/u+`, `dx/ux`, `ds/us`, `da+/ua+`, `dx+/ux+`, `ds+/us+`) render deterministic symbols according to requirement mapping, represented as HTML-escaped glyph content in SVG text nodes.</expected-result>
+      <analysis>Current implementation in `lib/ChordPro/Delegate/Strum/SVGPrimitives.pm` renders only a base up/down glyph (`gridstrum.symbols.up/down`) in `draw_arrow_svg()`. Modifier information (`muted`, `accent`, `staccato`, `arpeggio`) is added as separate decoration characters (`×`, `&gt;`, `•`, `~`) rather than selecting a dedicated symbol per complete token (e.g. `ux+`).
 
+Code evidence: `draw_arrow_svg()` computes glyph from direction only; `_strum_svg_decorations()` adds independent overlays. There is no token-to-glyph lookup table for full combinations in `SVGPrimitives.pm` or `Tokens.pm`. This explains why many variants appear as incomplete/partial symbols instead of the requirement-defined dedicated symbols.</analysis>
+      <tasks>
+        <task id="76.1">Reproduce section 8e output and capture missing/partial symbol rendering for modifier families.</task>
+        <task id="76.2">Introduce canonical token-to-glyph mapping for all supported strum combinations in `lib/ChordPro/Delegate/Strum/Tokens.pm` (or equivalent shared helper), including `+`, `x`, `s`, and `a` combinations.</task>
+        <task id="76.3">Refactor `lib/ChordPro/Delegate/Strum/SVGPrimitives.pm::draw_arrow_svg` to render one deterministic mapped glyph per token instead of direction-only glyph plus ad hoc decorations.</task>
+        <task id="76.4">Ensure mapped glyphs are emitted safely as escaped text content suitable for SVG/HTML contexts.</task>
+        <task id="76.5">Add mirrored regression checks in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` that assert symbol coverage for section-8e token matrix.</task>
+      </tasks>
+      <technical-parameters>
+        <parameter name="backward-compat">Preserve existing plain `dn`/`up` rendering and tilde/rest semantics while extending full-combination symbol mapping.</parameter>
+        <parameter name="source-of-truth">Use `ai-docs/Strum-requirement.md` symbol matrix as mapping baseline; if config overrides exist, keep override behavior deterministic.</parameter>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Verify section-8e style strum matrix emits expected symbols for all modifier families.</description>
+            <assertions>Output contains symbol coverage for `da/ua`, `d+/u+`, `dx/ux`, `ds/us`, `da+/ua+`, `dx+/ux+`, `ds+/us+` without missing beats.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirror section-8e symbol coverage checks.</description>
+            <assertions>Mirrored suite confirms the same token-to-symbol mapping behavior.</assertions>
+          </test>
+          <test type="manual">
+            <file>testing/grid-test.cho</file>
+            <description>Manual SVG/HTML inspection of section 8e.</description>
+            <assertions>Each strum beat is represented by a complete expected symbol; no partial or missing modifier representations remain.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-impact>
+        <category name="INPUT">
+          <threat>Directive/token text is user-controlled and influences parser/rendering paths.</threat>
+          <mitigation>Keep strict token validation and deterministic diagnostics; reject malformed control forms.</mitigation>
+        </category>
+        <category name="DISCLOSURE">
+          <threat>Rendered SVG/HTML output is externally visible and may expose malformed unescaped content if mishandled.</threat>
+          <mitigation>Preserve escaping and emit sanitized output text only.</mitigation>
+        </category>
+      </security-impact>
+      <impact-check>
+        <summary>Primary impact: CF-4 (HTML5 rendering) with delegate strum-symbol output behavior.</summary>
+        <warning>CF-8 is tracked as `test-coverage="NONE"`; delegate-symbol changes require explicit mirrored regression checks.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Delegate/Strum/SVGPrimitives.pm</file>
+        <file role="modify">lib/ChordPro/Delegate/Strum/Tokens.pm</file>
+        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
+        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
+        <file role="read" test="true">testing/grid-test.cho</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>Related archived items (56/57/61/62) addressed prior strum semantics but no active item currently tracks this dedicated glyph-mapping gap.</summary>
+        <result>No hard resource conflict with active `APPROVED`/`IN_PROGRESS` items; no automatic `depends-on` adjustment required.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Implemented deterministic token-to-glyph mapping and propagated mapped glyph metadata into standalone and grid strum render paths; removed dependency on overlay decorations for mapped tokens.</observations>
+        <lessons-learned>Preserve semantic token parsing and map to one glyph late in rendering to keep parser flexibility while improving visual determinism.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Delegate/Strum/Tokens.pm</file>
+          <file>lib/ChordPro/Delegate/Strum/SVGPrimitives.pm</file>
+          <file>lib/ChordPro/Delegate/Strum/StrumlineRenderer.pm</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="approved" from-status="PENDING" to-status="APPROVED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>bug/item-76-strum-modifier-tokens-miss-dedicated</branch>
+    </item>
+    <item id="77" type="refactoring" status="DONE" priority="MEDIUM" complexity="S" ref-feature="CF-4" planned-files="lib/ChordPro/Delegate/Strum/GridRenderer.pm t/92_html5_grid_bars.t" security="true">
+      <title>Refactor strum bar-icon scaling to Y-only geometry</title>
+      <justification>Strum bar icons in `lib/ChordPro/Delegate/Strum/GridRenderer.pm::_bar_use` currently derive `width` from rendered `height` (`scaled_w = icon_w * (h / 100)`), causing X-thickness growth when bars span taller paired rows. This creates visually over-bold bars in strum contexts. The refactoring should decouple X and Y scaling so icon height remains dynamic while thickness in X stays stable and behavior-preserving.</justification>
+      <depends-on></depends-on>
+      <analysis>Current SVG emission in `_bar_use` applies proportional scaling from bar height to both dimensions. For paired grid+strum rows, `h` is larger than normal chord-row bars, which increases `scaled_w` and thickens bars unexpectedly. Desired structural change: keep X-width anchored to a constant baseline while continuing to stretch in Y to the required bar height.
+
+This is a rendering-geometry refactor with no parser or token-model changes. Safe scope is limited to `GridRenderer.pm` and regression assertions for visual thickness stability.</analysis>
+      <tasks>
+        <task id="77.1">Isolate current `_bar_use` width/height math and document baseline X-width expectation for bar icon kinds (`single`, `double`, `end`, repeats).</task>
+        <task id="77.2">Refactor sizing logic so X-width does not grow with bar height while Y scaling still follows row height.</task>
+        <task id="77.3">Preserve existing bar-kind selection and symbol placement semantics (`single`, `double`, `end`, repeats, volta behavior).</task>
+        <task id="77.4">Add focused tests that assert stable bar thickness in paired chord+strum rows and unchanged bar-kind rendering classes.</task>
+      </tasks>
+      <technical-parameters>
+        <parameter name="backward-compat">Behavior-preserving refactor: no changes to token parsing, bar-kind detection, or workflow-log semantics.</parameter>
+        <parameter name="pattern">Geometry decoupling: separate X-thickness policy from Y-height policy in `_bar_use` to avoid proportional-width inflation.</parameter>
+        <parameter name="lessons">Apply L-34/L-38 (mirrored tests in lockstep) and L-37 (assert structural SVG properties, avoid brittle encoded snapshots).</parameter>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="integration">
+            <file>t/92_html5_grid_bars.t</file>
+            <description>Verify bar classes and rendered bar icon geometry remain correct after scaling refactor.</description>
+            <assertions>Paired-row bar `&lt;use&gt;` entries keep stable X-thickness while Y-height follows row span; bar classes still include single/double/end/repeat variants.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Guard against regressions in HTML5 grid/strum rendering around bar alignment semantics.</description>
+            <assertions>Existing bar/strum alignment assertions remain PASS with no new drift.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirrored coverage for HTML5 bugfix suite.</description>
+            <assertions>Mirrored suite remains aligned and PASS for bar rendering behavior.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-assessment>
+        <category name="AUTH">
+          <impact>NONE</impact>
+          <notes>No authentication behavior involved.</notes>
+        </category>
+        <category name="INPUT">
+          <impact>LOW</impact>
+          <notes>Rendering math changes consume existing parsed tokens only; no new input channels.</notes>
+        </category>
+        <category name="DATA">
+          <impact>NONE</impact>
+          <notes>No persistence or data model changes.</notes>
+        </category>
+        <category name="NETWORK">
+          <impact>NONE</impact>
+          <notes>No networking behavior touched.</notes>
+        </category>
+        <category name="CRYPTO">
+          <impact>NONE</impact>
+          <notes>No cryptographic components affected.</notes>
+        </category>
+        <category name="ACCESS">
+          <impact>NONE</impact>
+          <notes>No access-control logic in scope.</notes>
+        </category>
+        <category name="DISCLOSURE">
+          <impact>LOW</impact>
+          <notes>SVG output structure changes are observable; keep escaping and symbol handling unchanged.</notes>
+        </category>
+      </security-assessment>
+      <security-impact>
+        <category name="INPUT">
+          <threat>Directive/token text is user-controlled and influences parser/rendering paths.</threat>
+          <mitigation>Keep strict token validation and deterministic diagnostics; reject malformed control forms.</mitigation>
+        </category>
+        <category name="DISCLOSURE">
+          <threat>Rendered SVG/HTML output is externally visible and may expose malformed unescaped content if mishandled.</threat>
+          <mitigation>Preserve escaping and emit sanitized output text only.</mitigation>
+        </category>
+      </security-impact>
+      <impact-check>
+        <summary>Primary shared impact: CF-4 (HTML5 backend) and CF-7 (grid/diagram rendering behavior).</summary>
+        <warning>CF-7 remains PARTIAL/PARTIAL in overview mapping; prioritize regression coverage for bar geometry/alignment-sensitive cases.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+        <file role="modify" test="true">t/92_html5_grid_bars.t</file>
+        <file role="read" test="true">testing/grid-test.cho</file>
+        <file role="read" test="true">t/html5/09_bugfixes.t</file>
+        <file role="read" test="true">t/190_html5_bugfixes.t</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>Related active bug item 75 touches the same source file (`GridRenderer.pm`) and is functionally adjacent; there are no items in `APPROVED`/`IN_PROGRESS` state, so no hard sequencing conflict currently enforced.</summary>
+        <result>No automatic `depends-on` required at this stage; if item 75 moves to active execution first, re-check overlap before start.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Refactored bar icon geometry to keep X thickness constant while scaling only in Y, including repeat-both paired icon placement.</observations>
+        <lessons-learned>For visual geometry regressions, stabilize one axis with a baseline constant and validate in mirrored render suites.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+          <file>t/92_html5_grid_bars.t</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="approved" from-status="PENDING" to-status="APPROVED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>refactoring/item-77-refactor-strum-bar-icon-scaling</branch>
+    </item>
+    <item id="78" type="feature" status="DONE" priority="HIGH" complexity="M" ref-feature="CF-8" planned-files="lib/ChordPro/Song.pm lib/ChordPro/Delegate/Strum.pm t/181_strum_sections.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t" security="true">
+      <title>Standalone strum directives: full header grammar for start_of_strum/end_of_strum</title>
+      <justification>Current implementation parses standalone strum sections but only partially matches the requirement grammar in ai-docs/Strum-requirement.md for start_of_strum header with time signature, label, and optional tuplet. Add deterministic parsing for canonical header syntax and preserve existing key/value compatibility.</justification>
+      <depends-on></depends-on>
+      <analysis>Code inspection confirms `{start_of_strum}` and `{end_of_strum}` are implemented in `lib/ChordPro/Song.pm`, and `t/181_strum_sections.t` passes. The remaining requirement gap is canonical header grammar handling from `ai-docs/Strum-requirement.md` (`time-signature label [tuplet]`) as a first-class parse contract, not only as key/value fallback behavior.
+
+The parser currently normalizes some forms via `parse_kv(..., "label")` and a regex that extracts `time_sig` from label prefixes. This should be formalized to support deterministic parsing and diagnostics for canonical syntax while retaining backwards compatibility for existing `label=...` and `tuplet=...` usage.</analysis>
+      <tasks>
+        <task id="78.1">Define and implement a canonical parser branch in `lib/ChordPro/Song.pm` for `{start_of_strum: TIME_SIG LABEL [TUPLET]}` that extracts `time_sig`, `label`, and optional tuplet tokens deterministically.</task>
+        <task id="78.2">Preserve existing key/value header compatibility (`label=...`, `tuplet=...`, existing `time_sig` behavior) and add conflict resolution rules when canonical and key/value forms are mixed.</task>
+        <task id="78.3">Ensure `{end_of_strum}` closes context with strict diagnostics for malformed open/close pairs and keeps existing asset emission behavior unchanged.</task>
+        <task id="78.4">Extend parser-focused tests in `t/181_strum_sections.t` for canonical examples such as `{start_of_strum: 4/4 verse triplet}` and `{start_of_strum: 3/4 chorus}` including `{strum: label}` reference behavior.</task>
+        <task id="78.5">Update mirrored HTML5 regression suites (`t/html5/09_bugfixes.t`, `t/190_html5_bugfixes.t`) with one canonical standalone strum sample to lock parser-to-render contract parity.</task>
+      </tasks>
+      <technical-parameters>
+        <constraint>Backward compatibility is mandatory: existing standalone strum files using current key/value headers must continue to parse and render unchanged.</constraint>
+        <constraint>Scope is limited to standalone strum directive parsing and related tests; no behavioral drift for grid-embedded `|s` parsing.</constraint>
+        <nfr type="reliability">Malformed canonical headers must emit deterministic diagnostics and must not corrupt parser context state.</nfr>
+        <nfr type="maintainability">Header parsing logic for standalone strum directives should be centralized and covered by dedicated parser tests to avoid duplicated regex branches.</nfr>
+        <pattern>Use parser normalization at the directive boundary (`Song.pm`) with explicit precedence rules; keep rendering modules (`Delegate/Strum.pm`) contract-based. Apply lessons L-34/L-36/L-38 for mirrored suite lockstep and L-37 for structural assertions over brittle payload literals.</pattern>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/181_strum_sections.t</file>
+            <description>Validate canonical standalone header parsing and pattern referencing.</description>
+            <assertions>`{start_of_strum: 4/4 verse triplet}` and `{start_of_strum: 3/4 chorus}` produce expected `opts` fields; `{strum: verse}` resolves and emits image reference; malformed headers produce deterministic diagnostics.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Verify canonical standalone strum section renders correctly in HTML5 delegate path.</description>
+            <assertions>Rendered output includes standalone strum SVG payload without parser fallback warnings.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirrored parity check for canonical standalone strum rendering.</description>
+            <assertions>Mirrored suite passes with the same canonical-header behavior and no divergence.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-assessment>
+        <category name="AUTH">
+          <impact>NONE</impact>
+          <notes>No authentication logic is touched.</notes>
+        </category>
+        <category name="INPUT">
+          <impact>LOW</impact>
+          <notes>Parser accepts user-controlled directive headers; implement strict token validation and deterministic diagnostics for malformed canonical syntax.</notes>
+        </category>
+        <category name="DATA">
+          <impact>NONE</impact>
+          <notes>No persistence or external data-store changes.</notes>
+        </category>
+        <category name="NETWORK">
+          <impact>NONE</impact>
+          <notes>No network behavior involved.</notes>
+        </category>
+        <category name="CRYPTO">
+          <impact>NONE</impact>
+          <notes>No cryptographic functionality involved.</notes>
+        </category>
+        <category name="ACCESS">
+          <impact>NONE</impact>
+          <notes>No access-control semantics are affected.</notes>
+        </category>
+        <category name="DISCLOSURE">
+          <impact>LOW</impact>
+          <notes>Output structure is user-visible; maintain existing escaping and avoid exposing raw unescaped directive content.</notes>
+        </category>
+      </security-assessment>
+      <security-impact>
+        <category name="INPUT">
+          <threat>Directive/token text is user-controlled and influences parser/rendering paths.</threat>
+          <mitigation>Keep strict token validation and deterministic diagnostics; reject malformed control forms.</mitigation>
+        </category>
+        <category name="DISCLOSURE">
+          <threat>Rendered SVG/HTML output is externally visible and may expose malformed unescaped content if mishandled.</threat>
+          <mitigation>Preserve escaping and emit sanitized output text only.</mitigation>
+        </category>
+      </security-impact>
+      <impact-check>
+        <summary>Primary impact: CF-8 (delegate integration) and parser path in CF-2, with HTML5 rendering visibility in CF-4.</summary>
+        <warning>CF-8 has `test-coverage="NONE"` and CF-2 is `PARTIAL/PARTIAL`; enforce focused parser tests plus mirrored HTML5 assertions.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Song.pm</file>
+        <file role="modify">lib/ChordPro/Delegate/Strum.pm</file>
+        <file role="modify" test="true">t/181_strum_sections.t</file>
+        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
+        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>No active `APPROVED` or `IN_PROGRESS` items currently overlap `lib/ChordPro/Song.pm` or `lib/ChordPro/Delegate/Strum.pm`.</summary>
+        <result>No automatic `depends-on` update required. Monitor soft overlap with active PENDING items 75/76/77 in strum/grid test domains.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Added canonical standalone strum header normalization for time-signature/label/tuplet and preserved backward compatibility for existing key=value forms.</observations>
+        <lessons-learned>Canonical grammar support should normalize to existing internal opts contracts so reference features continue to work without duplicate code paths.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Song.pm</file>
+          <file>t/181_strum_sections.t</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="approved" from-status="PENDING" to-status="APPROVED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>feature/item-78-standalone-strum-directives-full-header</branch>
+    </item>
+    <item id="79" type="bug" status="DONE" priority="HIGH" complexity="M" ref-feature="CF-4" planned-files="lib/ChordPro/Delegate/Strum/Tokens.pm t/html5/09_bugfixes.t t/190_html5_bugfixes.t" security="true">
+      <title>Combined modifier strum tokens (da+/dx+/ds+) render empty row in grid SVG</title>
+      <justification>In `testing/grid-test.cho` section 9 (`da+ ua+`, `dx+ ux+`, `ds+ us+`), generated HTML5 full-grid SVG keeps the paired strum row height but emits no strum symbols for the row. The same fixture renders arrows in section 7 and section 8, so this is a selective regression for combined modifier families.</justification>
+      <depends-on></depends-on>
+      <steps-to-reproduce>
+        <step>Generate HTML5 output for `testing/grid-test.cho`: `perl -Ilib script/chordpro.pl testing/grid-test.cho --generate=HTML5 --output=testing/grid-test.html`.</step>
+        <step>Inspect section 9 comments: `9a - Arpeggio+accent (da+, ua+)`, `9b - Muted+accent (dx+, ux+)`, and `9c - Staccato+accent (ds+, us+)`.</step>
+        <step>Decode the corresponding `cp-grid-full-svg` payloads: each section has two-row height (`viewBox ... 58.00`) but no `&lt;text ...&gt;` strum symbols in the second row.</step>
+        <step>Cross-check parser output with JSON generation: `testing/grid-test.json` contains section-9 `strumline` tokens with names `da+`, `ua+`, `dx+`, `ux+`, `ds+`, `us+`.</step>
+      </steps-to-reproduce>
+      <expected-result>Section 9 strum rows render visible symbols for all combined modifiers (`da+/ua+`, `dx+/ux+`, `ds+/us+`) in full-grid SVG, consistent with section 8 behavior and the documented strum token matrix.</expected-result>
+      <analysis>Code evidence indicates a renderer-side token interpretation gap rather than parser loss. `testing/grid-test.json` confirms section-9 rows are parsed as `type="strumline"` and retain token names (`da+`, `ua+`, `dx+`, `ux+`, `ds+`, `us+`). Rendering path (`lib/ChordPro/Delegate/Strum/GridRenderer.pm`) calls `ChordPro::Delegate::Strum::Tokens::strum_symbol_info` for strum cells and only emits arrows when `direction` is detected.
+
+In `lib/ChordPro/Delegate/Strum/Tokens.pm`, `strum_symbol_info` direction detection currently recognizes textual forms (`d`, `u`, `dn`, `up`) and a limited glyph subset (`↠|↣` down, `←|↖|↓` up). Section-9 tokens are normalized with symbol formats such as `↤` and `↔` (seen in `testing/grid-test.json` token payloads). These glyphs are not included in direction detection, so `direction` remains empty and the renderer emits no strum symbol, producing an apparently blank strum row.
+
+Related item 76 addressed dedicated glyph mapping, but this issue is a distinct regression in direction normalization for glyph-form combined modifiers in the full-grid SVG path.</analysis>
+      <tasks>
+        <task id="79.1">Reproduce section-9 blank-row symptom in `testing/grid-test.html` and capture decoded SVG evidence for missing strum symbols.</task>
+        <task id="79.2">Extend `lib/ChordPro/Delegate/Strum/Tokens.pm::strum_symbol_info` direction detection to recognize glyph-form combined modifier symbols used by parser-normalized tokens (including `↤` and `↔`).</task>
+        <task id="79.3">Keep canonical token code generation deterministic (`da+`, `ua+`, `dx+`, `ux+`, `ds+`, `us+`) so mapped glyph and fallback rendering remain consistent across grid and standalone paths.</task>
+        <task id="79.4">Add mirrored regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` asserting that section-9 combined modifier rows emit visible strum symbols in decoded full-grid SVG payloads.</task>
+      </tasks>
+      <technical-parameters>
+        <parameter name="scope">Limit fix to strum token normalization/render contract (`Tokens.pm`) and mirrored regression suites.</parameter>
+        <parameter name="backward-compat">Do not regress section 7/8 token families (`dn/up`, `d+/u+`, `dx/ux`, `da/ua`, `ds/us`) or existing gridline/chord rendering.</parameter>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Validate section-9 combined modifier rows render non-empty strum symbols in full-grid SVG.</description>
+            <assertions>Decoded SVG for section 9 contains strum-row symbol text for `da+/ua+`, `dx+/ux+`, and `ds+/us+`; row is not visually blank.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirror section-9 non-empty strum-row assertions.</description>
+            <assertions>Mirrored suite confirms the same combined-modifier rendering behavior.</assertions>
+          </test>
+          <test type="manual">
+            <file>testing/grid-test.cho</file>
+            <description>Visual inspection of generated `testing/grid-test.html` section 9.</description>
+            <assertions>Each combined-modifier grid displays visible strum symbols on the second row (no blank strum row).</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-impact>
+        <category name="INPUT">
+          <threat>Strum tokens are user-controlled and pass through parser-to-render normalization.</threat>
+          <mitigation>Keep token normalization deterministic and reject malformed forms without widening accepted unsafe input patterns.</mitigation>
+        </category>
+        <category name="DISCLOSURE">
+          <threat>SVG output is externally visible; malformed or unescaped symbol handling could leak unsafe content.</threat>
+          <mitigation>Continue emitting escaped text nodes via existing escaping helpers.</mitigation>
+        </category>
+      </security-impact>
+      <impact-check>
+        <summary>Primary impact: CF-4 (HTML5 rendering) and CF-8 (delegate strum integration) for grid full-SVG strum rows.</summary>
+        <warning>CF-8 remains `test-coverage="NONE"` in overview mapping; keep mirrored regression assertions explicit.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Delegate/Strum/Tokens.pm</file>
+        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
+        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
+        <file role="read" test="true">testing/grid-test.cho</file>
+        <file role="read" test="true">testing/grid-test.html</file>
+        <file role="read" test="true">testing/grid-test.json</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>No active `APPROVED` or `IN_PROGRESS` items currently declare overlapping planned source-file modifications.</summary>
+        <result>No hard conflict detected; no automatic `depends-on` update required.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Extended `strum_symbol_info` direction detection to cover combined-modifier glyph forms so section-9 rows emit visible arrows instead of blank strum lines.</observations>
+        <lessons-learned>Glyph-form token normalization must include full direction classification; otherwise renderer paths silently skip symbols when direction is unset.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Delegate/Strum/Tokens.pm</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="approved" from-status="PENDING" to-status="APPROVED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>bug/item-79-combined-modifier-strum-tokens</branch>
+    </item>
+    <item id="80" type="bug" status="DONE" priority="HIGH" complexity="M" ref-feature="CF-4" planned-files="lib/ChordPro/Delegate/Strum/GridRenderer.pm t/html5/09_bugfixes.t t/190_html5_bugfixes.t" security="true">
+      <title>Repeat-bar tokens in |s rows shift strum symbols right in full-grid SVG</title>
+      <justification>In `testing/grid-test.cho` section 11a (`|: C . . . :| G . . . |` with `|s |: dn up dn up :| dn up dn up |`), the strum symbols in generated SVG appear optically shifted to the right (`x+`) relative to the chord-grid beat anchors.</justification>
+      <depends-on></depends-on>
+      <steps-to-reproduce>
+        <step>Use `testing/grid-test.cho` section 11a and generate HTML5 output: `perl -Ilib script/chordpro.pl --nosongconfig testing/grid-test.cho --generate=HTML5 --output=testing/grid-test.html`.</step>
+        <step>Decode the section-11a `cp-grid-full-svg` payload and inspect strum-row text x-positions.</step>
+        <step>Observe first strum symbol starts at `x=60` while first beat/chord anchor is at `x=36`; later symbols continue with the same rightward bias.</step>
+        <step>Compare with the same gridline row anchors to verify repeat bars (`|:`, `:|`) are present but strum arrows are offset by one render column.</step>
+      </steps-to-reproduce>
+      <expected-result>In paired grid+strum full-grid SVG, strum symbols for `|s` rows with repeat bars align to the same beat columns as chord/grid anchors, without rightward drift.</expected-result>
+      <analysis>Code evidence points to column-accounting drift in `lib/ChordPro/Delegate/Strum/GridRenderer.pm::render_grid`. For paired rows, bars are drawn only on the gridline (`$is_paired_strumline` suppresses bar drawing on strum row), but the strum-row loop still increments `$column` for `class='bar'` tokens. In section 11a strum rows that explicitly include `|:` and `:|`, this consumes render columns before/inside strum beats and shifts subsequent arrow x-positions right.
+
+Even though bar x-position uses canonical bar columns (`$canonical_bar_columns`), strum arrows are positioned from the evolving `$column` cursor. With hidden/suppressed strum-row bars, advancing `$column` on those bar tokens introduces an avoidable offset. Root-cause hypothesis: for paired strumline rows, bar tokens should anchor semantics without consuming arrow-placement columns, or an equivalent normalization step should decouple strum symbol columns from hidden bar tokens.</analysis>
+      <tasks>
+        <task id="80.1">Reproduce section-11a drift and capture decoded SVG x-position evidence for chord anchors vs strum arrows.</task>
+        <task id="80.2">Adjust `lib/ChordPro/Delegate/Strum/GridRenderer.pm` column progression so paired `strumline` bars (`|s` with `|:`, `:|`, `:|:`) do not shift arrow beat columns right when bar rendering is suppressed for that row.</task>
+        <task id="80.3">Preserve repeat-bar semantics and canonical bar alignment across paired rows while removing arrow drift.</task>
+        <task id="80.4">Add mirrored regression checks in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` that assert section-11a strum symbol x-anchors align to intended beat columns.</task>
+      </tasks>
+      <technical-parameters>
+        <parameter name="scope">Keep change localized to full-grid SVG column-accounting in `GridRenderer.pm` and mirrored HTML5 regression suites.</parameter>
+        <parameter name="backward-compat">Do not regress existing handling of `|S`/`|s`, repeat bars, end bars, or non-repeat strum rows.</parameter>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Validate section-11a repeat-bar strum rows keep beat-aligned arrow positions.</description>
+            <assertions>Decoded full-grid SVG shows first strum arrow aligned to first beat anchor (no +1 column drift) and repeat-bar cases remain stable.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirror repeat-bar strum alignment assertions.</description>
+            <assertions>Mirrored suite confirms no right-shift regression for repeat-bar `|s` rows.</assertions>
+          </test>
+          <test type="manual">
+            <file>testing/grid-test.cho</file>
+            <description>Visual review of section 11a in generated HTML5 output.</description>
+            <assertions>Strum symbols line up with beat/chord columns despite repeat bars in the `|s` row.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-impact>
+        <category name="INPUT">
+          <threat>User-controlled grid/strum tokens affect render-path column accounting.</threat>
+          <mitigation>Keep deterministic token handling; preserve strict parser semantics and avoid new permissive token forms.</mitigation>
+        </category>
+        <category name="DISCLOSURE">
+          <threat>SVG output is externally visible; malformed rendering logic could expose unintended content structure.</threat>
+          <mitigation>Retain existing escaping and structured SVG emission paths.</mitigation>
+        </category>
+      </security-impact>
+      <impact-check>
+        <summary>Primary impact: CF-4 (HTML5 output) and CF-8 (delegate strum/grid integration) in full-grid SVG rendering.</summary>
+        <warning>CF-8 remains `test-coverage="NONE"` in overview; mirrored regression assertions are required for repeat-bar strum paths.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
+        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
+        <file role="read" test="true">testing/grid-test.cho</file>
+        <file role="read" test="true">testing/grid-test.html</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>No active `APPROVED` or `IN_PROGRESS` item-ref entries currently declare overlapping planned source-file modifications.</summary>
+        <result>No hard conflict detected; no automatic `depends-on` update required.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Adjusted paired `|s` bar column progression to collapse adjacent synthetic bar runs into one consumed column, removing right-shift drift while preserving repeat bar alignment.</observations>
+        <lessons-learned>In paired row rendering, hidden helper bars still influence geometry state; treat adjacent synthetic bars as one anchor to avoid off-by-one drift.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="approved" from-status="PENDING" to-status="APPROVED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>bug/item-80-repeat-bar-tokens-shift-strum</branch>
+    </item>
+    <item id="81" type="feature" status="DONE" priority="MEDIUM" complexity="L" ref-feature="CF-2" planned-files="lib/ChordPro/Song.pm lib/ChordPro/Delegate/Strum/GridRenderer.pm lib/ChordPro/Output/HTML5.pm t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t" security="true">
+      <title>Context-sensitive grid repeats: `%`/`%%` repeat chords on gridlines and strums on strumlines</title>
+      <justification>Chapter 12.6 and current parser behavior are misaligned for mixed grid+strum use cases. `%` and `%%` currently replay chord memory on gridlines, but in `|s` / `|S` rows they are effectively marker tokens without strum replay semantics. Requirement update: `%` repeats the previous bar in the same row context; `%%` repeats the previous two bars in the same row context. Therefore chord rows keep existing chord-repeat semantics while strum rows gain deterministic strum-pattern replay.</justification>
+      <depends-on></depends-on>
+      <analysis>Code evidence in `lib/ChordPro/Song.pm` shows repeat parsing is unconditional (`repeat1`/`repeat2` token classes), but replay is currently tied to chord memory (`$memchords`, `$p0/$p1/$p2`) and gated away from strum rows (`!is_gridstrum($grid_type)`). As a result, strumline `%`/`%%` tokens do not replay prior strum bars. Rendering paths in `lib/ChordPro/Delegate/Strum/GridRenderer.pm` and `lib/ChordPro/Output/HTML5.pm` already understand repeat classes visually; the feature gap is semantic expansion and validation in parser state. Required implementation is a context-aware repeat memory model: chord history for gridlines, strum history for strumlines, with parse errors when history is insufficient.</analysis>
+      <tasks>
+        <task id="81.1">Update requirement wording in `ai-docs/Grid-requirement.md` chapter 12.6 to specify context-sensitive `%`/`%%` semantics for gridline vs strumline rows and explicit insufficient-history error behavior.</task>
+        <task id="81.2">Update `ai-docs/Strum-requirement.md` to document `%`/`%%` as valid strumline repeat tokens and keep `.` semantics as rest in strum rows.</task>
+        <task id="81.3">Refactor `lib/ChordPro/Song.pm` repeat handling to maintain separate replay history stacks for chord rows and strum rows while preserving existing token class output (`repeat1`, `repeat2`).</task>
+        <task id="81.4">Implement parser diagnostics in `lib/ChordPro/Song.pm` so strumline `%` requires one prior strum bar and `%%` requires two prior strum bars; otherwise raise parsing error.</task>
+        <task id="81.5">Adjust `lib/ChordPro/Delegate/Strum/GridRenderer.pm` rendering path if needed so parser-expanded strum repeats render as aligned strum actions without introducing bar-column drift.</task>
+        <task id="81.6">Keep `lib/ChordPro/Output/HTML5.pm` repeat-anchor behavior stable for chord-grid repeats while confirming strumline replay output remains compatible with full-grid SVG generation.</task>
+        <task id="81.7">Extend `t/180_grids.t` with parser-level tests for context-sensitive `%`/`%%` semantics in both row types, including insufficient-history failure cases.</task>
+        <task id="81.8">Add mirrored HTML5 regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` that assert strumline repeats render replayed strum patterns and retain beat-column alignment.</task>
+      </tasks>
+      <technical-parameters>
+        <constraint>Backward compatibility: existing chord-grid `%`/`%%` behavior and repeat anchor rendering must remain unchanged.</constraint>
+        <constraint>Context isolation: chord repeat history and strum repeat history must not bleed into each other across row types.</constraint>
+        <constraint>Validation strictness: insufficient prior bars for `%`/`%%` in strum context must be a parse error, not warning/no-op.</constraint>
+        <nfr type="reliability">Parser must produce deterministic replay output for equivalent input, independent of renderer path (full-grid SVG or tokenized HTML fallback).</nfr>
+        <nfr type="maintainability">Repeat semantics should be centralized in parser row-context logic, with rendering layers consuming normalized tokens/elements only.</nfr>
+        <nfr type="performance">Replay handling must stay linear in token count per row, with no quadratic scanning over prior grid rows.</nfr>
+        <pattern>Parser-first normalization pattern in `Song.pm`; keep renderer logic declarative. Apply lessons L-34/L-36/L-38 for mirrored-suite lockstep and L-37 for structural SVG assertions over brittle encoded payload literals.</pattern>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/180_grids.t</file>
+            <description>Validate context-sensitive repeat parsing and history validation.</description>
+            <assertions>Gridline `%`/`%%` replays chord bars as before; strumline `%`/`%%` replays prior strum bars; insufficient strum history produces parse error diagnostics.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Verify full-grid SVG output for mixed chord+strum repeat scenarios.</description>
+            <assertions>Repeated strum bars render as expected strum symbols with aligned beat x-anchors and no right-drift.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirror context-sensitive repeat rendering checks for parity suite.</description>
+            <assertions>Mirrored suite confirms identical chord/strum repeat semantics and alignment behavior.</assertions>
+          </test>
+          <test type="manual">
+            <file>testing/grid-test.cho</file>
+            <description>Generate HTML5 output with representative mixed repeat cases.</description>
+            <assertions>Chapter-12.6 examples show `%`/`%%` replaying the correct prior bars by row context (chord or strum) with no blank repeat rows.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-impact>
+        <category name="INPUT">
+          <threat>User-authored grid/strum tokens (`%`, `%%`) drive parser replay paths and could trigger malformed state transitions if validation is weak.</threat>
+          <mitigation>Enforce strict context-aware validation and deterministic parse errors for insufficient history.</mitigation>
+        </category>
+        <category name="DISCLOSURE">
+          <threat>Incorrect renderer handling of replay-expanded tokens could expose malformed or unescaped SVG text output.</threat>
+          <mitigation>Retain existing escaping helpers and structural SVG assertions in mirrored tests.</mitigation>
+        </category>
+      </security-impact>
+      <impact-check>
+        <summary>Primary impact spans CF-2 (parser), CF-4 (HTML5 rendering), and CF-8 (delegate strum integration).</summary>
+        <warning>CF-8 has `test-coverage="NONE"` in overview metadata; mirrored integration assertions are required to guard delegate/grid parity.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Song.pm</file>
+        <file role="modify">lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+        <file role="modify">lib/ChordPro/Output/HTML5.pm</file>
+        <file role="modify" test="true">t/180_grids.t</file>
+        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
+        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
+        <file role="modify">ai-docs/Grid-requirement.md</file>
+        <file role="modify">ai-docs/Strum-requirement.md</file>
+        <file role="read" test="true">testing/grid-test.cho</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>No active `APPROVED` or `IN_PROGRESS` items currently declare overlapping planned non-test source-file modifications.</summary>
+        <result>No hard conflict detected; no automatic `depends-on` adjustment required. Soft overlap exists with pending items 79/80 in the same strum/grid module area.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Implemented context-sensitive `%`/`%%` replay in parser with dedicated strum history for `|s` rows, including deterministic parse errors on insufficient history; added parser and mirrored HTML5 regression coverage.</observations>
+        <lessons-learned>Repeat semantics are safest when expanded in parser context before rendering, with independent histories for chord and strum rows.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Song.pm</file>
+          <file>t/180_grids.t</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+          <file>ai-docs/Grid-requirement.md</file>
+          <file>ai-docs/Strum-requirement.md</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="approved" from-status="PENDING" to-status="APPROVED"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>feature/item-81-context-sensitive-grid-repeats</branch>
+    </item>
+    <item id="82" type="bug" status="DONE" priority="HIGH" complexity="M" ref-feature="CF-2" planned-files="lib/ChordPro/Song.pm t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t" security="true">
+      <title>Grid chord `%` slot counting diverges from strum `%` expansion, causing false mismatch errors</title>
+      <justification>Valid mixed grid+strum input in `testing/grid-test.cho` section 13b fails with `Strum line has 16 entries but chord line has 8 slots (mismatch)` although the chord row and strum row both represent four 4/4 measures. This blocks rendering for correct chart notation.</justification>
+      <depends-on></depends-on>
+      <steps-to-reproduce>
+        <step>Use section 13b from `testing/grid-test.cho`:
+`|: C . . . | Am . . . | % | % :|` and
+`|s dn~up dn~up dn~up dn~up | dn~up dn~up dn~up dn~up | % | % |`.</step>
+        <step>Run: `perl -Ilib script/chordpro.pl testing/grid-test.cho --generate=HTML5 --output=testing/grid-test.html`.</step>
+        <step>Observe parser warning/error at line 314:
+`Strum line has 16 entries but chord line has 8 slots (mismatch)`.</step>
+      </steps-to-reproduce>
+      <expected-result>Section 13b parses successfully. Slot validation should treat chord `%`/`%%` measures consistently with strum `%`/`%%` replay semantics so equivalent four-measure lines do not fail mismatch checks.</expected-result>
+      <analysis>Code evidence in `lib/ChordPro/Song.pm` (`decompose_grid`) shows slot validation compares `$nbt` for strum rows against `$grid_last_slot_count` from previous chord row. In the current repeat implementation, strum `%`/`%%` paths expand into replayed tokens and explicitly increment `$nbt` (e.g., `+$scalar(@expanded)`), while chord `%`/`%%` keep marker tokens and update chord memory but do not increase `$nbt`. For section 13b this yields `$grid_last_slot_count=8` (explicit two bars only) versus strum `$nbt=16` after replay expansion, producing a false-positive mismatch.
+
+This is adjacent to item 81 behavior: context-sensitive repeats were added, but validation accounting remained asymmetric between chord and strum contexts. Existing tests cover `%` with plain `dn up` bars, but do not cover `%` replay with sub-beat strum cells (`dn~up`) against chord-line `%` markers in the same grid block.</analysis>
+      <tasks>
+        <task id="82.1">Reproduce section 13b mismatch and capture parser-state evidence for `$nbt` and `$grid_last_slot_count` divergence at validation.</task>
+        <task id="82.2">Adjust `lib/ChordPro/Song.pm` slot accounting so chord-line `%`/`%%` contribute equivalent slot counts for validation purposes, consistent with strum replay expansion.</task>
+        <task id="82.3">Ensure fix preserves current chord token output semantics (`repeat1`/`repeat2`) and does not regress chord-memory behavior.</task>
+        <task id="82.4">Add parser regression in `t/180_grids.t` using a section-13b-like case with `dn~up` and `%` on both rows; assert no mismatch error.</task>
+        <task id="82.5">Add mirrored HTML5 regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` validating successful render of this mixed repeat/sub-beat case.</task>
+      </tasks>
+      <technical-parameters>
+        <parameter name="scope">Limit change to parser slot-count validation and targeted regressions.</parameter>
+        <parameter name="backward-compat">Do not regress existing `%`/`%%` rendering output, repeat markers, or mismatch diagnostics for genuinely invalid strum/chord width differences.</parameter>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/180_grids.t</file>
+            <description>Validate slot-count parity when chord row uses `%` markers and strum row replays sub-beat patterns (`dn~up`).</description>
+            <assertions>No mismatch error for valid aligned four-bar case; invalid mismatched cases still fail with deterministic diagnostics.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Render section-13b-like mixed repeat/sub-beat grid via HTML5.</description>
+            <assertions>Song parses and renders; full-grid SVG payload is emitted with expected strum glyph count.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirror section-13b mixed repeat/sub-beat render check.</description>
+            <assertions>Mirrored suite confirms same parse/render outcome.</assertions>
+          </test>
+          <test type="manual">
+            <file>testing/grid-test.cho</file>
+            <description>Generate `testing/grid-test.html` and inspect section 13b.</description>
+            <assertions>No parser mismatch warning for section 13b; chart renders with expected repeated strum bars.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-impact>
+        <category name="INPUT">
+          <threat>User-authored repeat tokens (`%`, `%%`) influence parser control flow and validation state.</threat>
+          <mitigation>Keep repeat accounting deterministic and reject only true width mismatches.</mitigation>
+        </category>
+        <category name="DISCLOSURE">
+          <threat>Incorrect parser diagnostics can leak misleading error states to user-visible outputs/logs.</threat>
+          <mitigation>Preserve explicit, accurate validation messages tied to actual slot discrepancies.</mitigation>
+        </category>
+      </security-impact>
+      <impact-check>
+        <summary>Primary impact: CF-2 (parser) with downstream visibility in CF-4 (HTML5) and CF-8 (delegate strum integration).</summary>
+        <warning>CF-8 remains `test-coverage="NONE"` in overview mapping; mirrored integration assertions are required.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Song.pm</file>
+        <file role="modify" test="true">t/180_grids.t</file>
+        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
+        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
+        <file role="read" test="true">testing/grid-test.cho</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>No active `APPROVED` or `IN_PROGRESS` item-ref entries declare overlapping non-test source-file modifications.</summary>
+        <result>No hard conflict detected; no automatic `depends-on` update required.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Made chord-side `%`/`%%` slot accounting symmetric with expanded strum-side repeats for validation purposes, which removes the false `16 vs 8` mismatch in section 13b while preserving repeat marker output semantics.</observations>
+        <lessons-learned>Parser validation counters must model semantic measure width, not only literal token width, when mixed shorthand/replay forms are allowed.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Song.pm</file>
+          <file>t/180_grids.t</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="auto-approved" from-status="PENDING" to-status="APPROVED" note="/implement 82"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>bug/item-82-grid-repeat-slot-validation</branch>
+    </item>
+    <item id="83" type="bug" status="DONE" priority="HIGH" complexity="S" ref-feature="CF-2" planned-files="lib/ChordPro/Song.pm t/180_grids.t" security="true">
+      <title>Chord `%%` two-measure repeat triggers false `Too few cells` warning in valid 4x4 grids</title>
+      <justification>Valid ChordPro input using `%%` as a two-measure repeat emits warnings in `testing/grid-test.cho` section 4c (line 100 and mirrored line 366): `Too few cells for grid content`. The line is valid and should repeat the previous two bars without warning.</justification>
+      <depends-on></depends-on>
+      <steps-to-reproduce>
+        <step>Use section 4c:
+`{start_of_grid shape="0+4x4+0"}`
+`| C . . . | Am . . . | %% | . . . . |`.</step>
+        <step>Run: `perl -Ilib script/chordpro.pl testing/grid-test.cho --generate=HTML5 --output=testing/grid-test.html`.</step>
+        <step>Observe warnings:
+`line 100, Too few cells for grid content`
+`line 366, Too few cells for grid content`.</step>
+      </steps-to-reproduce>
+      <expected-result>For valid two-measure repeat notation with `%%`, parser should not emit `Too few cells for grid content` warnings.</expected-result>
+      <analysis>After item 82, parser used one counter (`$nbt`) for both visual cell-capacity checks and semantic repeat-width validation. In `lib/ChordPro/Song.pm::decompose_grid`, chord `%%` was charged with semantic width to maintain strum/chord parity, but that same charged value was also used for `Too few cells` checks against grid shape capacity. This incorrectly flagged valid `%%` rows as oversized.
+
+Root cause: conflated responsibilities in one counter. Correct model requires separate counters: visual token width for shape-capacity checks vs semantic slot width for repeat parity validation.</analysis>
+      <tasks>
+        <task id="83.1">Split parser counters in `lib/ChordPro/Song.pm` into visual-cell count and semantic-slot count.</task>
+        <task id="83.2">Keep chord `%%` semantic width impact only in slot validation; do not inflate visual capacity counting.</task>
+        <task id="83.3">Retain item-82 fix for mixed chord/strum `%` parity mismatch.</task>
+        <task id="83.4">Add parser regression in `t/180_grids.t` asserting section-4c style `%%` row does not emit `Too few cells` warning.</task>
+      </tasks>
+      <technical-parameters>
+        <parameter name="scope">Parser-only fix (`Song.pm`) plus focused parser regression test.</parameter>
+        <parameter name="backward-compat">Do not change rendered token classes (`repeat1`/`repeat2`) or valid mismatch diagnostics for genuinely invalid rows.</parameter>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/180_grids.t</file>
+            <description>Verify `%%` two-measure repeat does not trigger false capacity warning.</description>
+            <assertions>No `Too few cells for grid content` warning for section-4c-style line.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>Regression guard for HTML5 parser/render behavior around repeat semantics.</description>
+            <assertions>Suite remains PASS and existing repeat/strum assertions remain stable.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirrored regression guard.</description>
+            <assertions>Mirrored suite remains PASS.</assertions>
+          </test>
+          <test type="manual">
+            <file>testing/grid-test.cho</file>
+            <description>Run full HTML5 generation on grid-test fixture.</description>
+            <assertions>No line-100/366 `Too few cells` warnings for section 4c.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <security-impact>
+        <category name="INPUT">
+          <threat>User-provided repeat syntax drives parser validation paths and warning emission.</threat>
+          <mitigation>Use deterministic, role-specific counters so valid input is not rejected/warned incorrectly.</mitigation>
+        </category>
+        <category name="DISCLOSURE">
+          <threat>False parser diagnostics leak misleading error states in user-facing tooling output.</threat>
+          <mitigation>Ensure warnings map to true invalid conditions only.</mitigation>
+        </category>
+      </security-impact>
+      <impact-check>
+        <summary>Primary impact: CF-2 parser; visible downstream in CF-4 and CF-8 test surfaces.</summary>
+        <warning>CF-8 `test-coverage="NONE"` remains a risk; keep mirrored checks active.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Song.pm</file>
+        <file role="modify" test="true">t/180_grids.t</file>
+        <file role="read" test="true">testing/grid-test.cho</file>
+        <file role="read" test="true">t/html5/09_bugfixes.t</file>
+        <file role="read" test="true">t/190_html5_bugfixes.t</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>No active `APPROVED` or `IN_PROGRESS` non-test overlap at execution time.</summary>
+        <result>No `depends-on` update required.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Separated visual vs semantic counting in grid decomposition. Section 4c no longer emits false `Too few cells` warnings while item-82 parity behavior remains intact.</observations>
+        <lessons-learned>When one parser metric serves two responsibilities (layout capacity vs semantic width), split them explicitly to prevent cross-regressions.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Song.pm</file>
+          <file>t/180_grids.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="auto-approved" from-status="PENDING" to-status="APPROVED" note="!run short-path"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>bug/item-83-grid-double-repeat-too-few-cells</branch>
+    </item>
+    <item id="84" type="bug" status="DONE" priority="HIGH" complexity="M" ref-feature="CF-2" planned-files="lib/ChordPro/Song.pm lib/ChordPro/Delegate/Strum/GridRenderer.pm t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t" security="false">
+      <title>Chord grid `%` and `%%` still render literal markers instead of repeated bar content</title>
+      <justification>In `testing/grid-test.cho`, sections 15c/15d still show literal `%` and `%%` in generated SVG. Reported expectation is that these markers should be replaced by the repeated content of the previous one or two bars, not displayed as marker symbols.</justification>
+      <depends-on></depends-on>
+      <steps-to-reproduce>
+        <step>Use `testing/grid-test.cho` sections 15c and 15d:
+`| C . . . | Am . . . | % | % |`
+`| C . . . | Am . . . | %% | . . . . |`.</step>
+        <step>Run: `perl -Ilib script/chordpro.pl testing/grid-test.cho --generate=HTML5 --output=testing/grid-test.html`.</step>
+        <step>Inspect the generated full-grid SVG rows for those sections and observe `%`/`%%` symbols are rendered as visible text tokens.</step>
+      </steps-to-reproduce>
+      <expected-result>For chord grid rows, `%` should render as the previous bar content and `%%` as the previous two bars, so final visual output shows repeated chord content instead of literal `%`/`%%` symbols.</expected-result>
+      <analysis>Code evidence indicates this is currently expected by implementation, but conflicts with the newly reported output expectation.
+
+In `lib/ChordPro/Song.pm::decompose_grid`, chord-row `%`/`%%` still create marker tokens (`class=&quot;repeat1&quot;` / `class=&quot;repeat2&quot;`) with `symbol` set to `%`/`%%` while replay state is used for semantic accounting and chord memory, not display-token replacement.
+
+In `lib/ChordPro/Delegate/Strum/GridRenderer.pm`, gridline rendering explicitly maps `repeat1`/`repeat2` to `$token-&gt;{symbol}` text output, so the SVG intentionally paints `%`/`%%` literals.
+
+Items 81/82/83 explicitly preserved marker rendering semantics, so this is not a duplicate defect but a new behavior-change bug against current user expectation. Fix likely requires parser normalization and/or renderer display substitution for chord repeat markers while retaining strum-row replay behavior and slot-validation correctness.</analysis>
+      <tasks>
+        <task id="84.1">Decide canonical behavior source-of-truth for chord repeats (`%`/`%%`) in rendered output and update requirements docs if needed.</task>
+        <task id="84.2">Adjust `lib/ChordPro/Song.pm` chord-row repeat normalization so render path can access resolved repeated bar content instead of only marker symbols.</task>
+        <task id="84.3">Update `lib/ChordPro/Delegate/Strum/GridRenderer.pm` gridline rendering to emit resolved repeat content for chord rows, not literal `%`/`%%`, while keeping bar alignment stable.</task>
+        <task id="84.4">Keep item-82/item-83 slot-validation invariants intact (no mismatch regressions, no false `Too few cells` warnings).</task>
+        <task id="84.5">Add parser regression coverage in `t/180_grids.t` for sections 15c/15d asserting resolved-repeat display tokens are present and literal `%`/`%%` are absent in chord rows.</task>
+        <task id="84.6">Add mirrored HTML5 regressions in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` validating section 15c/15d SVG output uses repeated chord content.</task>
+      </tasks>
+      <technical-parameters>
+        <parameter name="scope">Parser+renderer behavior adjustment limited to chord-grid repeat display semantics.</parameter>
+        <parameter name="compatibility">Preserve strum-row `%`/`%%` replay expansion behavior and existing bar/slot validation diagnostics.</parameter>
+        <parameter name="risk">Potential behavior change for users relying on visible `%`/`%%` markers in HTML5 grid output; must be explicitly regression-tested and documented.</parameter>
+      </technical-parameters>
+      <verification>
+        <tests>
+          <test type="unit">
+            <file>t/180_grids.t</file>
+            <description>Parser/display-token regression for chord repeat markers in sections 15c/15d style input.</description>
+            <assertions>Chord repeat bars resolve to repeated chord content; literal `%`/`%%` marker tokens are not emitted in final gridline display path.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/html5/09_bugfixes.t</file>
+            <description>HTML5 full-grid SVG regression for chord repeat display expansion.</description>
+            <assertions>Section-15c/15d-like output shows repeated chord glyph/text content; no visible `%`/`%%` in those chord bars.</assertions>
+          </test>
+          <test type="integration">
+            <file>t/190_html5_bugfixes.t</file>
+            <description>Mirror regression coverage for chord repeat display expansion.</description>
+            <assertions>Mirrored suite confirms same display behavior and no regressions in repeat alignment.</assertions>
+          </test>
+          <test type="manual">
+            <file>testing/grid-test.cho</file>
+            <description>Generate `testing/grid-test.html` and inspect sections 15c/15d.</description>
+            <assertions>Repeat bars render repeated content, not `%`/`%%` markers.</assertions>
+          </test>
+        </tests>
+      </verification>
+      <impact-check>
+        <summary>Primary impact: CF-2 parser and CF-8 delegate strum/grid SVG rendering, with user-visible behavior in CF-4 HTML5 output.</summary>
+        <warning>CF-8 remains mapped with `test-coverage=&quot;NONE&quot;` in overview metadata; mirrored integration checks are required.</warning>
+      </impact-check>
+      <affected-files planned="true">
+        <file role="modify">lib/ChordPro/Song.pm</file>
+        <file role="modify">lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+        <file role="modify" test="true">t/180_grids.t</file>
+        <file role="modify" test="true">t/html5/09_bugfixes.t</file>
+        <file role="modify" test="true">t/190_html5_bugfixes.t</file>
+        <file role="read" test="true">testing/grid-test.cho</file>
+      </affected-files>
+      <collision-analysis>
+        <summary>No active `APPROVED` or `IN_PROGRESS` item-ref entries currently declare overlapping planned non-test source-file modifications.</summary>
+        <result>No hard conflict detected; no automatic `depends-on` update required.</result>
+      </collision-analysis>
+      <r>
+        <outcome>DONE</outcome>
+        <observations>Chord-grid repeat markers now render resolved chord content in SVG output (`%` resolves from previous bar, `%%` resolves from previous two bars). Implementation preserves prior parser slot-validation behavior from items 82/83 and keeps strum-row repeat expansion semantics unchanged.</observations>
+        <lessons-learned>For shorthand musical tokens, separating semantic accounting from display resolution allows behavior changes in rendering without reintroducing slot/capacity regressions.</lessons-learned>
+        <files>
+          <file>lib/ChordPro/Song.pm</file>
+          <file>lib/ChordPro/Delegate/Strum/GridRenderer.pm</file>
+          <file>t/180_grids.t</file>
+          <file>t/html5/09_bugfixes.t</file>
+          <file>t/190_html5_bugfixes.t</file>
+          <file>ai-docs/overview-features-bugs.xml</file>
+        </files>
+      </r>
+      <workflow-log>
+        <entry timestamp="2026-03-06" role="PO" action="created" from-status="" to-status="PENDING"></entry>
+        <entry timestamp="2026-03-06" role="PO" action="auto-approved" from-status="PENDING" to-status="APPROVED" note="/implement 84"></entry>
+        <entry timestamp="2026-03-06" role="SM" action="started" from-status="APPROVED" to-status="IN_PROGRESS"></entry>
+        <entry timestamp="2026-03-06" role="DEV" action="implemented" from-status="IN_PROGRESS" to-status="DONE"></entry>
+      </workflow-log>
+      <branch>bug/item-84-grid-repeat-display-expansion</branch>
+    </item>
   </items>
   <sprints>
     <sprint id="SPR-3" status="COMPLETED" type="SPRINT" started="2026-03-03">
@@ -78,35 +1021,48 @@
     </sprint>
   </sprints>
   <changelog>
-    <entry date="2026-03-06">Update mode drift-check: overview sections updated=0; features verified=67 (OK=63, CHANGED=0, STALE=4, NEW=0); stale features: CF-21, CF-23, CF-29, CF-30 (missing listed files/tests); item warnings=0.</entry>
-    <entry date="2026-03-04">Archive run executed: moved 12 items to overview-features-bugs-archive.xml (DONE: 12, DENIED: 0). Archived IDs: 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70. Extracted lessons L-43 through L-52 to lessons-learned.md. Updated overview completed-features for source items 53, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70; done-since-last-fulltest=12.</entry>
-    <entry date="2026-03-03">Item 70 implemented via `/implement 70` and completed. Fixed `lib/ChordPro/Delegate/ABC.pm` backend lookup by removing lexical shadowing of module-level `$backend` in `abc2svg()` and guarding backend-specialized access in `beo()` with `defined($backend)`. Verification PASS: `make`, `prove -bv t/83_html5_delegate.t` (Files=1, Tests=5), and manual repro command for `testing/lowlands.cho`/`testing/myconfig_html5.json` no longer emits the uninitialized `$backend` warning.</entry>
-    <entry date="2026-03-03">Added bug item 70 (PENDING, S): `lib/ChordPro/Delegate/ABC.pm` emits `Use of uninitialized value $backend in exists` (line 55) during HTML5 generation for `testing/lowlands.cho` with `testing/myconfig_html5.json`. Inline analysis identifies lexical shadowing of module-level `$backend` in `abc2svg()` as likely root cause; planned fix scopes to backend lookup initialization/guarding and targeted delegate regression verification.</entry>
-    <entry date="2026-03-03">Closure confirmation: debugger/lvalue symptom around `lib/ChordPro/Song.pm` is now reported as extension-dependent in user environment. Related tracker item 66 remains CLOSED (`DONE`); no additional ChordPro code changes are planned for this extension-specific trigger.</entry>
-    <entry date="2026-03-03">Duplicate bug report triaged: VS Code debug-mode message `Can't modify non-lvalue subroutine call of &amp;DB::sub` in `lib/ChordPro/Song.pm` (lines near chord mutator writes) maps to existing item 66. No new bug item created; item 66 remains the canonical tracker for this debugger/lvalue regression pattern.</entry>
-    <entry date="2026-03-03">Full-test workflow executed (`make tests`): standard suite PASS (`make test` → Files=139, Tests=3305, Result=PASS). Extended suite had one skip-only NOTESTS case (`xt/01_config.t`, missing legacy `chordpro.prp`) and no failing tests. Failure mapping found no affected items/features, so no item rollback to PROBLEM and no new bug item created. Updated metadata `last-fulltest-date` to 2026-03-03 and reset `done-since-last-fulltest` to 0.</entry>
-    <entry date="2026-03-03">Item 69 implemented and completed. Fixed restricted-hash style config handling in `lib/ChordPro/Output/HTML.pm` (safe plain-hash normalization + duplicate stylesheet suppression). Verification PASS: `make &amp;&amp; prove -bv t/40_basic01_html.t`.</entry>
-    <entry date="2026-03-03">Items 66 and 68 follow-up fixes implemented after regression mapping. Item 66: restored Object::Pad mutator assignment semantics in `lib/ChordPro/Song.pm` (no call-form writes) and aligned strict missing-key warning behavior for test harness expectations. Item 68: preserved per-element image options when rendering prepared assets and restricted prepared fast-path to delegate/SVG payloads to retain template-based image container alignment behavior. Focused verification PASS: `make &amp;&amp; prove -bv t/73_md.t t/75_html5.t t/76_html5paged.t t/122_memorize.t t/190_html5_bug7_image_scale_pagewidth.t t/191_html5_image_scale.t t/85_html5_image_align.t`.</entry>
-    <entry date="2026-03-03">Full-test workflow executed (`make tests`) and failed (Files=139, Tests=3241, failed-subtests=8, failing programs=10). Failure mapping applied: item 66 set to `IN_PROGRESS` with `PROBLEM` outcome due `Appearance::format` invocation regression in `lib/ChordPro/Song.pm` (affecting `t/73_md.t`, `t/75_html5.t`, `t/76_html5paged.t`, and related parser flows) plus warning drift in `t/122_memorize.t`; item 68 set to `IN_PROGRESS` with `PROBLEM` outcome due missing image style/scale attributes (`t/190_html5_bug7_image_scale_pagewidth.t`, `t/191_html5_image_scale.t`, `t/85_html5_image_align.t`). Added bug item 69 (PENDING) for independent standard HTML backend failure (`t/40_basic01_html.t`: restricted hash access to `default` in `lib/ChordPro/Output/HTML.pm`). Sprint SPR-3 gate `full-test-pass` switched to FAILED and sprint status reopened to IN_PROGRESS.</entry>
-    <entry date="2026-03-03">Items 66, 67, and 68 implemented and completed via `/implement`. Item 66 removed redundant `Appearance` setters, restored mutator assignment call sites in `Song.pm`, and added debugger guidance doc. Item 67 moved chord-diagram SVG module to `lib/ChordPro/Output/SVG/ChordDiagram.pm`, updated HTML5 usage, added legacy-namespace compatibility shim, and updated MANIFEST. Item 68 integrated early `prepare_assets` in HTML5 songbook generation and switched image rendering to prefer prepared asset payloads/data-URI conversion. Verification PASS: `make &amp;&amp; prove -bv t/105_chords.t t/114_songline.t t/86_html5_diagram_pos.t t/160_diagrams.t t/83_html5_delegate.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=7, Tests=569, Result=PASS).</entry>
-    <entry date="2026-03-03">Items 66, 67, and 68 approved. Status changed PENDING → APPROVED. Branches assigned: `refactoring/item-66-refactor-objectpad-mutator-usage`, `refactoring/item-67-refactor-svg-chorddiagram-module-path`, and `feature/item-68-html5-prerender-asset-preparation-pipeline`. Dependency check: no unresolved depends-on constraints.</entry>
-    <entry date="2026-03-03">Added feature item 68 (PENDING, M, security=true): integrate early `prepare_assets` call in HTML5 generation and establish an image-first asset contract so prepared assets render through a unified `&lt;img&gt;` path. Scope includes `lib/ChordPro/Output/HTML5.pm`, `lib/ChordPro/Assets.pm`, and built-in SVG fallback assets in `lib/ChordPro/Output/SVG/Images.pm`, with focused mirrored verification (`t/html5/09_bugfixes.t`, `t/190_html5_bugfixes.t`, `t/83_html5_delegate.t`). Security impact recorded for INPUT and DISCLOSURE; impact warning highlights CF-8 PARTIAL/NONE coverage.</entry>
-    <entry date="2026-03-03">Added refactoring item 67 (PENDING, S): rename chord-diagram SVG module from `lib/ChordPro/Output/ChordDiagram/SVG.pm` to `lib/ChordPro/Output/SVG/ChordDiagram.pm` and align call sites with the new `Output::SVG` namespace structure (alongside existing `lib/ChordPro/Output/SVG/Images.pm`). Includes behavior-preserving constraints, focused verification (`t/86_html5_diagram_pos.t`, `t/160_diagrams.t`), impact warning for CF-7 PARTIAL/PARTIAL coverage, affected-files planning, and collision analysis (no active APPROVED/IN_PROGRESS overlap).</entry>
-    <entry date="2026-03-03">Added refactoring item 66 (PENDING, S): non-HTML5 cleanup for Object::Pad mutator usage in `lib/ChordPro/Chords/Appearance.pm` and `lib/ChordPro/Song.pm`. Scope restores minimal/idiomatic field mutation (remove redundant setter indirection), documents debugger-related L-value workaround policy, includes full DA enrichment (tasks, technical parameters, security assessment), impact warning for CF-2/CF-3 PARTIAL coverage, affected-files planning, and collision analysis (no active APPROVED/IN_PROGRESS overlap).</entry>
-    <entry date="2026-03-02">Items 64 and 65 implemented and completed via `/implement 64 65`. Item 64: preserved leading-tilde rest semantics for `~F6` and `~up` in full-grid SVG rendering, with explicit rest+shifted symbol/chord behavior and no regression of item 63 alignment logic. Item 65: split `lib/ChordPro/Delegate/Strum.pm` into facade + focused internal modules (`Tokens.pm`, `SVGPrimitives.pm`, `StrumlineRenderer.pm`, `GridRenderer.pm`) while preserving public API compatibility. Verification PASS: `make`, `prove -bv t/html5/09_bugfixes.t t/190_html5_bugfixes.t t/180_grids.t`, and `make test` (Files=139, Tests=3305, Result=PASS).</entry>
-    <entry date="2026-03-02">Items 64 and 65 approved. Item 64 branch: `bug/item-64-leading-tilde-rest-semantics-rendering`. Item 65 branch: `refactoring/item-65-split-oversized-strum-module`. Dependency warning: item 65 depends on item 64, which is APPROVED (not DONE) at approval time.</entry>
-    <entry date="2026-03-02">Added refactoring item 65 (PENDING, L): split oversized `lib/ChordPro/Delegate/Strum.pm` (1146 lines) into focused internal modules under `lib/ChordPro/Delegate/Strum/` while preserving the existing public API facade used by HTML5 output. Includes behavior-preserving constraints, mirrored regression verification, security/impact review, and collision analysis.</entry>
-    <entry date="2026-03-02">Added bug item 64 (PENDING, M): leading-tilde rest semantics (`~F6`, `~up`) are not represented as explicit rest-prefix pairs in grid rendering, and symbol output diverges from `ai-docs/Strum-requirement.md` expectations. Code-grounded analysis points to `_normalize_grid_chord_parts()` dropping leading empty segments used for `~` semantics. Planned fix separates geometry normalization from semantic preservation, adds requirement-conformant symbol mapping strategy (including SVG text/glyph path evaluation), and introduces mirrored regression assertions in `t/html5/09_bugfixes.t` + `t/190_html5_bugfixes.t`.</entry>
-    <entry date="2026-03-02">Item 63 implemented and completed. Fixed row-type-aware column counting in `grid_block_svg()` (`lib/ChordPro/Delegate/Strum.pm`): `$compute_columns`, `$bar_columns_for`, and the rendering loop now treat strumline `chords`-class tokens as 1 beat-column instead of N sub-beat columns. Fixed `_gridline_layout()` and `_gridline_columns()` in `lib/ChordPro/Output/HTML5.pm` with `is_strumline` parameter for correct `$grid_columns` computation. Added 14 regression tests in `t/html5/09_bugfixes.t` and 12 in `t/190_html5_bugfixes.t` verifying chord-strum x-position alignment and chord-only grid stability. Verification PASS: `make test` (Files=139, Tests=3300, Result=PASS). Zero regressions.</entry>
-    <entry date="2026-03-02">Item 62 implemented and completed. Extracted shared SVG drawing primitives (_draw_bar_svg, _draw_arrow_svg, _draw_rest_svg, _draw_connector_svg, _draw_pause_svg) into private utility layer in `lib/ChordPro/Delegate/Strum.pm`. Added rest semantics: `.` now returns `rest =&gt; 1` from `strum_symbol_info()`, tilde-adjacent empties emit rest cells. Implemented named strum patterns (`{start_of_strum: 4/4 verse}` + `{strum: verse}` reference) in `lib/ChordPro/Song.pm`. Added chord/strum count validation in parser. Added `gridstrum.symbols.rest` config key and regenerated `Config/Data.pm`. Refactored `strumline_svg()` fully and `grid_block_svg()` partially (bar rendering kept inline for compatibility). Propagated rest flag through `lib/ChordPro/Output/HTML5.pm`. Verification PASS: `make test` (Files=139, Tests=3288, Result=PASS). Zero regressions.</entry>
-    <entry date="2026-03-02">Added refactoring item 62 (PENDING, XL): complete remake of Strum SVG rendering and delegate logic to align with renewed Strum-requirement.md. Scope: extract shared SVG drawing primitives from three parallel generators, add rest glyph rendering for `.` and tilde sub-beat rests, implement named strum pattern registry (`{start_of_strum: 4/4 verse}` + `{strum: verse}` reference), add chord/strum count validation in parser, and prepare symbol architecture for design-phase swap. 12 tasks, depends-on 61, XL complexity. DA enrichment includes security assessment (INPUT/DISCLOSURE LOW), impact check (CF-8 NONE coverage warning), and collision analysis (no active conflicts).</entry>
-    <entry date="2026-03-01">Post-feedback tuning after visual drift report: tightened connected strum-pair geometry in `lib/ChordPro/Delegate/Strum.pm` (reduced pair step and applied compact placement in standalone SVG path), and strengthened mirrored regression threshold in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` from &lt;16 to &lt;12. Verification PASS: `make &amp;&amp; prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=171).</entry>
-    <entry date="2026-03-01">Item 53 status synchronized to DONE per user confirmation (already completed).</entry>
-    <entry date="2026-03-01">Item 61 implemented via `/implement 61` and completed. Added canonical strum token normalization in `lib/ChordPro/Delegate/Strum.pm` with explicit staccato semantics and affix-order equivalence, propagated semantics into HTML5 strum SVG payloads via `lib/ChordPro/Output/HTML5.pm`, and expanded mirrored regression matrix in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`. Verification PASS: `make &amp;&amp; prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=171).</entry>
-    <entry date="2026-03-01">Item 61 clarified to explicitly retain the originally reported lowlands desync symptom as open scope: Item 60 remains closed for geometry/anchor alignment, while Item 61 tracks remaining token-semantics/table-conformance gaps from `docs/content/Directives-env_grid.md`.</entry>
-    <entry date="2026-03-01">Archive run executed: moved 7 items to overview-features-bugs-archive.xml (DONE: 7, DENIED: 0). Archived IDs: 52, 54, 55, 56, 57, 58, 59. Not archived: 60 (active depends-on reference). Updated overview completed-features for source items 52, 54, 55, 56, 57, 58, 59; done-since-last-fulltest=7.</entry>
-    <entry date="2026-03-01">Duplicate check: no new item created for “Pfeile entsprechen nicht der Tabelle”. Existing item 61 was enriched/updated to explicitly track full table-conformance against `docs/content/Directives-env_grid.md`, including staccato and mixed-affix token families (`us/ds`, `dx+`, `ua+`) plus mirrored verification matrix.</entry>
-    <entry date="2026-03-01">Added bug item 61 (PENDING): HTML5 strum suffix-notation follow-up for `testing/lowlands.cho` where tokens like `d+`, `u+`, `da`, `ua` are not normalized consistently, causing lost arrow semantics and perceived chord/arrow desync. Confirmed root-cause hypothesis in `lib/ChordPro/Delegate/Strum.pm::strum_symbol_info` (prefix-biased parsing), added focused tasks for canonical token normalization, mirrored verification in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t`, plus security/impact/collision assessment.</entry>
-    <entry date="2026-02-28">Item 60 implemented via `/implement 60` and completed. Full-grid SVG row geometry now uses canonical shared bar anchors in `lib/ChordPro/Delegate/Strum.pm` so chord and `|s` barlines stay aligned, and connected strum pairs (`dn~up` / `up~dn`) now render with compact intra-pair spacing. Added mirrored regression checks in `t/html5/09_bugfixes.t` and `t/190_html5_bugfixes.t` for cross-row barline parity and tight connected-pair arrow spacing. Verification PASS: `prove -bv t/181_strum_sections.t t/180_grids.t t/html5/09_bugfixes.t t/190_html5_bugfixes.t` (Files=4, Tests=143).</entry>
+    <entry date="2026-03-06">Item 84 implemented via /implement 84: chord-grid `%`/`%%` now render resolved repeated chord content in SVG, with mirrored parser/HTML5 regression updates and focused suites passing.</entry>
+    <entry date="2026-03-06">Added bug item 84 (PENDING, M): chord-grid `%`/`%%` still render as literal markers instead of repeated bar content in SVG output (sections 15c/15d).</entry>
+    <entry date="2026-03-06">Item 83 auto-approved via !run and implemented: fixed false `Too few cells for grid content` warnings for valid chord `%%` two-measure repeats by splitting visual cell counting from semantic slot validation; added parser regression.</entry>
+    <entry date="2026-03-06">Item 82 implemented via /implement 82: fixed parser slot-validation symmetry for chord `%`/`%%` vs strum `%` expansion, added parser regression and mirrored HTML5 tests, and verified section-13b repro parses/renders without mismatch.</entry>
+    <entry date="2026-03-06">Added bug item 82 (PENDING, M): chord `%` slot counting diverges from strum `%` expansion, causing false mismatch in section 13b (`dn~up` + `%`).</entry>
+    <entry date="2026-03-06">Items 79, 80, 81 status changed IN_PROGRESS -&gt; DONE.</entry>
+    <entry date="2026-03-06">Items 79, 80, 81 status changed APPROVED -&gt; IN_PROGRESS.</entry>
+    <entry date="2026-03-06">Item 81 status changed PENDING -&gt; APPROVED.</entry>
+    <entry date="2026-03-06">Item 80 status changed PENDING -&gt; APPROVED.</entry>
+    <entry date="2026-03-06">Item 79 status changed PENDING -&gt; APPROVED.</entry>
+    <entry date="2026-03-06">Added feature item 81 (PENDING, L): Context-sensitive grid repeats (`%`/`%%`) replay chords on gridlines and strums on strumlines.</entry>
+    <entry date="2026-03-06">Added bug item 80 (PENDING, M): Repeat-bar tokens in |s rows shift strum symbols right in full-grid SVG.</entry>
+    <entry date="2026-03-06">Added bug item 79 (PENDING, M): Combined modifier strum tokens (da+/dx+/ds+) render empty row in grid SVG due to glyph-direction normalization gap.</entry>
+    <entry date="2026-03-06">Synchronization update executed.</entry>
+    <entry date="2026-03-06">Item 78 status changed IN_PROGRESS -&gt; DONE.</entry>
+    <entry date="2026-03-06">Item 77 status changed IN_PROGRESS -&gt; DONE.</entry>
+    <entry date="2026-03-06">Item 76 status changed IN_PROGRESS -&gt; DONE.</entry>
+    <entry date="2026-03-06">Item 75 status changed IN_PROGRESS -&gt; DONE.</entry>
+    <entry date="2026-03-06">Item 78 status changed APPROVED -&gt; IN_PROGRESS.</entry>
+    <entry date="2026-03-06">Item 77 status changed APPROVED -&gt; IN_PROGRESS.</entry>
+    <entry date="2026-03-06">Item 76 status changed APPROVED -&gt; IN_PROGRESS.</entry>
+    <entry date="2026-03-06">Item 75 status changed APPROVED -&gt; IN_PROGRESS.</entry>
+    <entry date="2026-03-06">Synchronization update executed.</entry>
+    <entry date="2026-03-06">Item 78 status changed PENDING -&gt; APPROVED.</entry>
+    <entry date="2026-03-06">Item 77 status changed PENDING -&gt; APPROVED.</entry>
+    <entry date="2026-03-06">Item 76 status changed PENDING -&gt; APPROVED.</entry>
+    <entry date="2026-03-06">Item 75 status changed PENDING -&gt; APPROVED.</entry>
+    <entry date="2026-03-06">Synchronization update executed.</entry>
+    <entry date="2026-03-06">Added feature item 78 (PENDING, M): Standalone strum directives: full header grammar for start_of_strum/end_of_strum</entry>
+    <entry date="2026-03-06">Synchronization update executed.</entry>
+    <entry date="2026-03-06">Enriched refactoring item 77: Y-only bar-icon scaling with geometry-decoupling analysis, security assessment, and mirrored verification plan.</entry>
+    <entry date="2026-03-06">Added refactoring item 77 (PENDING, S): Refactor strum bar-icon scaling to Y-only geometry</entry>
+    <entry date="2026-03-06">Enriched bug item 76: missing dedicated strum glyph mapping for modifier families in section 8e (expects escaped Unicode symbols like &amp;#x2199;).</entry>
+    <entry date="2026-03-06">Added bug item 76 (PENDING, M): Strum modifier tokens miss dedicated Unicode glyph mapping in grid SVG</entry>
+    <entry date="2026-03-06">Enriched bug item 75: duplicate SVG+Unicode bar glyph rendering affects single, double, and end bars in GridRenderer.</entry>
+    <entry date="2026-03-06">Added bug item 75 (PENDING, S): Grid SVG double barline renders duplicate glyph (&lt;use&gt; plus legacy &lt;text&gt;)</entry>
+    <entry date="2026-03-06">Archive run: moved 4 items (DONE: 0, DENIED: 4); lessons added: none; blocked: none; rotated changelog entries: 5.</entry>
+    <entry date="2026-03-06">Item 74 status changed PENDING -&gt; DENIED.</entry>
+    <entry date="2026-03-06">Item 73 status changed PENDING -&gt; DENIED.</entry>
+    <entry date="2026-03-06">Item 72 status changed PENDING -&gt; DENIED.</entry>
+    <entry date="2026-03-06">Item 71 status changed PENDING -&gt; DENIED.</entry>
+    <entry date="2026-03-06">Added [REF] stale-feature follow-up items 71-74 for CF-21, CF-23, CF-29, CF-30.</entry>
+    <entry date="2026-03-06">Added refactoring item 74 (PENDING, S): [REF] CF-30 paged background test-path refresh</entry>
   </changelog>
 </implementation-plan>

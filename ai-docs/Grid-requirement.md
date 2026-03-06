@@ -345,10 +345,20 @@ Rules:
 
 #### 12.6 Repeat Symbol Rendering
 
-The `%` (repeat one measure) preferable draws as SVG `<text>` elements with `text-anchor="middle"` and HTML-Escaped `%`;
+The `%` marker (repeat one measure) should render as SVG `<text>` with
+`text-anchor="middle"` and escaped `%` content.
 
-The symbol is centered in the middle of the spanned measure. `%%` draws two such symbols,
-one per measure.
+Context-sensitive semantics are required:
+- On **gridline** rows, `%` repeats the previous **chord** measure and `%%` repeats the previous two **chord** measures.
+- On **strumline** rows (`|s` / `|S`), `%` repeats the previous **strum** measure and `%%` repeats the previous two **strum** measures.
+
+The marker is centered in the middle of the spanned measure. `%%` renders two centered
+repeat markers, one per measure.
+
+Validation:
+- `%` requires at least one prior measure in the same row context.
+- `%%` requires at least two prior measures in the same row context.
+- If history is insufficient, parsing must fail with a diagnostic.
 
 #### 12.7 Volta Bracket Rendering
 

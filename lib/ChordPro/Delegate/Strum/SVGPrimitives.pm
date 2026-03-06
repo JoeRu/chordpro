@@ -70,8 +70,11 @@ sub draw_arrow_svg( %args ) {
 	my $symbol_cfg = eval { $::config->{gridstrum}->{symbols} } // {};
 	my $up_text = eval { $symbol_cfg->{up} } // chr(0x2191);
 	my $dn_text = eval { $symbol_cfg->{down} } // chr(0x2193);
-	my $glyph = $direction eq 'down' ? $dn_text : $up_text;
-	$glyph .= '~' if $info->{arpeggio};
+	my $glyph = $info->{glyph};
+	if ( !defined($glyph) || $glyph eq '' ) {
+		$glyph = $direction eq 'down' ? $dn_text : $up_text;
+		$glyph .= '~' if $info->{arpeggio};
+	}
 
 	my @parts = (
 		sprintf(
@@ -80,8 +83,12 @@ sub draw_arrow_svg( %args ) {
 		)
 	);
 
-	push @parts, _strum_svg_decorations(
-		x => $x, base_y => $base_y, info => $info);
+	# Dedicated glyphs already encode modifiers (accent/mute/staccato/arpeggio).
+	# Keep legacy marker decorations as fallback for unmapped custom tokens.
+	if ( !($info->{glyph} // '') ) {
+		push @parts, _strum_svg_decorations(
+			x => $x, base_y => $base_y, info => $info);
+	}
 
 	return @parts;
 }

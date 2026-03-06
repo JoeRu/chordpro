@@ -1185,16 +1185,25 @@ sub decompose_grid {
 	    }
 	}
     }
-    my $nbt = 0;		# non-bar tokens
+	my $nbt = 0;		# visual non-bar tokens (cell-capacity check)
+	my $sbt = 0;		# semantic slot count (strum/chord parity validation)
     my $p0;			# this bar chords
     my $p1;			# prev chords (for % and %% repeat)
     my $p2;			# pprev chords (for %% repeat)
+	my $c0 = 0;			# this bar slot count (non-strum)
+	my $c1;			# prev bar slot count (non-strum)
+	my $c2;			# pprev bar slot count (non-strum)
+	my $s0;			# this bar strum tokens
+	my $s1;			# prev strum bar tokens (for % repeat)
+	my $s2;			# pprev strum bar tokens (for %% repeat)
     my $si = 0;			# start index
+	my @parsed_tokens;
 
     $grid_type = 0;
     if ( @tokens && uc($tokens[0]) =~ /^\|.*S/i ) {
 	$grid_type = 1 + (chop($tokens[0]) eq "S"); # strum line
 	$memchords = 0;
+	$s0 = [];
     }
 
     my $chord = sub {
@@ -1209,77 +1218,120 @@ sub decompose_grid {
 	}
     };
 
-    foreach ( @tokens ) {
-	if ( $_ eq "|:" || $_ eq "{" ) {
-	    $_ = { symbol => $_, class => "bar" };
+    foreach my $token ( @tokens ) {
+	my $out;
+	if ( $token eq "|:" || $token eq "{" ) {
+	    $out = { symbol => $token, class => "bar" };
 	    $si = @$memchords if $memchords;
 	}
-	elsif ( /^(:?\|)(\d+)(>?)$/ ) {
-	    $_ = { symbol => $1, volta => $2, class => "bar" };
-	    $_->{align} = 1 if $3;
+	elsif ( $token =~ /^(:?\|)(\d+)(>?)$/ ) {
+	    $out = { symbol => $1, volta => $2, class => "bar" };
+	    $out->{align} = 1 if $3;
 	}
-	elsif ( $_ eq ":|" || $_ eq "}" ) {
-	    $_ = { symbol => $_, class => "bar" };
+	elsif ( $token eq ":|" || $token eq "}" ) {
+	    $out = { symbol => $token, class => "bar" };
 	    if ( $memchords ) {
 		push( @$memchords, @$memchords[ $si .. $#{$memchords} ] );
 	    }
 	}
-	elsif ( $_ eq ":|:" || $_ eq "}{" ) {
-	    $_ = { symbol => $_, class => "bar" };
+	elsif ( $token eq ":|:" || $token eq "}{" ) {
+	    $out = { symbol => $token, class => "bar" };
 	    if ( $memchords ) {
 		push( @$memchords, @$memchords[ $si .. $#{$memchords} ] );
 		$si = @$memchords;
 	    }
 	}
-	elsif ( $_ eq "|" ) {
-	    $_ = { symbol => $_, class => "bar" };
+	elsif ( $token eq "|" ) {
+	    $out = { symbol => $token, class => "bar" };
 	}
-	elsif ( $_ eq "||" ) {
-	    $_ = { symbol => $_, class => "bar" };
+	elsif ( $token eq "||" ) {
+	    $out = { symbol => $token, class => "bar" };
 	}
-	elsif ( $_ eq "|." ) {
-	    $_ = { symbol => $_, class => "bar" };
+	elsif ( $token eq "|." ) {
+	    $out = { symbol => $token, class => "bar" };
 	}
-	elsif ( $_ eq "%" ) {
-	    $_ = { symbol => $_, class => "repeat1" };
+	elsif ( $token eq "%" ) {
+	    if ( is_gridstrum($grid_type) ) {
+		unless ( $s1 && @$s1 ) {
+		    croak( msg("Strum repeat % requires one prior strum measure") );
+		}
+		my @expanded = map { dclone($_) } @$s1;
+		push( @parsed_tokens, @expanded );
+		$nbt += scalar(@expanded);
+		$sbt += scalar(@expanded);
+		push( @$s0, map { dclone($_) } @expanded ) if defined $s0;
+		next;
+	    }
+	    $out = { symbol => $token, class => "repeat1" };
+	    if ( $p1 && @$p1 ) {
+		$out->{resolved_symbol} = join( " ", @$p1 );
+		$p0 = [ @$p1 ];
+	    }
+	    if ( defined($c1) && $c1 > 0 ) {
+		$sbt += $c1;
+		$c0 += $c1;
+	    }
 	    if ( $memchords && $p1 ) {
 		push( @$memchords, @$p1 );
 		if ( $config->{debug}->{chords} ) {
 		    warn("Chord memorized for $cctag\[$memcrdinx]: ",
-			 $_, "\n"), $memcrdinx++
+			 $out, "\n"), $memcrdinx++
 		      for @$p1;
 		}
 	    }
 	}
-	elsif ( $_ eq '%%' ) {
-	    $_ = { symbol => $_, class => "repeat2" };
+	elsif ( $token eq '%%' ) {
+	    if ( is_gridstrum($grid_type) ) {
+		unless ( $s1 && @$s1 && $s2 && @$s2 ) {
+		    croak( msg("Strum repeat %% requires two prior strum measures") );
+		}
+		my @expanded = ( map { dclone($_) } @$s2, map { dclone($_) } @$s1 );
+		push( @parsed_tokens, @expanded );
+		$nbt += scalar(@expanded);
+		$sbt += scalar(@expanded);
+		push( @$s0, map { dclone($_) } @expanded ) if defined $s0;
+		next;
+	    }
+	    $out = { symbol => $token, class => "repeat2" };
+	    if ( ( $p2 && @$p2 ) || ( $p1 && @$p1 ) ) {
+		my @resolved = ( $p2 ? @$p2 : (), $p1 ? @$p1 : () );
+		$out->{resolved_symbol} = join( " ", @resolved ) if @resolved;
+	    }
+	    $p0 = [ @$p1 ] if $p1 && @$p1;
+	    my $add = ( $c2 // 0 ) + ( $c1 // 0 );
+	    if ( $add > 0 ) {
+		$sbt += $add;
+		$c0 += $add;
+	    }
 	    if ( $memchords && $p1 ) {
 		push( @$memchords, @$p2 ) if $p2;
 		push( @$memchords, @$p1 );
 		if ( $config->{debug}->{chords} ) {
 		    warn("Chord memorized for $cctag\[$memcrdinx]: ",
-			 $_, "\n"), $memcrdinx++
+			 $out, "\n"), $memcrdinx++
 		      for @$p2, @$p1;
 		}
 	    }
 	}
-	elsif ( $_ eq "/" ) {
-	    $_ = { symbol => $_, class => "slash" };
+	elsif ( $token eq "/" ) {
+	    $out = { symbol => $token, class => "slash" };
 	}
-	elsif ( $_ eq "." ) {
-	    $_ = { symbol => $_, class => "space" };
+	elsif ( $token eq "." ) {
+	    $out = { symbol => $token, class => "space" };
 	    $nbt++;
+	    $sbt++;
+	    $c0++ unless is_gridstrum($grid_type);
 	}
 	else {
 	    # Multiple chords in a cell?
-	    my @a = split( /~/, $_, -1 );
+	    my @a = split( /~/, $token, -1 );
 	    if ( @a == 1) {
 		# Normal case, single chord.
-		$_ = { chord => $chord->($_), class => "chord" };
+		$out = { chord => $chord->($token), class => "chord" };
 	    }
 	    else {
 		# Multiple chords.
-		$_ = { chords =>
+		$out = { chords =>
 		       [ map { ( $_ eq '.' || $_ eq '' )
 				 ? ''
 				 : $_ eq "/"
@@ -1298,10 +1350,29 @@ sub decompose_grid {
 		}
 	    }
 	    $nbt++;
+	    $sbt++;
+	    $c0++ unless is_gridstrum($grid_type);
 	}
-	if ( $_->{class} eq "bar" ) {
-	    $p2 = $p1; $p1 = $p0; undef $p0;
+
+	if ( $out->{class} eq "bar" ) {
+	    if ( is_gridstrum($grid_type) ) {
+		$s2 = $s1;
+		$s1 = $s0;
+		$s0 = [];
+	    }
+	    else {
+		$p2 = $p1; $p1 = $p0; undef $p0;
+		$c2 = $c1; $c1 = $c0; $c0 = 0;
+	    }
+	    push( @parsed_tokens, $out );
+	    next;
 	}
+
+	if ( is_gridstrum($grid_type) ) {
+	    push( @$s0, dclone($out) ) if defined $s0;
+	}
+
+	push( @parsed_tokens, $out );
     }
     if ( $nbt > $grid_cells->[0] ) {
 	do_warn( "Too few cells for grid content" );
@@ -1309,16 +1380,16 @@ sub decompose_grid {
 
     # Count validation for strum lines (task 62.7).
     if ( is_gridstrum($grid_type) ) {
-	if ( $grid_last_slot_count > 0 && $nbt != $grid_last_slot_count ) {
-	    do_warn( "Strum line has $nbt entries but chord line has $grid_last_slot_count slots (mismatch)" );
+	if ( $grid_last_slot_count > 0 && $sbt != $grid_last_slot_count ) {
+	    do_warn( "Strum line has $sbt entries but chord line has $grid_last_slot_count slots (mismatch)" );
 	}
     }
     else {
 	# Remember the chord line's slot count for validation.
-	$grid_last_slot_count = $nbt if $nbt > 0;
+	$grid_last_slot_count = $sbt if $sbt > 0;
     }
 
-    return ( tokens => \@tokens,
+    return ( tokens => \@parsed_tokens,
 	     $grid_type == 1 ? ( type => "strumline" ) : (),
 	     $grid_type == 2 ? ( type => "strumline", subtype => "cellbars" ) : (),
 	     %res );
@@ -1466,6 +1537,65 @@ sub parse_directive {
     return { name => $dir, arg => $arg, omit => 0 }
 }
 
+sub _parse_strum_tuplet {
+	my ($value) = @_;
+	return undef unless defined $value;
+	my $v = lc($value);
+	$v =~ s/^\[|\]$//g;
+	$v =~ s/^\s+|\s+$//g;
+	return 3 if $v eq "triplet";
+	return 5 if $v eq "quintuplet";
+	return $1 if $v =~ /^(\d+)$/;
+	return undef;
+}
+
+sub _normalize_strum_start_opts {
+	my ( $arg, $kv ) = @_;
+	my %opts = %{$kv // {}};
+	my $raw = $arg // "";
+	$raw =~ s/^\s+|\s+$//g;
+
+	# Canonical form: {start_of_strum: <time-signature> <label> [tuplet]}
+	if ( $raw ne '' && $raw !~ /\w\s*=/ ) {
+		if ( $raw =~ /^(\d+\s*\/\s*\d+)(?:\s+(.+))?$/ ) {
+			$opts{time_sig} //= $1;
+			$opts{time_sig} =~ s/\s+//g if defined $opts{time_sig};
+
+			my $tail = $2 // "";
+			$tail =~ s/^\s+|\s+$//g;
+			if ( $tail ne '' ) {
+				my @parts = split( /\s+/, $tail );
+				my $parsed_tuplet = _parse_strum_tuplet( $parts[-1] );
+				if ( defined $parsed_tuplet && !exists $opts{tuplet} ) {
+					$opts{tuplet} = $parsed_tuplet;
+					pop @parts;
+				}
+				my $label = join( ' ', @parts );
+				$opts{label} = $label if $label ne '' && !exists $opts{label};
+			}
+		}
+	}
+
+	# Compatibility: if label starts with a time-signature, split it out.
+	if ( exists $opts{label}
+		 && $opts{label} =~ /^(\d+\s*\/\s*\d+)\s+(.+)$/ ) {
+		$opts{time_sig} //= $1;
+		$opts{label} = $2;
+	}
+
+	# Support textual tuplet suffixes in label fallback forms.
+	if ( exists $opts{label}
+		 && $opts{label} =~ /^(.+?)\s+(triplet|quintuplet|\d+)$/i ) {
+		my $tuplet = _parse_strum_tuplet($2);
+		if ( defined($tuplet) ) {
+			$opts{tuplet} //= $tuplet;
+			$opts{label} = $1;
+		}
+	}
+
+	return \%opts;
+}
+
 # Process a selector.
 sub selected {
     my ( $self, $sel ) = @_;
@@ -1608,14 +1738,8 @@ sub directive {
 	    }
 	    my $kv = parse_kv( $arg, "label" );
 	    delete $kv->{label} if ($kv->{label}//"") eq "";
-
-	    # For strum delegates: extract time-signature from label if
-	    # the label starts with a time-sig pattern (e.g., "4/4 verse").
-	    if ( $in_context eq 'strum' && exists $kv->{label}
-		 && $kv->{label} =~ /^(\d+\s*\/\s*\d+)\s+(.+)$/ ) {
-		$kv->{time_sig} //= $1;
-		$kv->{label} = $2;
-	    }
+	    $kv = _normalize_strum_start_opts( $arg, $kv )
+	      if $in_context eq 'strum';
 
 	    $self->add( type     => "image",
 			subtype  => "delegate",
