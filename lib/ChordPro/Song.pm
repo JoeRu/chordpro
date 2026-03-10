@@ -1264,7 +1264,6 @@ sub decompose_grid {
 	    }
 	    $out = { symbol => $token, class => "repeat1" };
 	    if ( $p1 && @$p1 ) {
-		$out->{resolved_symbol} = join( " ", @$p1 );
 		$p0 = [ @$p1 ];
 	    }
 	    if ( defined($c1) && $c1 > 0 ) {
@@ -1293,10 +1292,6 @@ sub decompose_grid {
 		next;
 	    }
 	    $out = { symbol => $token, class => "repeat2" };
-	    if ( ( $p2 && @$p2 ) || ( $p1 && @$p1 ) ) {
-		my @resolved = ( $p2 ? @$p2 : (), $p1 ? @$p1 : () );
-		$out->{resolved_symbol} = join( " ", @resolved ) if @resolved;
-	    }
 	    $p0 = [ @$p1 ] if $p1 && @$p1;
 	    my $add = ( $c2 // 0 ) + ( $c1 // 0 );
 	    if ( $add > 0 ) {
@@ -1325,9 +1320,19 @@ sub decompose_grid {
 	else {
 	    # Multiple chords in a cell?
 	    my @a = split( /~/, $token, -1 );
+		my @hold_flags;
+		if ( is_gridstrum($grid_type) ) {
+			@hold_flags = map { /_+$/ ? 1 : 0 } @a;
+			@a = map {
+				my $part = $_;
+				$part =~ s/_+$//;
+				$part;
+			} @a;
+		}
 	    if ( @a == 1) {
 		# Normal case, single chord.
-		$out = { chord => $chord->($token), class => "chord" };
+		$out = { chord => $chord->($a[0]), class => "chord" };
+		$out->{hold_right} = 1 if is_gridstrum($grid_type) && $hold_flags[0];
 	    }
 	    else {
 		# Multiple chords.
@@ -1338,6 +1343,9 @@ sub decompose_grid {
 				   ? "/"
 				   : $chord->($_) } @a ],
 		       class => "chords" };
+		if ( is_gridstrum($grid_type) ) {
+			$out->{holds} = [ @hold_flags ] if grep { $_ } @hold_flags;
+		}
 	    }
 	    if ( $memchords && !is_gridstrum($grid_type) ) {
 		@a = grep { !m;^[/.]?$; } @a;

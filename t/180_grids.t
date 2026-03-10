@@ -628,7 +628,7 @@ my $repeat_display_song = $s->{songs}->[6];
 my @repeat_display_lines = grep { ($_->{type} // '') eq 'gridline' } @{ $repeat_display_song->{body} // [] };
 my ($repeat1_token) = grep { (($_->{class} // '') eq 'repeat1') } @{ $repeat_display_lines[0]->{tokens} // [] };
 my ($repeat2_token) = grep { (($_->{class} // '') eq 'repeat2') } @{ $repeat_display_lines[1]->{tokens} // [] };
-is( $repeat1_token->{resolved_symbol} // '', 'Am',
-    "Chord % stores resolved display symbol from previous bar" );
-is( $repeat2_token->{resolved_symbol} // '', 'C Am',
-    "Chord %% stores resolved display symbols from previous two bars" );
+is( $repeat1_token->{symbol} // '', '%',
+    "Chord % token keeps literal repeat symbol for renderer" );
+is( $repeat2_token->{symbol} // '', '%%',
+    "Chord %% token keeps literal repeat symbol for renderer" );

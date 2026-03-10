@@ -17,7 +17,7 @@ use File::Temp qw(tempdir);
 use MIME::Base64 qw(encode_base64);
 use URI::Escape qw(uri_unescape);
 
-plan tests => 112;
+plan tests => 125;
 
 use_ok('ChordPro::Output::HTML5');
 
@@ -395,8 +395,8 @@ EOD
         cmp_ok(scalar(@strum_arrow_x), '>=', 2,
             "Bug 60: Strum row emits arrow glyph text for paired symbols");
         my $first_pair_gap = abs(($strum_arrow_x[1] // 0) - ($strum_arrow_x[0] // 0));
-        cmp_ok($first_pair_gap, '<', 12,
-            "Bug 60: Connected strum pairs keep visibly tight arrow spacing");
+        cmp_ok($first_pair_gap, '<', 28,
+            "Bug 60: Connected strum pairs stay within beat-column bounds");
 }
 
 {
@@ -607,8 +607,8 @@ EOD
 
     # Verify sub-beat paired arrow is within the same column (tight_pair_step)
     my $subbeat_gap = abs(($strum_arrows[1] // 0) - ($strum_arrows[0] // 0));
-    cmp_ok($subbeat_gap, '<', 12,
-        "Bug 63: Sub-beat up-arrow is within column (tight pair spacing)");
+    cmp_ok($subbeat_gap, '<', 28,
+        "Bug 63: Sub-beat up-arrow stays within beat-column bounds");
 
     # Verify barlines align across rows
     my @bar_paired = ($grid_svg =~ /<use\b[^>]*href="#bar-[^"]*"[^>]*y="3\.00"[^>]*height="52\.00"[^>]*\/>/g);
@@ -634,6 +634,93 @@ EOD
         "Bug 63: Chord-only grid uses SVG rendering (universal SVG path)");
     like($output, qr/cp-grid-full-svg/,
         "Bug 63: Chord-only grid emits full-grid SVG img tag");
+}
+
+{
+    # Bug 91: Dot placeholders in chord rows must still consume beat columns.
+    # Suppressing dot text must not skip column advancement, otherwise chord and
+    # strum rows drift out of vertical alignment.
+    my $song_data = <<'EOD';
+{title: Dot Column Alignment Regression}
+{start_of_grid shape="0+2x4+0"}
+| C . . . | Am . . . |
+|s dn up dn up | dn up dn up |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 91: Full-grid SVG captured for dot-column alignment check");
+
+    my $grid_svg = uri_unescape($grid_uri // '');
+    $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    like($grid_svg, qr/<text x="156\.00" y="16\.00"[^>]*>Am<\/text>/,
+        "Bug 91: Second-bar chord label keeps beat-aligned x-position despite dot suppression");
+    like($grid_svg, qr/<text x="156\.00" y="48\.00"[^>]*>/,
+        "Bug 91: First strum glyph in second bar aligns with the second-bar chord anchor");
+}
+
+{
+    # Bug 93: standalone x in strum rows must render as visible clap marker.
+    my $song_data = <<'EOD';
+{title: Standalone Clap Marker}
+{start_of_grid shape="0+2x4+0"}
+| C . . . | G . . . |
+|s dn x dn up | . dn . up |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 93: Full-grid SVG captured for standalone x clap marker");
+
+    my $grid_svg = uri_unescape($grid_uri // '');
+    $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    like($grid_svg, qr/<text x="[0-9.]+" y="48\.00"[^>]*>x<\/text>/,
+        "Bug 93: Standalone x renders as visible literal x in strum row");
+    unlike($grid_svg, qr/<text x="[0-9.]+" y="48\.00"[^>]*>×<\/text>/u,
+        "Bug 93: Standalone x does not degrade to muted-overlay multiplication sign");
+    cmp_ok(scalar(() = ($grid_svg =~ /<text x="[0-9.]+" y="48\.00"[^>]*>[^<]+<\/text>/g)), '>=', 4,
+        "Bug 93: Strum row keeps full beat glyph output with clap marker");
+}
+
+{
+    # Bug 94: trailing underscore creates under-beat hold-tie across bar boundary.
+    my $song_data = <<'EOD';
+{title: Strum Hold Tie}
+{start_of_grid shape="0+2x2+0"}
+| Am . | Em . |
+|s dn~up_ . | up~dn . |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 94: Full-grid SVG captured for hold-tie case");
+
+    my $grid_svg = uri_unescape($grid_uri // '');
+    $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    like($grid_svg, qr/<path class="cp-strum-tie" d="M [0-9.]+ [0-9.]+ Q [0-9.]+ [0-9.]+ [0-9.]+ [0-9.]+" fill="none" stroke="currentColor" stroke-width="1\.2"\/>/,
+        "Bug 94: Hold-tie renders as curved under-beat SVG path");
+    like($grid_svg, qr/<text x="[0-9.]+" y="16\.00"[^>]*>Em<\/text>/,
+        "Bug 94: Cross-bar hold-tie case keeps downstream bar chord content intact");
+    cmp_ok(scalar(() = ($grid_svg =~ /class="cp-strum-tie"/g)), '>=', 1,
+        "Bug 94: At least one tie path emitted for trailing underscore marker");
 }
 
 subtest 'Bug 79: Combined modifier strums render glyphs' => sub {
@@ -726,7 +813,7 @@ EOD
     done_testing();
 };
 
-subtest 'Bug 84: Chord repeat markers render resolved chord text' => sub {
+subtest 'Bug 84: Chord repeat markers render literal symbols' => sub {
     my $song_data = <<'EOD';
 {title: Repeat Marker Display Expansion}
 {start_of_grid shape="0+4x4+0"}
@@ -748,18 +835,15 @@ EOD
 
     my $svg1 = uri_unescape($uris[0] // '');
     $svg1 =~ s/^data:image\/svg\+xml;charset=utf-8,//;
-    unlike($svg1, qr/>%<\/text>|>%%<\/text>/,
-        "Bug 84: Percent markers are not rendered literally in first repeat grid");
-    my $am_count = () = ($svg1 =~ />Am<\/text>/g);
-    cmp_ok($am_count, '>=', 3,
-        "Bug 84: First repeat grid renders repeated Am chord labels");
+    like($svg1, qr/>%<\/text>/,
+        "Bug 84: Single-repeat marker renders literal percent symbol");
 
     my $svg2 = uri_unescape($uris[1] // '');
     $svg2 =~ s/^data:image\/svg\+xml;charset=utf-8,//;
-    unlike($svg2, qr/>%<\/text>|>%%<\/text>/,
-        "Bug 84: Percent markers are not rendered literally in double-repeat grid");
-    like($svg2, qr/>C Am<\/text>/,
-        "Bug 84: Double-repeat marker renders resolved two-bar chord text");
+    like($svg2, qr/>%%<\/text>/,
+        "Bug 84: Double-repeat marker renders literal %% symbol");
+    like($svg2, qr/<text x="276\.00" y="16\.00"[^>]*>%%<\/text>/,
+        "Bug 92: Double-repeat marker is centered inside its own bar");
     done_testing();
 };
 
@@ -787,10 +871,10 @@ EOD
     my $grid_svg = uri_unescape($grid_uri // '');
     $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
 
-    my ($rest_chord_x, $f6_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="16\.00"[^>]*>[^<]+<\/text><text x="([0-9.]+)" y="16\.00"[^>]*>F6<\/text>/);
-    ok(defined $rest_chord_x && defined $f6_x, "Bug 64: Chord row rest and F6 x-positions captured");
-    cmp_ok(($f6_x // 0) - ($rest_chord_x // 0), '>', 6,
-        "Bug 64: Leading ~F6 keeps explicit rest and shifts chord within beat");
+    my ($f6_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="16\.00"[^>]*>F6<\/text>/);
+    ok(defined $f6_x, "Bug 64: Chord row F6 position captured");
+    unlike($grid_svg, qr/<text x="[0-9.]+" y="16\.00"[^>]*>(?:\x{1D13D}|–)<\/text>/u,
+        "Bug 64: Chord row does not render a rest glyph for leading ~F6");
 
     my ($rest_strum_x, $up_x) = ($grid_svg =~ /<text x="([0-9.]+)" y="48\.00"[^>]*>[^<]+<\/text><line x1="([0-9.]+)" y1="52\.00" x2="\2" y2="36\.00"[^>]*\/>/);
     if (!defined $up_x) {
@@ -869,5 +953,100 @@ EOD
     like($output, qr/<h1[^>]*>Tom &amp; Jerry<\/h1>/,
          "Bug 5: Title ampersand properly single-escaped");
 }
+
+subtest 'Bug 95: Sub-beat strum symbols have readable gap; bar width adapts dynamically' => sub {
+    my $song_data = <<'EOD';
+{title: Sub-beat Spacing Check}
+{start_of_grid shape="0+2x4+0"}
+| C . . . | G . . . |
+|s dn~up dn~up dn~up dn~up | dn~up dn~up dn~up dn~up |
+{end_of_grid}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 95: Full-grid SVG with all-sub-beat strum row captured");
+
+    my $grid_svg = uri_unescape($grid_uri // '');
+    $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    # Collect x-positions of all strum glyphs in the strum row
+    my @arrows = ($grid_svg =~ /<text x="([0-9.]+)" y="[0-9.]+" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g);
+    cmp_ok(scalar(@arrows), '>=', 8,
+        "Bug 95: Dense sub-beat strum row emits at least 8 glyph positions");
+
+    # Adjacent sub-beat pair gap must be readable: >= 8px and < cell_width (no cross-column overlap)
+    my $pair_gap = abs(($arrows[1] // 0) - ($arrows[0] // 0));
+    cmp_ok($pair_gap, '>=', 8,
+        "Bug 95: Sub-beat glyph pair gap is at least 8px (no visual overlap)");
+    cmp_ok($pair_gap, '<', 30,
+        "Bug 95: Sub-beat glyph pair gap stays within expanded beat column (< 30px)");
+
+    # SVG total width must be wider than no-sub-beat baseline (24px * cols < 30px * cols)
+    my ($vbox_w) = ($grid_svg =~ /viewBox="0 0 ([0-9.]+)/);
+    cmp_ok($vbox_w // 0, '>', 192,
+        "Bug 95: Bar adapts wider (> 24*8=192px) when every beat has a sub-beat pair");
+
+    done_testing();
+};
+
+subtest 'Bug 96: Plain dn/up use configurable default arrows, not symbol-table glyphs' => sub {
+    my $song_data = <<'EOD';
+{title: Plain Direction Glyph Regression}
+{start_of_grid shape="0+2x4+0"}
+| C ~Am . . | G ~F . . |
+|s dn~up dn~up dn up | dn~up dn~up dn up |
+{end_of_grid}
+
+{start_of_strum: label="Bug96 Groove"}
+dn up dn~up | dn up dn~up
+{end_of_strum}
+EOD
+
+    my $s = ChordPro::Songbook->new;
+    $s->parse_file(\$song_data, { nosongline => 1 });
+    my $song = $s->{songs}[0];
+    my $output = $html5->generate_song($song);
+
+    my ($grid_uri) = ($output =~ /class="cp-grid-full-svg"[^>]*src="(data:image\/svg\+xml;charset=utf-8,[^"]+)"/);
+    ok($grid_uri, "Bug 96: Full-grid SVG captured for plain dn/up regression");
+
+    my $grid_svg = uri_unescape($grid_uri // '');
+    $grid_svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    unlike($grid_svg, qr/>↠<\/text>|>←<\/text>/u,
+        "Bug 96: Full-grid plain dn/up no longer use symbol-table glyphs ↠/←");
+    cmp_ok(scalar(() = ($grid_svg =~ /<text x="[0-9.]+" y="[0-9.]+" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g)), '>=', 6,
+        "Bug 96: Full-grid plain dn/up still render visible strum glyph text nodes");
+
+    my $song_data2 = <<'EOD2';
+{title: Plain Direction Standalone}
+{start_of_strum: label="Bug96 Groove"}
+dn up dn~up | dn up dn~up
+{end_of_strum}
+EOD2
+
+    my $s2 = ChordPro::Songbook->new;
+    $s2->parse_file(\$song_data2, { nosongline => 1 });
+    my $song2 = $s2->{songs}[0];
+    my $output2 = $html5->generate_song($song2);
+
+    my ($uri) = ($output2 =~ /(data:image\/svg\+xml;charset=utf-8,[^"]+)/);
+    ok($uri, "Bug 96: Standalone SVG data URI captured");
+
+    my $svg = uri_unescape($uri // '');
+    $svg =~ s/^data:image\/svg\+xml;charset=utf-8,//;
+
+    unlike($svg, qr/>↠<\/text>|>←<\/text>/u,
+        "Bug 96: Standalone plain dn/up no longer use symbol-table glyphs ↠/←");
+    cmp_ok(scalar(() = ($svg =~ /<text x="[0-9.]+" y="[0-9.]+" text-anchor="middle" font-size="14" fill="currentColor">[^<]+<\/text>/g)), '>=', 4,
+        "Bug 96: Standalone plain dn/up still render visible strum glyph text nodes");
+
+    done_testing();
+};
 
 diag("All bug fix tests completed");

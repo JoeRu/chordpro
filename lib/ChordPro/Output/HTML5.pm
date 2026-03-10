@@ -27,6 +27,7 @@ use ChordPro::Paths;
 use ChordPro::Files qw(fs_load fs_blob fs_open);
 use ChordPro::Assets qw(prepare_assets);
 use ChordPro::Delegate::Strum;
+use ChordPro::Output::SVG::Strum::Tokens qw(bar_unicode);
 use ChordPro::Output::ChordProBase;
 use ChordPro::Output::SVG::ChordDiagram;
 use ChordPro::Output::HTML5Helper::FormatGenerator;
@@ -467,15 +468,6 @@ class ChordPro::Output::HTML5
             } @keys);
         };
 
-        my $bar_unicode = sub ($symbol) {
-            return chr(119043) . chr(119042) if $symbol eq '||';
-            return chr(119046) if $symbol eq '|:' || $symbol eq '{';
-            return chr(119047) if $symbol eq ':|' || $symbol eq '}';
-            return chr(119047) . chr(119046) if $symbol eq ':|:' || $symbol eq '}{';
-            return chr(119042) if $symbol eq '|.';
-            return chr(119040);
-        };
-
         # Render tokens
         my @token_html;
         my $rendered_columns = 0;
@@ -509,8 +501,10 @@ class ChordPro::Output::HTML5
                 for my $chord (@$chords) {
                     if (!defined $chord) {
                         push @parts, '';
-                    } elsif ($chord eq '/' || $chord eq '.') {
+                    } elsif ($chord eq '/') {
                         push @parts, $chord;
+                    } elsif ($chord eq '.') {
+                        push @parts, '';
                     } else {
                         push @parts, $display_chord->($chord);
                     }
@@ -538,7 +532,7 @@ class ChordPro::Output::HTML5
                 if ($class eq 'bar') {
                     push @classes, 'cp-grid-bar';
                     my $symbol = $token->{symbol} // '';
-                    $text = $bar_unicode->($symbol);
+                    $text = bar_unicode($symbol);
                     if ($symbol eq '||') {
                         push @classes, 'cp-grid-bar-double';
                     } elsif ($symbol eq '|.') {

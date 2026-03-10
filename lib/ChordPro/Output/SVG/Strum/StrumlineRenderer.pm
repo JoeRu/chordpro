@@ -1,4 +1,4 @@
-package ChordPro::Delegate::Strum::StrumlineRenderer;
+package ChordPro::Output::SVG::Strum::StrumlineRenderer;
 
 use v5.26;
 use strict;
@@ -7,8 +7,8 @@ use feature qw( signatures );
 no warnings "experimental::signatures";
 use utf8;
 
-use ChordPro::Delegate::Strum::Tokens;
-use ChordPro::Delegate::Strum::SVGPrimitives;
+use ChordPro::Output::SVG::Strum::Tokens;
+use ChordPro::Output::SVG::Strum::SVGPrimitives;
 
 sub strum_cells_from_text( $text ) {
 	my @cells;
@@ -38,7 +38,7 @@ sub strum_cells_from_text( $text ) {
 		if ( $had_leading_tilde ) {
 			shift @parts;
 		}
-		my @part_info = map { ChordPro::Delegate::Strum::Tokens::strum_symbol_info({ name => $_ }) } @parts;
+		my @part_info = map { ChordPro::Output::SVG::Strum::Tokens::strum_symbol_info({ name => $_ }) } @parts;
 
 		if ( $had_leading_tilde ) {
 			push @cells, {
@@ -73,6 +73,8 @@ sub strum_cells_from_text( $text ) {
 				type => 'cell',
 				column => $column,
 				direction => $info->{direction},
+				clap => $info->{clap},
+				hold_right => $info->{hold_right},
 				code => $info->{code},
 				glyph => $info->{glyph},
 				muted => $info->{muted},
@@ -94,11 +96,14 @@ sub strum_cells_from_text( $text ) {
 
 sub strumline_svg_from_text( %args ) {
 	my ($cells, $columns) = strum_cells_from_text($args{text} // '');
+	# Expand cell_width automatically when sub-beat pairs are present.
+	my $has_pairs = grep { $_->{connect_left} // 0 } @$cells;
+	my $default_cw = $has_pairs ? 30 : 24;
 	return strumline_svg(
 		cells => $cells,
 		columns => $args{columns} // $columns,
 		show_bars => exists $args{show_bars} ? $args{show_bars} : 1,
-		cell_width => $args{cell_width} // 24,
+		cell_width => exists $args{cell_width} ? $args{cell_width} : $default_cw,
 		height => $args{height} // 26,
 		stroke_width => $args{stroke_width} // 1.6,
 	);
@@ -111,15 +116,16 @@ sub strumline_svg( %args ) {
 	my $cell_width = $args{cell_width} // 24;
 	my $height     = $args{height} // 26;
 	my $stroke     = $args{stroke_width} // 1.6;
-	my $tight_pair_step = $args{tight_pair_step} // 0.42;
+	my $tight_pair_step = $args{tight_pair_step} // 0.55;
 
 	$columns = 1 if $columns < 1;
 	my $width = $columns * $cell_width;
-	my $font_stack = ChordPro::Delegate::Strum::SVGPrimitives::svg_font_stack();
+	my $font_stack = ChordPro::Output::SVG::Strum::SVGPrimitives::svg_font_stack();
 
 	my @parts;
 
 	my $last_arrow_x;
+	my $pending_tie_from_x;
 	for my $cell ( @$cells ) {
 		my $column = $cell->{column} // 1;
 		my $x = ($column - 0.5) * $cell_width;
@@ -127,26 +133,27 @@ sub strumline_svg( %args ) {
 		if ( ($cell->{type} // '') eq 'bar' ) {
 			$last_arrow_x = undef;
 			next unless $show_bars;
-			push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_bar_svg(
+			push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_bar_svg(
 				x => $x, kind => $cell->{bar_kind},
 				symbol => $cell->{bar_symbol});
 			next;
 		}
 
 		if ( $cell->{rest} ) {
-			push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_rest_svg( x => $x, base_y => 0 );
+			push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_rest_svg( x => $x, base_y => 0 );
 			$last_arrow_x = undef;
 			next;
 		}
 
 		if ( $cell->{pause} ) {
-			push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_pause_svg( x => $x, cell_width => $cell_width );
+			push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_pause_svg( x => $x, cell_width => $cell_width );
 			$last_arrow_x = undef;
 			next;
 		}
 
 		my $direction = $cell->{direction} // '';
-		unless ( $direction ) {
+		my $is_clap = $cell->{clap} ? 1 : 0;
+		unless ( $direction || $is_clap ) {
 			$last_arrow_x = undef;
 			next;
 		}
@@ -155,24 +162,44 @@ sub strumline_svg( %args ) {
 			$x = $last_arrow_x + ($cell_width * $tight_pair_step);
 		}
 
-		push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_arrow_svg(
-			x => $x, base_y => 0, direction => $direction,
-			stroke_width => $stroke,
-			info => {
-				code     => $cell->{code},
-				glyph    => $cell->{glyph},
-				muted    => $cell->{muted},
-				accent   => $cell->{accent},
-				arpeggio => $cell->{arpeggio},
-				staccato => $cell->{staccato},
-			},
-		);
+		if ( defined $pending_tie_from_x ) {
+			push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_tie_svg(
+				from_x => $pending_tie_from_x,
+				to_x   => $x,
+				base_y => 0,
+			);
+			$pending_tie_from_x = undef;
+		}
 
-		$last_arrow_x = $x;
+		if ($is_clap) {
+			push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_clap_svg(
+				x => $x,
+				base_y => 0,
+				font_size => 14,
+			);
+			$last_arrow_x = undef;
+		}
+		else {
+			push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_arrow_svg(
+				x => $x, base_y => 0, direction => $direction,
+				stroke_width => $stroke,
+				info => {
+					code     => $cell->{code},
+					glyph    => $cell->{glyph},
+					muted    => $cell->{muted},
+					accent   => $cell->{accent},
+					arpeggio => $cell->{arpeggio},
+					staccato => $cell->{staccato},
+				},
+			);
+			$last_arrow_x = $x;
+		}
+
+		$pending_tie_from_x = $x if $cell->{hold_right};
 	}
 
 	return sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f %d" width="%.2f" height="%d" aria-hidden="true" style="font-family:%s">%s</svg>',
-		$width, $height, $width, $height, ChordPro::Delegate::Strum::Tokens::esc($font_stack), join('', @parts));
+		$width, $height, $width, $height, ChordPro::Output::SVG::Strum::Tokens::esc($font_stack), join('', @parts));
 }
 
 1;

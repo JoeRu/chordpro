@@ -1,4 +1,4 @@
-package ChordPro::Delegate::Strum::GridRenderer;
+package ChordPro::Output::SVG::Strum::GridRenderer;
 
 use v5.26;
 use strict;
@@ -8,8 +8,8 @@ no warnings "experimental::signatures";
 use utf8;
 
 use ChordPro::Paths;
-use ChordPro::Delegate::Strum::Tokens;
-use ChordPro::Delegate::Strum::SVGPrimitives;
+use ChordPro::Output::SVG::Strum::Tokens;
+use ChordPro::Output::SVG::Strum::SVGPrimitives;
 
 # ============================================================
 # Bar icon loader — reads SVG files from res/styles/svg/
@@ -118,7 +118,7 @@ sub render_grid( %args ) {
 	my $row_height      = $layout->{row_height}      // $args{row_height}      // 26;
 	my $row_gap         = $layout->{row_gap}          // $args{row_gap}          // 6;
 	my $font_size       = $layout->{font_size}        // $args{font_size}        // 12;
-	my $tight_pair_step = $layout->{tight_pair_step}  // $args{tight_pair_step}  // 0.42;
+	my $tight_pair_step = $layout->{tight_pair_step}  // $args{tight_pair_step}  // 0.55;
 
 	my $compute_columns = sub ($tokens, $is_strumline = 0) {
 		my $cols = 0;
@@ -129,7 +129,7 @@ sub render_grid( %args ) {
 					$cols += 1;
 				}
 				else {
-					my $parts = ChordPro::Delegate::Strum::Tokens::normalize_grid_chord_parts( $token->{chords} );
+					my $parts = ChordPro::Output::SVG::Strum::Tokens::normalize_grid_chord_parts( $token->{chords} );
 					my $n = scalar(@$parts);
 					$n = 1 if $n < 1;
 					$cols += $n;
@@ -165,7 +165,7 @@ sub render_grid( %args ) {
 			my $class = $token->{class} // '';
 			if ($class eq 'chords') {
 				$col += $is_strumline ? 1 : do {
-					my $parts = ChordPro::Delegate::Strum::Tokens::normalize_grid_chord_parts( $token->{chords} );
+					my $parts = ChordPro::Output::SVG::Strum::Tokens::normalize_grid_chord_parts( $token->{chords} );
 					my $n = scalar(@$parts); $n = 1 if $n < 1; $n;
 				};
 				next;
@@ -203,7 +203,7 @@ sub render_grid( %args ) {
 
 	my $bar_icons  = _load_bar_icons();
 	my $width      = $columns * $cell_width;
-	my $font_stack = ChordPro::Delegate::Strum::SVGPrimitives::svg_font_stack();
+	my $font_stack = ChordPro::Output::SVG::Strum::SVGPrimitives::svg_font_stack();
 
 	my @result_rows;
 	for my $unit (@units) {
@@ -237,6 +237,7 @@ sub render_grid( %args ) {
 			my $column    = 1;
 			my $bar_index = 0;
 			my $last_arrow_x;
+			my $pending_tie_x;
 			my $prev_was_bar = 0;
 
 			for my $token (@$tokens) {
@@ -246,13 +247,13 @@ sub render_grid( %args ) {
 					$prev_was_bar = 0;
 					my $parts_raw       = $token->{chords} // [];
 					my $had_leading_empty = ( @$parts_raw > 1 && ( ($parts_raw->[0] // '') eq '' ) ) ? 1 : 0;
-					my $parts_in        = ChordPro::Delegate::Strum::Tokens::normalize_grid_chord_parts( $parts_raw );
+					my $parts_in        = ChordPro::Output::SVG::Strum::Tokens::normalize_grid_chord_parts( $parts_raw );
 					my $prev_arrow_x;
 					my $prev_info;
 					my $base_x = ($column - 0.5) * $cell_width;
 
-					if ($had_leading_empty) {
-						push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_rest_svg(
+					if ($had_leading_empty && $is_strum_row) {
+						push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_rest_svg(
 							x => $base_x, base_y => $base_y, font_size => $font_size);
 					}
 
@@ -260,7 +261,10 @@ sub render_grid( %args ) {
 						my $part = $parts_in->[$pi];
 						my $x    = $base_x;
 						if ($is_strum_row) {
-							my $info = ChordPro::Delegate::Strum::Tokens::strum_symbol_info($part);
+							my $info = ChordPro::Output::SVG::Strum::Tokens::strum_symbol_info($part);
+							if (ref($token->{holds}) eq 'ARRAY' && $token->{holds}->[$pi]) {
+								$info->{hold_right} = 1;
+							}
 							if ($had_leading_empty && $pi == 0 && ($info->{direction}//'') ne '') {
 								$x = $base_x + ($cell_width * $tight_pair_step);
 							}
@@ -270,20 +274,44 @@ sub render_grid( %args ) {
 								$x = $prev_arrow_x + ($cell_width * $tight_pair_step);
 							}
 							if ( $info->{rest} ) {
-								push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_rest_svg(
+								push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_rest_svg(
 									x => $x, base_y => $base_y, font_size => $font_size);
 								$last_arrow_x = undef; $prev_arrow_x = undef;
 							}
+							elsif ( $info->{clap} ) {
+								if (defined $pending_tie_x) {
+									push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_tie_svg(
+										from_x => $pending_tie_x,
+										to_x   => $x,
+										base_y => $base_y,
+									);
+									$pending_tie_x = undef;
+								}
+								push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_clap_svg(
+									x => $x, base_y => $base_y, font_size => 14);
+								$last_arrow_x = undef;
+								$prev_arrow_x = undef;
+								$pending_tie_x = $x if $info->{hold_right};
+							}
 							elsif (($info->{direction}//'') ne '') {
-								push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_arrow_svg(
+								if (defined $pending_tie_x) {
+									push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_tie_svg(
+										from_x => $pending_tie_x,
+										to_x   => $x,
+										base_y => $base_y,
+									);
+									$pending_tie_x = undef;
+								}
+								push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_arrow_svg(
 									x => $x, base_y => $base_y,
 									direction => $info->{direction}, info => $info);
 								$last_arrow_x = $x; $prev_arrow_x = $x;
+								$pending_tie_x = $x if $info->{hold_right};
 							}
 							$prev_info = $info;
 						}
 						else {
-							my $label = ChordPro::Delegate::Strum::Tokens::chord_display_text($part);
+							my $label = ChordPro::Output::SVG::Strum::Tokens::chord_display_text($part);
 							$label = '' if $label eq '.';
 							if ($had_leading_empty && $pi == 0 && $label ne '') {
 								$x = $base_x + ($cell_width * $tight_pair_step);
@@ -291,7 +319,7 @@ sub render_grid( %args ) {
 							push @parts, sprintf(
 								'<text x="%.2f" y="%.2f" text-anchor="middle" font-size="%d" fill="currentColor">%s</text>',
 								$x, $base_y + 16, $font_size,
-								ChordPro::Delegate::Strum::Tokens::esc($label));
+								ChordPro::Output::SVG::Strum::Tokens::esc($label)) if $label ne '';
 						}
 						$column++ unless $is_strum_row;
 					}
@@ -334,8 +362,8 @@ sub render_grid( %args ) {
 							push @parts, sprintf(
 								'<text x="%.2f" y="%.2f" text-anchor="middle" font-size="6" fill="currentColor">%s</text>',
 								$x, $bar_label_y,
-								ChordPro::Delegate::Strum::Tokens::esc(
-									ChordPro::Delegate::Strum::Tokens::bar_unicode($symbol)));
+								ChordPro::Output::SVG::Strum::Tokens::esc(
+									ChordPro::Output::SVG::Strum::Tokens::bar_unicode($symbol)));
 						}
 						# Volta bracket: horizontal line from current bar to next bar, plus number label
 						if (my $volta = $token->{volta}) {
@@ -350,8 +378,8 @@ sub render_grid( %args ) {
 							push @parts, sprintf(
 								'<text x="%.2f" y="%.2f" font-size="8" fill="currentColor" data-volta="%s">%s</text>',
 								$x + 3, $bky + 9,
-								ChordPro::Delegate::Strum::Tokens::esc($volta),
-								ChordPro::Delegate::Strum::Tokens::esc($volta));
+								ChordPro::Output::SVG::Strum::Tokens::esc($volta),
+								ChordPro::Output::SVG::Strum::Tokens::esc($volta));
 						}
 					}
 					$last_arrow_x = undef;
@@ -370,34 +398,69 @@ sub render_grid( %args ) {
 
 				if ($type eq 'gridline') {
 					my $text = '';
+					my $emit_text = 1;
 					if ($class eq 'chord') {
-						$text = ChordPro::Delegate::Strum::Tokens::chord_display_text($token->{chord});
+						$text = ChordPro::Output::SVG::Strum::Tokens::chord_display_text($token->{chord});
 					}
 					elsif ($class eq 'repeat1' || $class eq 'repeat2') {
-						$text = $token->{resolved_symbol} // ($token->{symbol} // '');
+						$text = $token->{symbol} // '';
+						my $left_idx = $bar_index - 1;
+						$left_idx = 0 if $left_idx < 0;
+						my $left_col  = $canonical_bar_columns[$left_idx] // 1;
+						my $right_col = $canonical_bar_columns[$bar_index] // ($columns + 1);
+						my $x_left  = ($left_col  - 0.5) * $cell_width;
+						my $x_right = ($right_col - 0.5) * $cell_width;
+						$x = ($x_left + $x_right) / 2;
 					}
 					elsif ($class eq 'slash' || $class eq 'space') {
 						$text = $token->{symbol} // '';
+						$emit_text = 0 if $class eq 'space' && $text eq '.';
 					}
-					push @parts, sprintf(
-						'<text x="%.2f" y="%.2f" text-anchor="middle" font-size="%d" fill="currentColor">%s</text>',
-						$x, $base_y + 16, $font_size,
-						ChordPro::Delegate::Strum::Tokens::esc($text));
+					if ($emit_text) {
+						push @parts, sprintf(
+							'<text x="%.2f" y="%.2f" text-anchor="middle" font-size="%d" fill="currentColor">%s</text>',
+							$x, $base_y + 16, $font_size,
+							ChordPro::Output::SVG::Strum::Tokens::esc($text));
+					}
 				}
 				else {
 					my $info = $class eq 'chord'
-						? ChordPro::Delegate::Strum::Tokens::strum_symbol_info($token->{chord})
+						? ChordPro::Output::SVG::Strum::Tokens::strum_symbol_info($token->{chord})
 						: {};
+					$info->{hold_right} = 1 if $token->{hold_right};
 					if ( $info->{rest} ) {
-						push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_rest_svg(
+						push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_rest_svg(
 							x => $x, base_y => $base_y, font_size => $font_size);
 						$last_arrow_x = undef;
 					}
+					elsif ( $info->{clap} ) {
+						if (defined $pending_tie_x) {
+							push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_tie_svg(
+								from_x => $pending_tie_x,
+								to_x   => $x,
+								base_y => $base_y,
+							);
+							$pending_tie_x = undef;
+						}
+						push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_clap_svg(
+							x => $x, base_y => $base_y, font_size => 14);
+						$last_arrow_x = undef;
+						$pending_tie_x = $x if $info->{hold_right};
+					}
 					elsif (($info->{direction}//'') ne '') {
-						push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_arrow_svg(
+						if (defined $pending_tie_x) {
+							push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_tie_svg(
+								from_x => $pending_tie_x,
+								to_x   => $x,
+								base_y => $base_y,
+							);
+							$pending_tie_x = undef;
+						}
+						push @parts, ChordPro::Output::SVG::Strum::SVGPrimitives::draw_arrow_svg(
 							x => $x, base_y => $base_y,
 							direction => $info->{direction}, info => $info);
 						$last_arrow_x = $x;
+						$pending_tie_x = $x if $info->{hold_right};
 					}
 				}
 				$column++;
@@ -407,9 +470,9 @@ sub render_grid( %args ) {
 		my $defs = _bar_symbol_defs($bar_icons, \%used_kinds);
 		my $unit_type = $is_pair ? 'pair' : ($unit_rows->[0]{type} // 'gridline');
 		my $svg = sprintf(
-			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f %.2f" width="%.2f" height="%.2f" aria-hidden="true" style="font-family:%s">%s%s</svg>',
-			$width, $height, $width, $height,
-			ChordPro::Delegate::Strum::Tokens::esc($font_stack),
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f %.2f" width="100%%" height="%.2f" aria-hidden="true" style="font-family:%s">%s%s</svg>',
+			$width, $height, $height,
+			ChordPro::Output::SVG::Strum::Tokens::esc($font_stack),
 			$defs, join('', @parts));
 
 		push @result_rows, {
@@ -429,11 +492,31 @@ sub render_grid( %args ) {
 
 sub grid_block_svg( %args ) {
 	my $rows = $args{rows} // [];
-	my $cell_width = $args{cell_width} // 24;
 	my $row_height = $args{row_height} // 26;
 	my $row_gap = $args{row_gap} // 6;
 	my $font_size = $args{font_size} // 12;
-	my $tight_pair_step = $args{tight_pair_step} // 0.42;
+	my $tight_pair_step = $args{tight_pair_step} // 0.55;
+
+	# Dynamic bar width: expand cell_width when strumline rows contain sub-beat pairs.
+	my $cell_width;
+	if (exists $args{cell_width}) {
+		$cell_width = $args{cell_width};
+	}
+	else {
+		my $has_subbeats = 0;
+		OUTER: for my $row (@$rows) {
+			next unless ($row->{type} // '') eq 'strumline';
+			for my $tok (@{$row->{tokens} // []}) {
+				next unless ($tok->{class} // '') eq 'chords';
+				my @parts = @{$tok->{chords} // []};
+				my $real = grep { defined($_) && $_ ne '' } @parts;
+				if ($real >= 2 || (@parts >= 2 && ($parts[0] // '') eq '')) {
+					$has_subbeats = 1; last OUTER;
+				}
+			}
+		}
+		$cell_width = $has_subbeats ? 30 : 24;
+	}
 
 	my $result = render_grid(
 		rows            => $rows,
@@ -456,7 +539,7 @@ sub grid_block_svg( %args ) {
 		$total_height += $row_gap if $i < $#$result_rows;
 	}
 
-	my $font_stack = ChordPro::Delegate::Strum::SVGPrimitives::svg_font_stack();
+	my $font_stack = ChordPro::Output::SVG::Strum::SVGPrimitives::svg_font_stack();
 
 	# Collect unique defs and per-unit content
 	my %all_defs;
@@ -497,242 +580,12 @@ sub grid_block_svg( %args ) {
 	}
 
 	return sprintf(
-		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f %.2f" width="%.2f" height="%.2f" aria-hidden="true" style="font-family:%s">%s%s</svg>',
-		$total_width, $total_height, $total_width, $total_height,
-		ChordPro::Delegate::Strum::Tokens::esc($font_stack),
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f %.2f" width="100%%" height="%.2f" aria-hidden="true" style="font-family:%s">%s%s</svg>',
+		$total_width, $total_height, $total_height,
+		ChordPro::Output::SVG::Strum::Tokens::esc($font_stack),
 		$defs_str, join('', @mono_parts));
 }
 
 1;
 
 __END__
-
-sub _render_grid_compat_UNUSED( %args ) {
-	my $rows = $args{rows} // [];
-	my $cell_width = $args{cell_width} // 24;
-	my $row_height = $args{row_height} // 26;
-	my $row_gap = $args{row_gap} // 6;
-	my $font_size = $args{font_size} // 12;
-	my $tight_pair_step = $args{tight_pair_step} // 0.42;
-
-	my $compute_columns = sub ($tokens, $is_strumline = 0) {
-		my $cols = 0;
-		for my $token (@$tokens) {
-			my $class = $token->{class} // '';
-			if ($class eq 'chords') {
-				if ($is_strumline) {
-					$cols += 1;
-				}
-				else {
-					my $parts = ChordPro::Delegate::Strum::Tokens::normalize_grid_chord_parts( $token->{chords} );
-					my $n = scalar(@$parts);
-					$n = 1 if $n < 1;
-					$cols += $n;
-				}
-			}
-			else {
-				$cols++;
-			}
-		}
-		$cols = 1 if $cols < 1;
-		return $cols;
-	};
-
-	my $columns = $args{columns};
-	if (!defined $columns || $columns < 1) {
-		$columns = 1;
-		for my $row (@$rows) {
-			my $is_strum = (($row->{type} // '') eq 'strumline') ? 1 : 0;
-			my $line_cols = $compute_columns->($row->{tokens} // [], $is_strum);
-			$columns = $line_cols if $line_cols > $columns;
-		}
-	}
-
-	my $bar_columns_for = sub ($tokens, $is_strumline = 0) {
-		my @bars;
-		my $col = 1;
-		for my $token (@$tokens) {
-			my $class = $token->{class} // '';
-			if ($class eq 'chords') {
-				if ($is_strumline) {
-					$col += 1;
-				}
-				else {
-					my $parts = ChordPro::Delegate::Strum::Tokens::normalize_grid_chord_parts( $token->{chords} );
-					my $n = scalar(@$parts);
-					$n = 1 if $n < 1;
-					$col += $n;
-				}
-				next;
-			}
-			if ($class eq 'bar') {
-				push @bars, $col;
-			}
-			$col++;
-		}
-		return \@bars;
-	};
-
-	my @canonical_bar_columns;
-	for my $row (@$rows) {
-		my $is_strum = (($row->{type} // '') eq 'strumline') ? 1 : 0;
-		my $bars = $bar_columns_for->($row->{tokens} // [], $is_strum);
-		next unless @$bars;
-		@canonical_bar_columns = @$bars;
-		last if (($row->{type} // '') eq 'gridline');
-	}
-
-	my @paired_with_next;
-	for my $idx (0 .. $#$rows - 1) {
-		my $this_type = $rows->[$idx]->{type} // '';
-		my $next_type = $rows->[$idx + 1]->{type} // '';
-		$paired_with_next[$idx] = ($this_type eq 'gridline' && $next_type eq 'strumline') ? 1 : 0;
-	}
-
-	my $width = $columns * $cell_width;
-	my $height = scalar(@$rows) * $row_height + (scalar(@$rows) - 1) * $row_gap;
-	$height = $row_height if $height < $row_height;
-	my $font_stack = ChordPro::Delegate::Strum::SVGPrimitives::svg_font_stack();
-
-	my @parts;
-	for my $row_idx (0 .. $#$rows) {
-		my $row = $rows->[$row_idx] // {};
-		my $type = $row->{type} // 'gridline';
-		my $tokens = $row->{tokens} // [];
-		my $base_y = $row_idx * ($row_height + $row_gap);
-		my $bar_top = $base_y + 3;
-		my $bar_bottom = $base_y + $row_height - 3;
-		my $bar_label_y = $base_y + $row_height;
-		my $is_paired_gridline = $paired_with_next[$row_idx] ? 1 : 0;
-		my $is_paired_strumline = (
-			$type eq 'strumline'
-			&& $row_idx > 0
-			&& ($paired_with_next[$row_idx - 1] ? 1 : 0)
-		) ? 1 : 0;
-
-		if ($is_paired_gridline) {
-			$bar_bottom = $base_y + (2 * $row_height) + $row_gap - 3;
-			$bar_label_y = $base_y + (2 * $row_height) + $row_gap;
-		}
-
-		my $column = 1;
-		my $last_arrow_x;
-		my $bar_index = 0;
-		for my $token (@$tokens) {
-			my $class = $token->{class} // '';
-
-			if ($class eq 'chords') {
-				my $parts_raw = $token->{chords} // [];
-				my $had_leading_empty = ( @$parts_raw > 1 && ( ($parts_raw->[0] // '') eq '' ) ) ? 1 : 0;
-				my $parts_in = ChordPro::Delegate::Strum::Tokens::normalize_grid_chord_parts( $parts_raw );
-				my $prev_arrow_x;
-				my $prev_info;
-				my $is_strum = ($type eq 'strumline') ? 1 : 0;
-				my $base_x = ($column - 0.5) * $cell_width;
-
-				if ($had_leading_empty) {
-					push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_rest_svg(
-						x => $base_x, base_y => $base_y, font_size => $font_size);
-				}
-
-				for my $idx (0 .. $#$parts_in) {
-					my $part = $parts_in->[$idx];
-					my $x = $base_x;
-					if ($is_strum) {
-						my $info = ChordPro::Delegate::Strum::Tokens::strum_symbol_info($part);
-						if ($had_leading_empty && $idx == 0 && ($info->{direction}//'') ne '') {
-							$x = $base_x + ($cell_width * $tight_pair_step);
-						}
-						elsif (defined $prev_arrow_x
-							&& (($prev_info // {})->{direction} // '') ne ''
-							&& (($info->{direction}//'') ne '')) {
-							$x = $prev_arrow_x + ($cell_width * $tight_pair_step);
-						}
-
-						if ( $info->{rest} ) {
-							push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_rest_svg(
-								x => $x, base_y => $base_y, font_size => $font_size);
-							$last_arrow_x = undef;
-							$prev_arrow_x = undef;
-						}
-						elsif (($info->{direction}//'') ne '') {
-							push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_arrow_svg(
-								x => $x, base_y => $base_y,
-								direction => $info->{direction},
-								info => $info);
-							$last_arrow_x = $x;
-							$prev_arrow_x = $x;
-						}
-						$prev_info = $info;
-					}
-					else {
-						my $label = ChordPro::Delegate::Strum::Tokens::chord_display_text($part);
-						$label = '' if $label eq '.';
-						if ($had_leading_empty && $idx == 0 && $label ne '') {
-							$x = $base_x + ($cell_width * $tight_pair_step);
-						}
-						push @parts, sprintf('<text x="%.2f" y="%.2f" text-anchor="middle" font-size="%d" fill="currentColor">%s</text>',
-							$x, $base_y + 16, $font_size, ChordPro::Delegate::Strum::Tokens::esc($label));
-					}
-					$column++ unless $is_strum;
-				}
-				$column++ if $is_strum;
-				next;
-			}
-
-			my $x = ($column - 0.5) * $cell_width;
-			if ($class eq 'bar') {
-				my $bar_col = $canonical_bar_columns[$bar_index] // $column;
-				$x = ($bar_col - 0.5) * $cell_width;
-				$bar_index++;
-				my $symbol = $token->{symbol} // '|';
-				if (!$is_paired_strumline) {
-					push @parts, sprintf('<rect x="%.2f" y="%.2f" width="1" height="%.2f" fill="currentColor"/>',
-						$x - 0.5, $bar_top, $bar_bottom - $bar_top);
-				}
-				if ($type eq 'gridline') {
-					push @parts, sprintf('<text x="%.2f" y="%.2f" text-anchor="middle" font-size="6" fill="currentColor">%s</text>',
-						$x, $bar_label_y, ChordPro::Delegate::Strum::Tokens::esc(ChordPro::Delegate::Strum::Tokens::bar_unicode($symbol)));
-				}
-				$last_arrow_x = undef;
-				$column++;
-				next;
-			}
-
-			if ($type eq 'gridline') {
-				my $text = '';
-				if ($class eq 'chord') {
-					$text = ChordPro::Delegate::Strum::Tokens::chord_display_text($token->{chord});
-				}
-				elsif ($class eq 'repeat1' || $class eq 'repeat2') {
-					$text = $token->{resolved_symbol} // ($token->{symbol} // '');
-				}
-				elsif ($class eq 'slash' || $class eq 'space') {
-					$text = $token->{symbol} // '';
-				}
-				push @parts, sprintf('<text x="%.2f" y="%.2f" text-anchor="middle" font-size="%d" fill="currentColor">%s</text>',
-					$x, $base_y + 16, $font_size, ChordPro::Delegate::Strum::Tokens::esc($text));
-			}
-			else {
-				my $info = $class eq 'chord' ? ChordPro::Delegate::Strum::Tokens::strum_symbol_info($token->{chord}) : {};
-				if ( $info->{rest} ) {
-					push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_rest_svg(
-						x => $x, base_y => $base_y, font_size => $font_size);
-					$last_arrow_x = undef;
-				}
-				elsif (($info->{direction}//'') ne '') {
-					push @parts, ChordPro::Delegate::Strum::SVGPrimitives::draw_arrow_svg(
-						x => $x, base_y => $base_y,
-						direction => $info->{direction},
-						info => $info);
-					$last_arrow_x = $x;
-				}
-			}
-
-			$column++;
-		}
-	}
-
-	return sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f %.2f" width="%.2f" height="%.2f" aria-hidden="true" style="font-family:%s">%s</svg>',
-		$width, $height, $width, $height, ChordPro::Delegate::Strum::Tokens::esc($font_stack), join('', @parts));
-}

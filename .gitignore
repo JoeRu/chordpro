@@ -4,7 +4,10 @@
 .vscode/*
 !.vscode/*.json
 !.devcontainer/
-!Design/ai-docs/
+ai-docs/*
+CLAUDE*
+AGENTS*
+SKILL*
 :*
 *~
 \#.*#

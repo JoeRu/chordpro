@@ -40,10 +40,10 @@ delegate.strum {
 =cut
 
 use ChordPro::Utils qw(dimension maybe);
-use ChordPro::Delegate::Strum::Tokens;
-use ChordPro::Delegate::Strum::SVGPrimitives;
-use ChordPro::Delegate::Strum::StrumlineRenderer;
-use ChordPro::Delegate::Strum::GridRenderer;
+use ChordPro::Output::SVG::Strum::Tokens;
+use ChordPro::Output::SVG::Strum::SVGPrimitives;
+use ChordPro::Output::SVG::Strum::StrumlineRenderer;
+use ChordPro::Output::SVG::Strum::GridRenderer;
 
 sub DEBUG() { $::config->{debug}->{x2} }
 
@@ -114,25 +114,25 @@ sub strum2xo( $song, %args ) {
 		    } };
 }
 
-sub _esc( $text ) { ChordPro::Delegate::Strum::Tokens::esc($text) }
-sub _bar_unicode( $symbol ) { ChordPro::Delegate::Strum::Tokens::bar_unicode($symbol) }
-sub _svg_to_data_uri( $svg ) { ChordPro::Delegate::Strum::Tokens::svg_to_data_uri($svg) }
-sub _chord_display_text( $chord ) { ChordPro::Delegate::Strum::Tokens::chord_display_text($chord) }
-sub _strum_name( $chord ) { ChordPro::Delegate::Strum::Tokens::strum_name($chord) }
-sub _normalize_grid_chord_parts( $parts_in ) { ChordPro::Delegate::Strum::Tokens::normalize_grid_chord_parts($parts_in) }
-sub strum_symbol_info( $chord ) { ChordPro::Delegate::Strum::Tokens::strum_symbol_info($chord) }
+*_esc                        = \&ChordPro::Output::SVG::Strum::Tokens::esc;
+*_bar_unicode                = \&ChordPro::Output::SVG::Strum::Tokens::bar_unicode;
+*_svg_to_data_uri            = \&ChordPro::Output::SVG::Strum::Tokens::svg_to_data_uri;
+*_chord_display_text         = \&ChordPro::Output::SVG::Strum::Tokens::chord_display_text;
+*_strum_name                 = \&ChordPro::Output::SVG::Strum::Tokens::strum_name;
+*_normalize_grid_chord_parts = \&ChordPro::Output::SVG::Strum::Tokens::normalize_grid_chord_parts;
+*strum_symbol_info           = \&ChordPro::Output::SVG::Strum::Tokens::strum_symbol_info;
 
-sub _rest_glyph() { ChordPro::Delegate::Strum::SVGPrimitives::rest_glyph() }
-sub _draw_rest_svg( %args ) { ChordPro::Delegate::Strum::SVGPrimitives::draw_rest_svg(%args) }
-sub _draw_arrow_svg( %args ) { ChordPro::Delegate::Strum::SVGPrimitives::draw_arrow_svg(%args) }
-sub _draw_bar_svg( %args ) { ChordPro::Delegate::Strum::SVGPrimitives::draw_bar_svg(%args) }
-sub _draw_connector_svg( %args ) { ChordPro::Delegate::Strum::SVGPrimitives::draw_connector_svg(%args) }
-sub _draw_pause_svg( %args ) { ChordPro::Delegate::Strum::SVGPrimitives::draw_pause_svg(%args) }
+*_rest_glyph                 = \&ChordPro::Output::SVG::Strum::SVGPrimitives::rest_glyph;
+*_draw_rest_svg              = \&ChordPro::Output::SVG::Strum::SVGPrimitives::draw_rest_svg;
+*_draw_arrow_svg             = \&ChordPro::Output::SVG::Strum::SVGPrimitives::draw_arrow_svg;
+*_draw_bar_svg               = \&ChordPro::Output::SVG::Strum::SVGPrimitives::draw_bar_svg;
+*_draw_connector_svg         = \&ChordPro::Output::SVG::Strum::SVGPrimitives::draw_connector_svg;
+*_draw_pause_svg             = \&ChordPro::Output::SVG::Strum::SVGPrimitives::draw_pause_svg;
 
-sub _strum_cells_from_text( $text ) { ChordPro::Delegate::Strum::StrumlineRenderer::strum_cells_from_text($text) }
-sub strumline_svg_from_text( %args ) { ChordPro::Delegate::Strum::StrumlineRenderer::strumline_svg_from_text(%args) }
-sub strumline_svg( %args ) { ChordPro::Delegate::Strum::StrumlineRenderer::strumline_svg(%args) }
-sub grid_block_svg( %args ) { ChordPro::Delegate::Strum::GridRenderer::grid_block_svg(%args) }
+*_strum_cells_from_text      = \&ChordPro::Output::SVG::Strum::StrumlineRenderer::strum_cells_from_text;
+*strumline_svg_from_text     = \&ChordPro::Output::SVG::Strum::StrumlineRenderer::strumline_svg_from_text;
+*strumline_svg               = \&ChordPro::Output::SVG::Strum::StrumlineRenderer::strumline_svg;
+*grid_block_svg              = \&ChordPro::Output::SVG::Strum::GridRenderer::grid_block_svg;
 
 sub strum2html( $song, %args ) {
 	my $elt = $args{elt};
