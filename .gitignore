@@ -4,10 +4,12 @@
 .vscode/*
 !.vscode/*.json
 !.devcontainer/
-ai-docs/*
+ai-docs
 CLAUDE*
 AGENTS*
 SKILL*
+.github/prompts
+.github/copilot-instructions.md
 :*
 *~
 \#.*#
